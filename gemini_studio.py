@@ -17,7 +17,7 @@ Pilares de conteúdo: IA Generativa, Soberania de Dados, Transformação Digital
 
 class GeminiStudio:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY", "")
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
         self.client = genai.Client(api_key=api_key)
         self.model = MODEL
         self.fallback_models = ["gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
