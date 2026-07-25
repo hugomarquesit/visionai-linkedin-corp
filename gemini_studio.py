@@ -3,7 +3,7 @@ import json
 from google import genai
 from google.genai import types
 
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-3.5-flash"
 
 ORG_CONTEXT = """
 Empresa: VisionAi | Inovação, IA & Transformação Digital
@@ -20,20 +20,27 @@ class GeminiStudio:
         api_key = os.getenv("GEMINI_API_KEY", "")
         self.client = genai.Client(api_key=api_key)
         self.model = MODEL
+        self.fallback_models = ["gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
     def _generate(self, prompt: str, temperature: float = 0.8) -> str:
-        try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=temperature,
-                    max_output_tokens=2048,
-                ),
-            )
-            return response.text or ""
-        except Exception as e:
-            return f"[Erro Gemini: {str(e)}]"
+        for m in self.fallback_models:
+            try:
+                response = self.client.models.generate_content(
+                    model=m,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=temperature,
+                        max_output_tokens=2048,
+                    ),
+                )
+                self.model = m
+                return response.text or ""
+            except Exception as e:
+                err_str = str(e)
+                if "404" in err_str or "NOT_FOUND" in err_str or "model" in err_str.lower():
+                    continue  # tenta próximo modelo da lista
+                return f"[Erro Gemini: {err_str}]"
+        return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
     def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario") -> dict:
