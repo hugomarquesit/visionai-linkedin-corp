@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VisionAI — LinkedIn Corporate Manager</title>
+  <meta name="description" content="Painel de gestão corporativa do LinkedIn da VisionAi — powered by Gemini 3.5" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ LOGIN SCREEN -->
+<div id="login-screen" class="login-screen hidden">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">V</div>
+      <span>VisionAI</span>
+    </div>
+    <h1 class="login-title">LinkedIn Corporate Manager</h1>
+    <p class="login-sub">Gestão corporativa da página Vizionai</p>
+    <form id="login-form" class="login-form">
+      <div class="field-group">
+        <label>Utilizador</label>
+        <input type="text" id="login-user" placeholder="hugo" autocomplete="username" />
+      </div>
+      <div class="field-group">
+        <label>Password</label>
+        <input type="password" id="login-pass" placeholder="••••••••••" autocomplete="current-password" />
+      </div>
+      <div id="login-error" class="login-error hidden">Credenciais inválidas</div>
+      <button type="submit" class="btn-primary full-width" id="login-btn">
+        <span id="login-btn-text">Entrar</span>
+        <span id="login-spinner" class="spinner hidden"></span>
+      </button>
+    </form>
+    <p class="login-powered">Powered by Gemini 3.5-flash ✦</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ APP SHELL -->
+<div id="app" class="app-shell hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-icon">V</div>
+      <div>
+        <div class="sidebar-brand">VisionAI</div>
+        <div class="sidebar-sub">LinkedIn Corp</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-tab="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" data-tab="posts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Gestão de Posts
+      </button>
+      <button class="nav-item" data-tab="studio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Estúdio Gemini
+        <span class="badge-ai">AI</span>
+      </button>
+      <button class="nav-item" data-tab="analytics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Analytics
+      </button>
+      <button class="nav-item" data-tab="followers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Seguidores
+      </button>
+      <button class="nav-item" data-tab="org">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Organização
+      </button>
+      <button class="nav-item" data-tab="profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Perfil Pessoal
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-org-badge">
+        <div class="org-dot"></div>
+        <div>
+          <div class="org-name" id="sidebar-org-name">VisionAi</div>
+          <div class="org-followers"><span id="sidebar-followers">—</span> seguidores</div>
+        </div>
+      </div>
+      <button class="btn-logout" id="logout-btn">Sair</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- ── DASHBOARD ── -->
+    <section id="tab-dashboard" class="tab-section active">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dashboard Executivo</h1>
+          <p class="page-sub">Visão geral da página LinkedIn da VisionAi</p>
+        </div>
+        <button class="btn-primary" id="refresh-dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Actualizar
+        </button>
+      </div>
+
+      <!-- AI Insight Banner -->
+      <div class="ai-banner" id="ai-dashboard-insight">
+        <div class="ai-banner-icon">✦</div>
+        <div class="ai-banner-text" id="ai-insight-text">A carregar insight do Gemini...</div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Seguidores</div>
+          <div class="kpi-value" id="kpi-followers">—</div>
+          <div class="kpi-sub">página Vizionai</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Impressões (12m)</div>
+          <div class="kpi-value" id="kpi-impressions">—</div>
+          <div class="kpi-sub">visualizações totais</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Likes (12m)</div>
+          <div class="kpi-value" id="kpi-likes">—</div>
+          <div class="kpi-sub">reacções recebidas</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Comentários (12m)</div>
+          <div class="kpi-value" id="kpi-comments">—</div>
+          <div class="kpi-sub">interacções</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Engagement Médio</div>
+          <div class="kpi-value" id="kpi-engagement">—</div>
+          <div class="kpi-sub">taxa média</div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Performance Mensal (12 meses)</h3>
+          <div class="chart-legend">
+            <span class="legend-dot blue"></span>Impressões
+            <span class="legend-dot green"></span>Likes
+            <span class="legend-dot purple"></span>Comentários
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="dashboard-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── POSTS ── -->
+    <section id="tab-posts" class="tab-section">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Gestão de Posts</h1>
+          <p class="page-sub">Publique e gerencie posts da página Vizionai</p>
+        </div>
+      </div>
+
+      <div class="two-col-layout">
+        <!-- Criar post -->
+        <div class="card">
+          <h3 class="card-title">Novo Post</h3>
+          <textarea id="post-text" class="textarea" placeholder="Escreva o conteúdo do post aqui... (ou gere com Gemini no Estúdio)" rows="8"></textarea>
+          <div class="post-options">
+            <select id="post-visibility" class="select-field">
+              <option value="PUBLIC">🌍 Público</option>
+              <option value="CONNECTIONS">🔗 Apenas Conexões</option>
+            </select>
+            <label class="checkbox-label">
+              <input type="checkbox" id="post-draft" />
+              Guardar como Rascunho
+            </label>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" id="open-studio-btn">✦ Gerar com Gemini</button>
+            <button class="btn-primary" id="publish-post-btn">Publicar na Vizionai</button>
+          </div>
+          <div id="post-result" class="result-box hidden"></div>
+        </div>
+
+        <!-- Info sobre a página -->
+        <div class="card">
+          <h3 class="card-title">Página da Organização</h3>
+          <div class="org-info-display" id="org-info-display">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+            <div class="skeleton-line"></div>
+          </div>
+          <a href="https://www.linkedin.com/company/visionaicombr" target="_blank" class="btn-secondary full-width mt-2">
+            Ver no LinkedIn ↗
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ESTÚDIO GEMINI ── -->
+    <section id="tab-studio" class="tab-section">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Estúdio Criativo</h1>
+          <p class="page-sub">Powered by Gemini 3.5-flash ✦</p>
+        </div>
+      </div>
+
+      <div class="studio-tabs">
+        <button class="studio-tab active" data-studio="generate">✦ Gerar Post</button>
+        <button class="studio-tab" data-studio="review">🔍 Rever Rascunho</button>
+        <button class="studio-tab" data-studio="strategy">📅 Estratégia</button>
+        <button class="studio-tab" data-studio="hashtags">🏷️ Hashtags</button>
+      </div>
+
+      <!-- Gerar post -->
+      <div id="studio-generate" class="studio-panel active">
+        <div class="two-col-layout">
+          <div class="card">
+            <h3 class="card-title">Configurar Geração</h3>
+            <div class="field-group">
+              <label>Tema do Post</label>
+              <input type="text" id="gen-topic" class="input-field" placeholder="Ex: IA Generativa na indústria bancária" />
+            </div>
+            <div class="field-group">
+              <label>Formato</label>
+              <select id="gen-format" class="select-field">
+                <option value="standard">Texto Padrão</option>
+                <option value="storytelling">Storytelling</option>
+                <option value="lista">Lista Numerada</option>
+                <option value="insight">Insight Provocativo</option>
+                <option value="case">Caso de Uso</option>
+                <option value="poll_idea">Ideia de Poll</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label>Tom de Voz</label>
+              <select id="gen-tone" class="select-field">
+                <option value="visionario">Visionário</option>
+                <option value="tecnico">Técnico</option>
+                <option value="inspirador">Inspirador</option>
+                <option value="educativo">Educativo</option>
+              </select>
+            </div>
+            <button class="btn-ai full-width" id="generate-post-btn">
+              <span id="gen-btn-text">✦ Gerar Post com Gemini</span>
+              <span id="gen-spinner" class="spinner hidden"></span>
+            </button>
+          </div>
+          <div class="card">
+            <div class="card-title-row">
+              <h3 class="card-title">Post Gerado</h3>
+              <div class="gen-actions hidden" id="gen-actions">
+                <button class="btn-mini" id="copy-gen-btn">Copiar</button>
+                <button class="btn-mini primary" id="send-to-posts-btn">Enviar para Posts</button>
+              </div>
+            </div>
+            <div id="generated-post-output" class="generated-output">
+              <div class="empty-state">
+                <div class="empty-icon">✦</div>
+                <p>Configure e clique em "Gerar Post com Gemini"</p>
+              </div>
+            </div>
+            <div id="gen-meta" class="gen-meta hidden">
+              <span id="gen-chars">0 caracteres</span>
+              <span id="gen-model-tag" class="model-tag">gemini-3.5-flash</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rever rascunho -->
+      <div id="studio-review" class="studio-panel">
+        <div class="two-col-layout">
+          <div class="card">
+            <h3 class="card-title">Rascunho para Rever</h3>
+            <textarea id="review-draft" class="textarea" placeholder="Cole aqui o rascunho do post para o Gemini analisar e melhorar..." rows="10"></textarea>
+            <button class="btn-ai full-width" id="review-post-btn">
+              <span id="review-btn-text">✦ Analisar com Gemini</span>
+              <span id="review-spinner" class="spinner hidden"></span>
+            </button>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Análise do Gemini</h3>
+            <div id="review-output" class="review-output">
+              <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <p>Cole um rascunho e clique em Analisar</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estratégia -->
+      <div id="studio-strategy" class="studio-panel">
+        <div class="card">
+          <div class="strategy-header">
+            <div>
+              <h3 class="card-title">Estratégia de Conteúdo com Gemini</h3>
+              <p class="card-sub">Calendário editorial gerado por IA baseado na performance actual</p>
+            </div>
+            <div class="strategy-controls">
+              <select id="strategy-period" class="select-field">
+                <option value="30">30 dias</option>
+                <option value="60">60 dias</option>
+                <option value="90">90 dias</option>
+              </select>
+              <button class="btn-ai" id="generate-strategy-btn">
+                <span id="strategy-btn-text">✦ Gerar Estratégia</span>
+                <span id="strategy-spinner" class="spinner hidden"></span>
+              </button>
+            </div>
+          </div>
+          <div id="strategy-output" class="strategy-output">
+            <div class="empty-state">
+              <div class="empty-icon">📅</div>
+              <p>Clique em "Gerar Estratégia" para o Gemini criar um plano editorial personalizado</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hashtags -->
+      <div id="studio-hashtags" class="studio-panel">
+        <div class="card" style="max-width:600px">
+          <h3 class="card-title">Gerador de Hashtags</h3>
+          <div class="field-group">
+            <label>Tema</label>
+            <input type="text" id="hashtag-topic" class="input-field" placeholder="Ex: Transformação Digital no sector bancário" />
+          </div>
+          <div class="field-group">
+            <label>Quantidade</label>
+            <input type="number" id="hashtag-count" class="input-field" value="8" min="4" max="15" />
+          </div>
+          <button class="btn-ai full-width" id="generate-hashtags-btn">
+            <span id="hashtags-btn-text">✦ Gerar Hashtags com Gemini</span>
+            <span id="hashtags-spinner" class="spinner hidden"></span>
+          </button>
+          <div id="hashtags-output" class="hashtags-output hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ANALYTICS ── -->
+    <section id="tab-analytics" class="tab-section">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Analytics da Página</h1>
+          <p class="page-sub">Performance detalhada com insights do Gemini</p>
+        </div>
+        <button class="btn-primary" id="refresh-analytics">Actualizar</button>
+      </div>
+      <div class="ai-banner" id="analytics-ai-banner">
+        <div class="ai-banner-icon">✦</div>
+        <div class="ai-banner-text" id="analytics-ai-text">A carregar análise do Gemini...</div>
+      </div>
+      <div class="chart-card">
+        <h3>Impressões por Mês</h3>
+        <div class="chart-container"><canvas id="analytics-chart"></canvas></div>
+      </div>
+      <div class="chart-card mt-2">
+        <h3>Engagement por Mês (%)</h3>
+        <div class="chart-container"><canvas id="engagement-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ── SEGUIDORES ── -->
+    <section id="tab-followers" class="tab-section">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Seguidores</h1>
+          <p class="page-sub">Análise demográfica com Gemini</p>
+        </div>
+        <button class="btn-primary" id="refresh-followers">Actualizar</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total de Seguidores</div>
+          <div class="kpi-value" id="total-followers-kpi">—</div>
+          <div class="kpi-sub">página VisionAi</div>
+        </div>
+      </div>
+      <div class="ai-banner" id="followers-ai-banner">
+        <div class="ai-banner-icon">✦</div>
+        <div class="ai-banner-text" id="followers-ai-text">A carregar análise do Gemini...</div>
+      </div>
+      <div id="followers-breakdown" class="followers-breakdown"></div>
+    </section>
+
+    <!-- ── ORGANIZAÇÃO ── -->
+    <section id="tab-org" class="tab-section">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Organização</h1>
+          <p class="page-sub">Detalhes e administração da página Vizionai</p>
+        </div>
+        <button class="btn-primary" id="refresh-org">Actualizar</button>
+      </div>
+      <div class="two-col-layout">
+        <div class="card">
+          <h3 class="card-title">Detalhes da Página</h3>
+          <div id="org-details" class="org-details">
+            <div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Administradores</h3>
+          <div id="org-admins-list" class="admins-list">
+            <div class="skeleton-line"></div><div class="skeleton-line short"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PERFIL PESSOAL ── -->
+    <section id="tab-profile" class="tab-section">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Perfil Pessoal</h1>
+          <p class="page-sub">Analytics do perfil Hugo Marques via token corporativo</p>
+        </div>
+        <button class="btn-primary" id="refresh-profile">Actualizar</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Tamanho da Rede</div>
+          <div class="kpi-value" id="profile-network-size">—</div>
+          <div class="kpi-sub">conexões de 1º grau</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="card-title">Analytics do Perfil (30 dias)</h3>
+        <div id="profile-analytics-display" class="profile-analytics">
+          <div class="empty-state"><div class="empty-icon">👤</div><p>A carregar dados...</p></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
