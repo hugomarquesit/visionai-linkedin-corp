@@ -3,7 +3,7 @@ import json
 from google import genai
 from google.genai import types
 
-MODEL = "gemini-2.5-flash"  # gemini-3.5-flash quando disponível via API
+MODEL = "gemini-2.0-flash"
 
 ORG_CONTEXT = """
 Empresa: VisionAi | Inovação, IA & Transformação Digital
