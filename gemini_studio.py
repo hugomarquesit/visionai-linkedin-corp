@@ -195,9 +195,10 @@ class GeminiStudio:
         return base64.b64encode(svg_code.encode('utf-8')).decode('utf-8')
 
     def get_auto_topics(self) -> list:
-        """Gera tópicos de posts reais baseados no conteúdo do site visionai.com.br via Gemini."""
+        """Gera 12 tópicos cobrindo todos os serviços reais do site visionai.com.br via Gemini."""
+        import re as _re
         site_content = self.scraped_context or ""
-        
+
         prompt = f"""
 Você é um estrategista de conteúdo LinkedIn B2B para a empresa VisionAI.
 
@@ -207,49 +208,48 @@ INFORMAÇÕES DA EMPRESA:
 CONTEÚDO REAL EXTRAÍDO DO SITE (visionai.com.br):
 {site_content[:3000]}
 
-Gere EXATAMENTE 6 ideias de posts para LinkedIn baseadas EXCLUSIVAMENTE nos serviços e soluções reais que aparecem acima.
+Gere EXATAMENTE 12 ideias de posts, 2 por linha de serviço abaixo (cubra TODAS):
+1. Visão Computacional & Edge — câmeras existentes, EPI, rastreamento, mapas de calor
+2. IA Multimodal & Atendimento — áudio+vídeo+imagem simultâneos, voz com contexto, URA
+3. Realidade Mista & EdTech — VR/Meta Quest 3, simulação de riscos, neurodiversidade
+4. Visão Agro-Industrial — drones, detecção de pragas, manutenção preditiva Edge AI
+5. Geração de Conteúdo & Analytics — automação de vídeos, apresentações automáticas
+6. Governança Corporativa & Intelligence — portais, inteligência competitiva
 
-Cada tópico deve:
-- Ser baseado em um serviço/solução REAL da VisionAI (Visão Computacional, IA Multimodal, Realidade Mista, Agro-Industrial, Geração de Conteúdo ou Governança)
-- Ter um ângulo de negócio concreto (problema → solução → resultado mensurável)
-- Ser atraente para o público (C-Levels, Gestores Industriais, Diretores de TI)
-- NÃO mencionar SAP (a VisionAI não trabalha com SAP)
-
-Formatos disponíveis: insight, storytelling, lista, case, provocativo, educativo
-Tons disponíveis: visionario, tecnico, provocativo, inspirador, educativo, direto
-
-Categorias da VisionAI:
-- "Visão Computacional" (câmeras, EPI, rastreamento, mapas de calor)
-- "IA Multimodal" (áudio + vídeo + imagem simultâneos)
-- "Realidade Mista & EdTech" (treinamentos VR, Meta Quest, neurodiversidade)
-- "Agro & Industrial" (pragas, drones, manutenção preditiva)
-- "Geração de Conteúdo" (automação de mídia, apresentações, analytics)
-- "Governança & Intelligence" (inteligência competitiva, portais corporativos)
+REGRAS ABSOLUTAS:
+- NUNCA mencionar SAP em nenhum tópico
+- NUNCA mencionar Cloud genérico ou Soberania de Dados
+- Use dados reais: +15% produtividade agro, 95% precisão atendimento, 3sem→2dias, 4x retenção VR
+- Público: C-Levels, Gestores Industriais, Diretores de TI
 
 Responda APENAS com JSON válido, sem markdown:
 [{{"topic": "...", "category": "...", "format": "...", "tone": "..."}}]
 """
-        
+
         try:
             raw = self._generate(prompt, temperature=0.85)
-            # Limpa possível markdown do response
-            import re
-            json_match = re.search(r'\[.*\]', raw, re.DOTALL)
+            json_match = _re.search(r'\[.*?\]', raw, _re.DOTALL)
             if json_match:
                 topics = json.loads(json_match.group())
                 if isinstance(topics, list) and len(topics) > 0:
-                    return topics[:8]  # máx 8
+                    return topics[:12]
         except Exception as e:
             print(f"Erro ao gerar tópicos via Gemini: {e}")
-        
-        # Fallback: tópicos hardcoded baseados no conteúdo REAL do site
+
+        # Fallback rico: 12 tópicos cobrindo TODAS as 6 linhas de serviço reais da VisionAI
         return [
-            {"topic": "Câmeras que você já tem podem detectar acidentes por falta de EPI automaticamente — sem nenhum operador olhando", "category": "Visão Computacional", "format": "insight", "tone": "direto"},
-            {"topic": "Detectamos pragas em lavouras dias antes de serem visíveis a olho nu. Veja como +15% de produtividade é possível com IA na borda", "category": "Agro & Industrial", "format": "case", "tone": "inspirador"},
-            {"topic": "Um sistema analisa a foto do problema, o áudio explicando e o documento em anexo — tudo em segundos. Isso é IA Multimodal aplicada ao atendimento", "category": "IA Multimodal", "format": "educativo", "tone": "tecnico"},
-            {"topic": "Treinamentos corporativos convencionais têm baixa retenção. Simulamos cenários reais em Realidade Mista — fixação até 4x mais eficaz", "category": "Realidade Mista & EdTech", "format": "provocativo", "tone": "provocativo"},
-            {"topic": "Sua equipe leva 3 semanas para produzir um vídeo institucional. Com automação IA, isso vai para 2 dias — com qualidade superior", "category": "Geração de Conteúdo", "format": "storytelling", "tone": "visionario"},
-            {"topic": "Inteligência de mercado manual? Automatizamos coleta e análise de concorrentes — relatórios completos em minutos, não dias", "category": "Governança & Intelligence", "format": "lista", "tone": "direto"}
+            {"topic": "As câmeras que você já tem instaladas podem fiscalizar EPIs 24h/dia — sem nenhum humano olhando. Isso já é realidade com Edge AI", "category": "Visão Computacional", "format": "insight", "tone": "direto"},
+            {"topic": "Fluxo invisível no armazém? Rastreamos 100% dos ativos, veículos e pessoas em tempo real — sem nova infraestrutura, só IA nas câmeras existentes", "category": "Visão Computacional", "format": "case", "tone": "tecnico"},
+            {"topic": "Seu cliente envia foto + áudio + documento. Nossa IA analisa tudo em segundos com 95% de precisão. Isso é atendimento multimodal real", "category": "IA Multimodal", "format": "educativo", "tone": "tecnico"},
+            {"topic": "URA que perde o fio quando o usuário muda de assunto? Criamos assistentes de voz com memória de contexto que executam ações em tempo real", "category": "IA Multimodal", "format": "provocativo", "tone": "provocativo"},
+            {"topic": "No Meta Quest 3, simulamos cenários de risco real onde o erro não tem consequência — retenção 4x mais eficaz que treinamento convencional", "category": "Realidade Mista & EdTech", "format": "case", "tone": "inspirador"},
+            {"topic": "Como treinar líderes para neurodiversidade? Criamos ambiente VR que simula como uma pessoa neurodiversa percebe o mundo. Empatia que se aprende na prática", "category": "Realidade Mista & EdTech", "format": "storytelling", "tone": "visionario"},
+            {"topic": "Perdas de safra por identificação tardia de pragas. Detectamos anomalias dias antes de serem visíveis a olho nu — +15% produtividade, menos defensivos", "category": "Agro & Industrial", "format": "case", "tone": "inspirador"},
+            {"topic": "Máquinas parando sem aviso em produção? Identificamos desgaste no hardware local, sem depender de nuvem. Manutenção preditiva onde não chega internet", "category": "Agro & Industrial", "format": "insight", "tone": "direto"},
+            {"topic": "Produção de vídeo institucional: 3 semanas de trabalho → 2 dias com automação IA. Roteiro, narração e edição. Custo 70% menor, qualidade superior", "category": "Geração de Conteúdo", "format": "storytelling", "tone": "visionario"},
+            {"topic": "Propostas genéricas não fecham negócio. Geramos apresentações personalizadas por segmento de cliente de forma automática — para o decisor certo, na hora certa", "category": "Geração de Conteúdo", "format": "lista", "tone": "direto"},
+            {"topic": "Sua equipe gasta horas coletando dados de concorrentes manualmente? Automatizamos a análise competitiva — relatórios de inteligência em minutos, não dias", "category": "Governança & Intelligence", "format": "lista", "tone": "provocativo"},
+            {"topic": "Site institucional que não passa credibilidade afasta decisores antes do primeiro contato. Construímos portais corporativos otimizados para o público certo", "category": "Governança & Intelligence", "format": "insight", "tone": "educativo"},
         ]
 
     def _generate_image_base64(self, prompt: str) -> str:
