@@ -1,11 +1,13 @@
 import os
 import json
 import requests
+import base64
 from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
 
-MODEL = "gemini-3.1-flash-image"
+TEXT_MODEL = "gemini-3.5-flash"
+IMAGE_MODEL = "gemini-3.1-flash-image"
 
 ORG_CONTEXT = """
 Empresa: VisionAi | Inovação, IA & Transformação Digital
@@ -21,8 +23,8 @@ class GeminiStudio:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
         self.client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
-        self.model = MODEL
-        self.fallback_models = ["gemini-3.1-flash-image", "gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        self.model = TEXT_MODEL
+        self.fallback_models = ["gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
         self.scraped_context = self._scrape_visionai_website()
 
     def _scrape_visionai_website(self) -> str:
@@ -54,9 +56,28 @@ class GeminiStudio:
             except Exception as e:
                 err_str = str(e)
                 if "404" in err_str or "NOT_FOUND" in err_str or "model" in err_str.lower():
-                    continue  # tenta próximo modelo da lista
+                    continue
                 return f"[Erro Gemini: {err_str}]"
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
+
+    def _generate_image_base64(self, prompt: str) -> str:
+        """Gera uma imagem a partir de um prompt e retorna em Base64 usando gemini-3.1-flash-image."""
+        try:
+            res = self.client.models.generate_images(
+                model=IMAGE_MODEL,
+                prompt=prompt,
+                config=types.GenerateImagesConfig(
+                    number_of_images=1,
+                    output_mime_type="image/jpeg",
+                    aspect_ratio="1:1"
+                )
+            )
+            for img in res.generated_images:
+                # Convert bytes to base64 string
+                return base64.b64encode(img.image.image_bytes).decode('utf-8')
+        except Exception as e:
+            print(f"Erro ao gerar imagem com {IMAGE_MODEL}: {e}")
+        return ""
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
     def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario") -> dict:
@@ -105,14 +126,39 @@ Retorne APENAS um JSON válido contendo as chaves:
 "post_text": "o texto do post aqui",
 "image_prompt": "o prompt em inglês para o gerador de imagem aqui"
 """
-        content = self._generate(prompt, temperature=0.85)
+        content_raw = self._generate(prompt, temperature=0.85)
+        
+        post_text = ""
+        image_prompt = ""
+        image_b64 = ""
+        
+        try:
+            # Parse the JSON from the text model
+            start = content_raw.find("{")
+            end = content_raw.rfind("}") + 1
+            if start != -1 and end > start:
+                data = json.loads(content_raw[start:end])
+                post_text = data.get("post_text", content_raw)
+                image_prompt = data.get("image_prompt", "")
+                
+                # Step 2: Generate actual image if we got a prompt
+                if image_prompt:
+                    image_b64 = self._generate_image_base64(image_prompt)
+            else:
+                post_text = content_raw
+        except Exception:
+            post_text = content_raw
+
         return {
             "topic": topic,
             "format": format_type,
             "tone": tone,
-            "content": content,
-            "char_count": len(content),
+            "content": post_text,
+            "image_prompt": image_prompt,
+            "image_base64": image_b64,
+            "char_count": len(post_text),
             "model": self.model,
+            "image_model": IMAGE_MODEL if image_b64 else None
         }
 
     # ── 2. REVISÃO E MELHORIA DE POST ─────────────────────────────────────────
