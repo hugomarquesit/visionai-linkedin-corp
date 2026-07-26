@@ -5,9 +5,9 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Use a SQLite database file in the corporate directory
-DB_PATH = os.path.join(BASE_DIR, "visionai_corp.db")
+DB_PATH = os.path.join(BASE_DIR, "visionai_corp_v2.db")
 
-engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False, "timeout": 15})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

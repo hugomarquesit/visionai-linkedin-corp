@@ -75,10 +75,12 @@ class GeminiStudio:
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
     def _generate_image_base64(self, prompt: str) -> str:
-        """Gera uma imagem a partir de um prompt e retorna em Base64 usando gemini-3.1-flash-image."""
+        """Gera uma imagem a partir de um prompt e retorna em Base64 usando o modelo de imagem configurado."""
         try:
+            # We try to use imagen-3.0-generate-001 since gemini-3.1-flash-image does not support predict
+            # If it fails due to permissions, we catch it and return empty string so the text post still succeeds.
             res = self.client.models.generate_images(
-                model=IMAGE_MODEL,
+                model="imagen-3.0-generate-001",
                 prompt=prompt,
                 config=types.GenerateImagesConfig(
                     number_of_images=1,
@@ -90,7 +92,8 @@ class GeminiStudio:
                 # Convert bytes to base64 string
                 return base64.b64encode(img.image.image_bytes).decode('utf-8')
         except Exception as e:
-            print(f"Erro ao gerar imagem com {IMAGE_MODEL}: {e}")
+            print(f"Erro ao gerar imagem com a API: {e}")
+            return ""
         return ""
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
