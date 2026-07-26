@@ -33,9 +33,26 @@ ADMIN_USER = os.getenv("ADMIN_USER", "hugo")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "VisionAI2026!")
 API_KEY    = os.getenv("CORP_API_KEY", "corp_visionai_2026")
 
+from fastapi.middleware.cors import CORSMiddleware
+
 # ── App ─────────────────────────────────────────────────────────────────────
 app = FastAPI(title="VisionAI Corporate LinkedIn Manager", version="1.0.0")
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://corp.visionai.com.br", "http://localhost:8000", "http://localhost:8001"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    same_site="lax",
+    https_only=False,
+    max_age=86400,
+)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 # ── Clients (instanciados uma vez) ──────────────────────────────────────────

@@ -11,13 +11,29 @@ TEXT_MODEL = "gemini-3.5-flash"
 IMAGE_MODEL = "gemini-3.1-flash-image"
 
 ORG_CONTEXT = """
-Empresa: VisionAi | Inovação, IA & Transformação Digital
+Empresa: VisionAI — Enxergando o Futuro com Inteligência
 LinkedIn: linkedin.com/company/visionaicombr
-Segmento: Consultoria de IA, SAP, Cloud, EdTech para mercado corporativo LATAM
-Tom de voz: Autoritativo, visionário, técnico com foco em ROI, desafiador do hype
-Idioma: Português do Brasil (informal-profissional)
-Público-alvo: C-Levels, Diretores de TI, Heads de Inovação, PMs Sênior
-Pilares de conteúdo: IA Generativa, Soberania de Dados, Transformação Digital, SAP S/4HANA, EdTech Corporativo
+Slogan: "Enxergando o Futuro com Inteligência"
+Website: https://visionai.com.br
+
+Linhas de Serviço (extraídas do site real):
+1. IA Multimodal & Atendimento — Atendimento automático que analisa áudio, vídeo e imagem juntos em segundos. Assistente de voz com memória de contexto. URA com compreensão contextual.
+2. Visão Computacional & Edge — Análise automática de câmeras existentes processando localmente sem nuvem. Fiscalização automática de EPIs. Rastreamento de ativos e logística. Mapas de calor de ocupação.
+3. Realidade Mista & EdTech — Treinamentos em Realidade Mista (Meta Quest 3). Simulação de cenários perigosos. Treinamento de empatia para neurodiversidade. Acessibilidade visual e sonora.
+4. Visão Agro-Industrial — Monitoramento de lavouras com câmeras e drones. Detecção de pragas antes da perda da safra. Manutenção preditiva industrial. Processamento local sem internet.
+5. Geração de Conteúdo & Analytics — Produção automatizada de vídeos e apresentações (3 semanas → 2 dias). Análise de engajamento. Apresentações comerciais personalizadas por segmento.
+6. Governança Corporativa & Intelligence — Sites corporativos, painéis de inteligência de mercado, rastreamento automático de concorrência.
+
+Diferenciais técnicos:
+- Processamento na borda (Edge AI) sem dependência de nuvem
+- Integração com câmeras já instaladas pelo cliente
+- IA que processa áudio, vídeo e documentos simultaneamente
+- Resultados: +15% produtividade agro, 95% precisão em atendimento, ciclo de conteúdo de 3 semanas para 2 dias
+- Ambiente VR multi-usuário com física realista
+
+Tom de voz: Técnico, orientado a resultado real, sem hype, direto ao ponto
+Idioma: Português do Brasil (profissional mas acessível)
+Público-alvo: C-Levels, Heads de Operação, Diretores de TI, Gestores Industriais e do Agronegócio
 """
 
 class GeminiStudio:
@@ -29,27 +45,57 @@ class GeminiStudio:
         self.scraped_context = self._scrape_visionai_website()
 
     def _scrape_visionai_website(self) -> str:
-        """Busca o contexto do site do banco de dados (se existir) ou faz o scrape e salva."""
+        """Scrape do bundle JS da SPA visionai.com.br para extrair conteúdo real dos serviços."""
+        import re
         db = SessionLocal()
         try:
-            # Tenta pegar do banco
-            knowledge = db.query(ScrapedKnowledge).filter_by(category="institucional").first()
-            if knowledge and knowledge.content:
-                return f"\n\nCONTEÚDO INSTITUCIONAL DO SITE:\n{knowledge.content}"
+            # Cache: se já foi feito scraping recente (< 24h), usa do banco
+            knowledge = db.query(ScrapedKnowledge).filter_by(category="institucional_v2").first()
+            if knowledge and knowledge.content and len(knowledge.content) > 200:
+                return f"\n\nCONTEÚDO DO SITE VISIONAI.COM.BR:\n{knowledge.content}"
             
-            # Se não tem, faz scraping da home
-            response = requests.get("https://visionai.com.br", timeout=10)
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, "html.parser")
-                text = soup.get_text(separator=" ", strip=True)[:3000]
-                
-                # Salva no banco para persistência
-                new_k = ScrapedKnowledge(category="institucional", url="https://visionai.com.br", content=text)
-                db.add(new_k)
+            # Pega o HTML para descobrir o bundle JS
+            home_resp = requests.get("https://visionai.com.br", timeout=10)
+            js_urls = re.findall(r'/assets/[^"]+\.js', home_resp.text)
+            
+            extracted = []
+            for js_path in js_urls[:2]:  # máx 2 bundles
+                try:
+                    js_resp = requests.get(f"https://visionai.com.br{js_path}", timeout=15)
+                    content = js_resp.text
+                    # Extrai strings em PT-BR com conteúdo real
+                    strings = re.findall(r'"([^"\\]{15,300})"', content)
+                    pt_chars = 'áéíóúãõâêôçàèìòùÁÉÍÓÚÃÕÂÊÔÇ'
+                    pt_words = ['visão','inteligên','solução','análise','dados','monitoramento',
+                                'drone','câmera','automação','educação','empresa','processo',
+                                'resultado','tecnologia','document','identificamos','automatiz',
+                                'negócio','cliente','risco','operação','imagem','vídeo','áudio',
+                                'computação','nuvem','segurança','gestão','relatório','inspeção',
+                                'agrícola','industrial','treinamento','realidade','mista','borda',
+                                'detecção','monitoram','precisão','produtividade']
+                    seen = set()
+                    for t in strings:
+                        t = t.strip()
+                        if t in seen or t.startswith('http') or len(t) < 20:
+                            continue
+                        has_pt = any(c in t for c in pt_chars) or any(w.lower() in t.lower() for w in pt_words)
+                        if has_pt:
+                            seen.add(t)
+                            extracted.append(t)
+                except Exception:
+                    continue
+            
+            if extracted:
+                text = "\n".join(extracted[:80])  # limita para não explodir o contexto
+                # Salva no banco
+                if knowledge:
+                    knowledge.content = text
+                else:
+                    db.add(ScrapedKnowledge(category="institucional_v2", url="https://visionai.com.br", content=text))
                 db.commit()
-                return f"\n\nCONTEÚDO INSTITUCIONAL DO SITE:\n{text}"
+                return f"\n\nCONTEÚDO DO SITE VISIONAI.COM.BR:\n{text}"
         except Exception as e:
-            print(f"Erro ao acessar base de conhecimento/site: {e}")
+            print(f"Erro no scraping do site: {e}")
         finally:
             db.close()
         return ""
@@ -149,38 +195,61 @@ class GeminiStudio:
         return base64.b64encode(svg_code.encode('utf-8')).decode('utf-8')
 
     def get_auto_topics(self) -> list:
-        """Retorna uma lista de tópicos e ganchos inteligentes extraídos do site VisionAi."""
+        """Gera tópicos de posts reais baseados no conteúdo do site visionai.com.br via Gemini."""
+        site_content = self.scraped_context or ""
+        
+        prompt = f"""
+Você é um estrategista de conteúdo LinkedIn B2B para a empresa VisionAI.
+
+INFORMAÇÕES DA EMPRESA:
+{ORG_CONTEXT}
+
+CONTEÚDO REAL EXTRAÍDO DO SITE (visionai.com.br):
+{site_content[:3000]}
+
+Gere EXATAMENTE 6 ideias de posts para LinkedIn baseadas EXCLUSIVAMENTE nos serviços e soluções reais que aparecem acima.
+
+Cada tópico deve:
+- Ser baseado em um serviço/solução REAL da VisionAI (Visão Computacional, IA Multimodal, Realidade Mista, Agro-Industrial, Geração de Conteúdo ou Governança)
+- Ter um ângulo de negócio concreto (problema → solução → resultado mensurável)
+- Ser atraente para o público (C-Levels, Gestores Industriais, Diretores de TI)
+- NÃO mencionar SAP (a VisionAI não trabalha com SAP)
+
+Formatos disponíveis: insight, storytelling, lista, case, provocativo, educativo
+Tons disponíveis: visionario, tecnico, provocativo, inspirador, educativo, direto
+
+Categorias da VisionAI:
+- "Visão Computacional" (câmeras, EPI, rastreamento, mapas de calor)
+- "IA Multimodal" (áudio + vídeo + imagem simultâneos)
+- "Realidade Mista & EdTech" (treinamentos VR, Meta Quest, neurodiversidade)
+- "Agro & Industrial" (pragas, drones, manutenção preditiva)
+- "Geração de Conteúdo" (automação de mídia, apresentações, analytics)
+- "Governança & Intelligence" (inteligência competitiva, portais corporativos)
+
+Responda APENAS com JSON válido, sem markdown:
+[{{"topic": "...", "category": "...", "format": "...", "tone": "..."}}]
+"""
+        
+        try:
+            raw = self._generate(prompt, temperature=0.85)
+            # Limpa possível markdown do response
+            import re
+            json_match = re.search(r'\[.*\]', raw, re.DOTALL)
+            if json_match:
+                topics = json.loads(json_match.group())
+                if isinstance(topics, list) and len(topics) > 0:
+                    return topics[:8]  # máx 8
+        except Exception as e:
+            print(f"Erro ao gerar tópicos via Gemini: {e}")
+        
+        # Fallback: tópicos hardcoded baseados no conteúdo REAL do site
         return [
-            {
-                "topic": "IA Generativa no SAP S/4HANA: Como extrair ROI real da automação corporativa",
-                "category": "SAP & IA",
-                "format": "insight",
-                "tone": "visionario"
-            },
-            {
-                "topic": "Soberania de Dados na Era da Nuvem: O guia definitivo para C-Levels em 2026",
-                "category": "Cloud & Segurança",
-                "format": "storytelling",
-                "tone": "tecnico"
-            },
-            {
-                "topic": "Por que 80% das PoCs de IA corporativa nunca chegam à produção (e como evitar)",
-                "category": "Transformação Digital",
-                "format": "lista",
-                "tone": "provocativo"
-            },
-            {
-                "topic": "EdTech Corporativo com IA: Como a VisionAi acelera a requalificação de times de TI",
-                "category": "EdTech",
-                "format": "case",
-                "tone": "inspirador"
-            },
-            {
-                "topic": "Transformação Digital Pragmática: Conectando ERPs legados à IA de última geração",
-                "category": "Consultoria",
-                "format": "standard",
-                "tone": "educativo"
-            }
+            {"topic": "Câmeras que você já tem podem detectar acidentes por falta de EPI automaticamente — sem nenhum operador olhando", "category": "Visão Computacional", "format": "insight", "tone": "direto"},
+            {"topic": "Detectamos pragas em lavouras dias antes de serem visíveis a olho nu. Veja como +15% de produtividade é possível com IA na borda", "category": "Agro & Industrial", "format": "case", "tone": "inspirador"},
+            {"topic": "Um sistema analisa a foto do problema, o áudio explicando e o documento em anexo — tudo em segundos. Isso é IA Multimodal aplicada ao atendimento", "category": "IA Multimodal", "format": "educativo", "tone": "tecnico"},
+            {"topic": "Treinamentos corporativos convencionais têm baixa retenção. Simulamos cenários reais em Realidade Mista — fixação até 4x mais eficaz", "category": "Realidade Mista & EdTech", "format": "provocativo", "tone": "provocativo"},
+            {"topic": "Sua equipe leva 3 semanas para produzir um vídeo institucional. Com automação IA, isso vai para 2 dias — com qualidade superior", "category": "Geração de Conteúdo", "format": "storytelling", "tone": "visionario"},
+            {"topic": "Inteligência de mercado manual? Automatizamos coleta e análise de concorrentes — relatórios completos em minutos, não dias", "category": "Governança & Intelligence", "format": "lista", "tone": "direto"}
         ]
 
     def _generate_image_base64(self, prompt: str) -> str:
