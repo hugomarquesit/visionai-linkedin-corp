@@ -169,15 +169,15 @@
     <section id="tab-posts" class="tab-section">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Gestão de Posts</h1>
-          <p class="page-sub">Publique e gerencie posts da página Vizionai</p>
+          <h1 class="page-title">Gestão de Posts &amp; Criativos</h1>
+          <p class="page-sub">Publique, gerencie e revise posts da página VisionAi</p>
         </div>
       </div>
 
       <div class="two-col-layout">
         <!-- Criar post -->
         <div class="card">
-          <h3 class="card-title">Novo Post</h3>
+          <h3 class="card-title">Novo Post para LinkedIn</h3>
           <textarea id="post-text" class="textarea" placeholder="Escreva o conteúdo do post aqui... (ou gere com Gemini no Estúdio)" rows="8"></textarea>
           <div class="post-options">
             <select id="post-visibility" class="select-field">
@@ -190,23 +190,21 @@
             </label>
           </div>
           <div class="btn-row">
-            <button class="btn-secondary" id="open-studio-btn">✦ Gerar com Gemini</button>
-            <button class="btn-primary" id="publish-post-btn">Publicar na Vizionai</button>
+            <button class="btn-secondary" id="open-studio-btn">✦ Criar no Estúdio Gemini</button>
+            <button class="btn-primary" id="publish-post-btn">Publicar no LinkedIn</button>
           </div>
           <div id="post-result" class="result-box hidden"></div>
         </div>
 
-        <!-- Info sobre a página -->
+        <!-- Rascunhos & Criativos Salvos -->
         <div class="card">
-          <h3 class="card-title">Página da Organização</h3>
-          <div class="org-info-display" id="org-info-display">
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line short"></div>
-            <div class="skeleton-line"></div>
+          <div class="card-title-row">
+            <h3 class="card-title">Rascunhos &amp; Criativos Salvos</h3>
+            <button class="btn-mini" id="refresh-drafts-btn">🔄 Atualizar</button>
           </div>
-          <a href="https://www.linkedin.com/company/visionaicombr" target="_blank" class="btn-secondary full-width mt-2">
-            Ver no LinkedIn ↗
-          </a>
+          <div id="drafts-list" class="drafts-list">
+            <div class="empty-state"><p>Nenhum rascunho guardado ainda.</p></div>
+          </div>
         </div>
       </div>
     </section>
@@ -215,71 +213,122 @@
     <section id="tab-studio" class="tab-section">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Estúdio Criativo</h1>
-          <p class="page-sub">Powered by Gemini 3.5-flash ✦</p>
+          <h1 class="page-title">Estúdio Criativo Gemini 3.5 ✦</h1>
+          <p class="page-sub">Geração inteligente de conteúdo e criativos visuais para a VisionAi</p>
         </div>
       </div>
 
       <div class="studio-tabs">
-        <button class="studio-tab active" data-studio="generate">✦ Gerar Post</button>
+        <button class="studio-tab active" data-studio="generate">✦ Gerar Post &amp; Imagem</button>
         <button class="studio-tab" data-studio="review">🔍 Rever Rascunho</button>
-        <button class="studio-tab" data-studio="strategy">📅 Estratégia</button>
+        <button class="studio-tab" data-studio="strategy">📅 Estratégia Editorial</button>
         <button class="studio-tab" data-studio="hashtags">🏷️ Hashtags</button>
       </div>
 
       <!-- Gerar post -->
       <div id="studio-generate" class="studio-panel active">
+        <!-- Tópicos Sugeridos pelo Site -->
+        <div class="auto-topics-bar card mb-3">
+          <div class="topics-header">
+            <span class="sparkle">✦</span>
+            <strong>Tópicos Sugeridos pelo Site (visionai.com.br):</strong>
+            <span class="topics-sub">Clique em um tema para preencher ou gerar em 1-clique</span>
+          </div>
+          <div id="auto-topics-chips" class="topics-chips">
+            <span class="chip-loading">Carregando sugestões institucionais...</span>
+          </div>
+        </div>
+
         <div class="two-col-layout">
+          <!-- Form Config -->
           <div class="card">
-            <h3 class="card-title">Configurar Geração</h3>
+            <h3 class="card-title">Configurar Criativo</h3>
+            
             <div class="field-group">
-              <label>Tema do Post</label>
-              <input type="text" id="gen-topic" class="input-field" placeholder="Ex: IA Generativa na indústria bancária" />
+              <label>Tema ou Objetivo do Post</label>
+              <input type="text" id="gen-topic" class="input-field" placeholder="Ex: IA Generativa no SAP S/4HANA" />
             </div>
+            
             <div class="field-group">
-              <label>Formato</label>
+              <label>Formato de Conteúdo</label>
               <select id="gen-format" class="select-field">
-                <option value="standard">Texto Padrão</option>
-                <option value="storytelling">Storytelling</option>
-                <option value="lista">Lista Numerada</option>
+                <option value="standard">Texto Padrão + Banner</option>
+                <option value="storytelling">Storytelling Corporativo</option>
+                <option value="lista">Lista Numerada / Insights</option>
                 <option value="insight">Insight Provocativo</option>
-                <option value="case">Caso de Uso</option>
-                <option value="poll_idea">Ideia de Poll</option>
+                <option value="case">Caso de Estudo / Sucesso</option>
               </select>
             </div>
+            
             <div class="field-group">
               <label>Tom de Voz</label>
               <select id="gen-tone" class="select-field">
-                <option value="visionario">Visionário</option>
-                <option value="tecnico">Técnico</option>
-                <option value="inspirador">Inspirador</option>
-                <option value="educativo">Educativo</option>
+                <option value="visionario">Visionário &amp; Autoritativo</option>
+                <option value="tecnico">Técnico &amp; Focado em ROI</option>
+                <option value="inspirador">Inspirador &amp; Humano</option>
+                <option value="educativo">Educativo &amp; Consultivo</option>
               </select>
             </div>
-            <button class="btn-ai full-width" id="generate-post-btn">
-              <span id="gen-btn-text">✦ Gerar Post com Gemini</span>
-              <span id="gen-spinner" class="spinner hidden"></span>
-            </button>
+            
+            <div class="btn-group-vertical">
+              <button class="btn-ai full-width" id="generate-post-btn">
+                <span id="gen-btn-text">✦ Gerar Post &amp; Imagem</span>
+                <span id="gen-spinner" class="spinner hidden"></span>
+              </button>
+              
+              <button class="btn-secondary full-width mt-2" id="auto-generate-1click-btn">
+                <span>🚀 Criar 100% Automático (1-Click)</span>
+              </button>
+            </div>
           </div>
+
+          <!-- Output & LinkedIn Live Feed Preview -->
           <div class="card">
             <div class="card-title-row">
-              <h3 class="card-title">Post Gerado</h3>
+              <h3 class="card-title">Preview no Feed do LinkedIn 📱</h3>
               <div class="gen-actions hidden" id="gen-actions">
                 <button class="btn-mini" id="copy-gen-btn">Copiar</button>
                 <button class="btn-mini primary" id="send-to-posts-btn">Enviar para Posts</button>
               </div>
             </div>
-            <div id="generated-post-output" class="generated-output">
+
+            <!-- LinkedIn Feed Post Card Mockup -->
+            <div id="linkedin-preview-card" class="linkedin-preview-card">
               <div class="empty-state" id="gen-empty-state">
                 <div class="empty-icon">✦</div>
-                <p>Configure e clique em "Gerar Post com Gemini"</p>
+                <p>Selecione um tema do site ou clique em "Gerar Post" para visualizar a simulação no LinkedIn.</p>
               </div>
-              <div id="gen-image-container" class="gen-image-container hidden">
-                <img id="gen-image" src="" alt="Imagem gerada" />
-                <div class="image-badge">✨ Imagem gerada (Nano Babana 2)</div>
+
+              <div id="gen-output-content" class="linkedin-post-mockup hidden">
+                <!-- LinkedIn Post Header -->
+                <div class="li-post-header">
+                  <div class="li-avatar">V</div>
+                  <div class="li-meta">
+                    <div class="li-author">VisionAi | Inovação &amp; IA <span class="li-badge">✓ Org</span></div>
+                    <div class="li-sub">Consultoria de IA, SAP &amp; Cloud • 1.420 seguidores</div>
+                    <div class="li-time">Agora • 🌐</div>
+                  </div>
+                </div>
+
+                <!-- Post Text Body -->
+                <div id="gen-text-content" class="li-post-body"></div>
+
+                <!-- Attached Media Image/Banner -->
+                <div id="gen-image-container" class="li-post-media hidden">
+                  <img id="gen-image" src="" alt="Criativo visual gerado" />
+                  <div class="image-badge">✨ Criativo Gerado para a VisionAi</div>
+                </div>
+
+                <!-- LinkedIn Post Reactions Bar -->
+                <div class="li-post-actions-bar">
+                  <button class="li-action-btn">👍 Gostei</button>
+                  <button class="li-action-btn">💬 Comentar</button>
+                  <button class="li-action-btn">🔄 Compartilhar</button>
+                  <button class="li-action-btn">✈️ Enviar</button>
+                </div>
               </div>
-              <div id="gen-text-content"></div>
             </div>
+
             <div id="gen-meta" class="gen-meta hidden">
               <span id="gen-chars">0 caracteres</span>
               <span id="gen-model-tag" class="model-tag">gemini-3.5-flash</span>

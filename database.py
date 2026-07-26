@@ -34,7 +34,10 @@ class PostDraft(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Warning: init_db encounter: {e}")
 
 def get_db():
     db = SessionLocal()

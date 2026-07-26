@@ -184,6 +184,49 @@ async def delete_post(payload: DeletePostPayload, _: bool = Depends(require_auth
     return result
 
 # ── Gemini — Geração de Posts ───────────────────────────────────────────────
+@app.get("/api/gemini/auto-topics")
+async def gemini_auto_topics(_: bool = Depends(require_auth)):
+    """Retorna sugestões de tópicos baseados no site da VisionAi."""
+    topics = ai.get_auto_topics()
+    return {"topics": topics, "model": ai.model}
+
+@app.get("/api/posts/drafts")
+async def get_post_drafts(_: bool = Depends(require_auth)):
+    """Retorna os rascunhos de posts salvos no banco de dados."""
+    db = SessionLocal()
+    try:
+        drafts = db.query(PostDraft).order_by(PostDraft.created_at.desc()).limit(20).all()
+        return [
+            {
+                "id": d.id,
+                "topic": d.topic,
+                "format_type": d.format_type,
+                "tone": d.tone,
+                "post_text": d.post_text,
+                "image_prompt": d.image_prompt,
+                "image_base64": d.image_base64,
+                "model": d.model,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            }
+            for d in drafts
+        ]
+    finally:
+        db.close()
+
+@app.delete("/api/posts/drafts/{draft_id}")
+async def delete_post_draft(draft_id: int, _: bool = Depends(require_auth)):
+    """Remove um rascunho de post do banco."""
+    db = SessionLocal()
+    try:
+        draft = db.query(PostDraft).filter_by(id=draft_id).first()
+        if not draft:
+            raise HTTPException(status_code=404, detail="Rascunho não encontrado")
+        db.delete(draft)
+        db.commit()
+        return {"ok": True, "message": "Rascunho excluído com sucesso"}
+    finally:
+        db.close()
+
 @app.post("/api/gemini/generate-post")
 async def gemini_generate_post(payload: GeneratePostPayload, _: bool = Depends(require_auth)):
     result = ai.generate_post(payload.topic, payload.format_type, payload.tone)
@@ -202,6 +245,7 @@ async def gemini_generate_post(payload: GeneratePostPayload, _: bool = Depends(r
         )
         db.add(draft)
         db.commit()
+        result["draft_id"] = draft.id
     except Exception as e:
         print("Erro ao salvar post no banco:", e)
     finally:

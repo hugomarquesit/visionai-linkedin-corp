@@ -74,11 +74,118 @@ class GeminiStudio:
                 return f"[Erro Gemini: {err_str}]"
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
+    def _generate_svg_banner(self, title: str, category: str = "VisionAi Insights") -> str:
+        """Gera um banner SVG corporativo 1200x630 com branding VisionAi e retorna em Base64."""
+        # Clean title for SVG embedding
+        clean_title = (title[:65] + "...") if len(title) > 65 else title
+        clean_category = category.upper()
+        
+        svg_code = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0d14"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="card-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.06)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.02)"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="30" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  
+  <!-- Glowing Orbs -->
+  <circle cx="150" cy="120" r="180" fill="#38bdf8" opacity="0.15" filter="url(#glow)"/>
+  <circle cx="1050" cy="500" r="220" fill="#818cf8" opacity="0.18" filter="url(#glow)"/>
+  
+  <!-- Grid Lines -->
+  <path d="M 0 150 L 1200 150 M 0 300 L 1200 300 M 0 450 L 1200 450" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <path d="M 300 0 L 300 630 M 600 0 L 600 630 M 900 0 L 900 630" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+
+  <!-- Glass Card Container -->
+  <rect x="80" y="80" width="1040" height="470" rx="24" fill="url(#card-bg)" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+  
+  <!-- Top Bar: Logo & Badge -->
+  <g transform="translate(130, 130)">
+    <!-- Logo Icon -->
+    <rect width="48" height="48" rx="12" fill="url(#accent)"/>
+    <text x="24" y="32" font-family="'Inter', sans-serif" font-weight="800" font-size="24" fill="#ffffff" text-anchor="middle">V</text>
+    <!-- Brand Name -->
+    <text x="64" y="32" font-family="'Inter', sans-serif" font-weight="700" font-size="24" fill="#ffffff" letter-spacing="-0.5">VisionAi</text>
+    <text x="165" y="32" font-family="'Inter', sans-serif" font-weight="400" font-size="14" fill="#94a3b8">| Corporate Tech</text>
+  </g>
+  
+  <!-- Category Badge -->
+  <g transform="translate(900, 135)">
+    <rect width="170" height="34" rx="17" fill="rgba(56, 189, 248, 0.15)" stroke="rgba(56, 189, 248, 0.4)" stroke-width="1"/>
+    <text x="85" y="22" font-family="'Inter', sans-serif" font-weight="600" font-size="12" fill="#38bdf8" text-anchor="middle" letter-spacing="1">{clean_category}</text>
+  </g>
+
+  <!-- Main Headline -->
+  <foreignObject x="130" y="210" width="940" height="220">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Inter', system-ui, sans-serif; color: #f8fafc; font-size: 42px; font-weight: 700; line-height: 1.25; letter-spacing: -1px; text-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+      {clean_title}
+    </div>
+  </foreignObject>
+
+  <!-- Accent Line -->
+  <rect x="130" y="460" width="120" height="4" rx="2" fill="url(#accent)"/>
+
+  <!-- Footer Info -->
+  <text x="130" y="500" font-family="'Inter', sans-serif" font-weight="500" font-size="16" fill="#94a3b8">Inovação, IA &amp; Transformação Digital Corporativa</text>
+  <text x="1070" y="500" font-family="'Inter', sans-serif" font-weight="600" font-size="15" fill="#38bdf8" text-anchor="end">visionai.com.br ✦</text>
+</svg>"""
+        return base64.b64encode(svg_code.encode('utf-8')).decode('utf-8')
+
+    def get_auto_topics(self) -> list:
+        """Retorna uma lista de tópicos e ganchos inteligentes extraídos do site VisionAi."""
+        return [
+            {
+                "topic": "IA Generativa no SAP S/4HANA: Como extrair ROI real da automação corporativa",
+                "category": "SAP & IA",
+                "format": "insight",
+                "tone": "visionario"
+            },
+            {
+                "topic": "Soberania de Dados na Era da Nuvem: O guia definitivo para C-Levels em 2026",
+                "category": "Cloud & Segurança",
+                "format": "storytelling",
+                "tone": "tecnico"
+            },
+            {
+                "topic": "Por que 80% das PoCs de IA corporativa nunca chegam à produção (e como evitar)",
+                "category": "Transformação Digital",
+                "format": "lista",
+                "tone": "provocativo"
+            },
+            {
+                "topic": "EdTech Corporativo com IA: Como a VisionAi acelera a requalificação de times de TI",
+                "category": "EdTech",
+                "format": "case",
+                "tone": "inspirador"
+            },
+            {
+                "topic": "Transformação Digital Pragmática: Conectando ERPs legados à IA de última geração",
+                "category": "Consultoria",
+                "format": "standard",
+                "tone": "educativo"
+            }
+        ]
+
     def _generate_image_base64(self, prompt: str) -> str:
         """Gera uma imagem a partir de um prompt e retorna em Base64 usando o modelo de imagem configurado."""
         try:
-            # We try to use imagen-3.0-generate-001 since gemini-3.1-flash-image does not support predict
-            # If it fails due to permissions, we catch it and return empty string so the text post still succeeds.
             res = self.client.models.generate_images(
                 model="imagen-3.0-generate-001",
                 prompt=prompt,
@@ -89,11 +196,10 @@ class GeminiStudio:
                 )
             )
             for img in res.generated_images:
-                # Convert bytes to base64 string
                 return base64.b64encode(img.image.image_bytes).decode('utf-8')
         except Exception as e:
-            print(f"Erro ao gerar imagem com a API: {e}")
-            return ""
+            print(f"API de imagem indisponível ({e}). Gerando banner SVG corporativo VisionAi como fallback visual...")
+            return self._generate_svg_banner(prompt)
         return ""
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────

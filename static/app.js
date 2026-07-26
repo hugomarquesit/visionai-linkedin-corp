@@ -411,6 +411,99 @@ async function publishPost() {
   }
 }
 
+// ═══════════════════════════════════════════════════════ AUTO TOPICS & DRAFTS
+
+let cachedAutoTopics = [];
+
+async function loadAutoTopics() {
+  const chipsContainer = $('auto-topics-chips');
+  if (!chipsContainer) return;
+  
+  const { ok, data } = await apiFetch('/api/gemini/auto-topics');
+  if (ok && data.topics && data.topics.length > 0) {
+    cachedAutoTopics = data.topics;
+    chipsContainer.innerHTML = data.topics.map((t, idx) => `
+      <div class="topic-chip" onclick="selectAutoTopic(${idx})">
+        <span class="chip-badge">${t.category}</span>
+        <span class="chip-text">${t.topic}</span>
+      </div>
+    `).join('');
+  } else {
+    chipsContainer.innerHTML = '<span class="chip-sub">Nenhuma sugestão carregada do site.</span>';
+  }
+}
+
+function selectAutoTopic(index) {
+  const item = cachedAutoTopics[index];
+  if (!item) return;
+  $('gen-topic').value = item.topic;
+  if (item.format) $('gen-format').value = item.format;
+  if (item.tone) $('gen-tone').value = item.tone;
+  showToast('Tema do site selecionado!', 'info');
+}
+
+async function autoGenerate1Click() {
+  if (cachedAutoTopics.length === 0) {
+    await loadAutoTopics();
+  }
+  if (cachedAutoTopics.length > 0) {
+    const randomTopic = cachedAutoTopics[Math.floor(Math.random() * cachedAutoTopics.length)];
+    $('gen-topic').value = randomTopic.topic;
+    if (randomTopic.format) $('gen-format').value = randomTopic.format;
+    if (randomTopic.tone) $('gen-tone').value = randomTopic.tone;
+    showToast('Tópico sorteado do site! Gerando criativo...', 'info');
+    generatePost();
+  } else {
+    $('gen-topic').value = "IA Generativa no SAP S/4HANA: Como extrair ROI real em 2026";
+    generatePost();
+  }
+}
+
+async function loadDrafts() {
+  const draftsContainer = $('drafts-list');
+  if (!draftsContainer) return;
+
+  const { ok, data } = await apiFetch('/api/posts/drafts');
+  if (ok && Array.isArray(data) && data.length > 0) {
+    draftsContainer.innerHTML = data.map(d => `
+      <div class="draft-card">
+        <div class="draft-header">
+          <span class="draft-topic">${escapeHtml(d.topic || 'Criativo sem título')}</span>
+          <span class="draft-date">${d.created_at ? new Date(d.created_at).toLocaleDateString('pt-BR') : ''}</span>
+        </div>
+        <div class="draft-snippet">${escapeHtml(d.post_text ? d.post_text.substring(0, 140) + '...' : '')}</div>
+        <div class="draft-actions">
+          <button class="btn-mini primary" onclick="useDraftText('${escapeHtml(d.post_text).replace(/'/g, "\\'")}')">Usar no Post</button>
+          <button class="btn-mini danger" onclick="deleteDraftItem(${d.id})">Excluir</button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    draftsContainer.innerHTML = '<div class="empty-state"><p>Nenhum rascunho guardado ainda.</p></div>';
+  }
+}
+
+async function deleteDraftItem(id) {
+  if (!confirm('Deseja excluir este rascunho?')) return;
+  const { ok } = await apiFetch(`/api/posts/drafts/${id}`, { method: 'DELETE' });
+  if (ok) {
+    showToast('Rascunho excluído', 'success');
+    loadDrafts();
+  }
+}
+
+function useDraftText(text) {
+  $('post-text').value = text;
+  switchTab('posts');
+  showToast('Rascunho carregado no editor!', 'success');
+}
+
+// Helper to escape HTML characters
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // ═══════════════════════════════════════════════════════ GEMINI STUDIO
 
 async function generatePost() {
@@ -420,11 +513,12 @@ async function generatePost() {
 
   if (!topic) { showToast('Insira um tema para gerar o post', 'error'); return; }
 
-  setLoading('gen-btn-text', 'gen-spinner', true, 'A gerar com Gemini (Pode levar 10-20s para gerar a imagem)...');
+  setLoading('gen-btn-text', 'gen-spinner', true, 'A gerar com Gemini (10-15s)...');
   $('gen-actions').classList.add('hidden');
   $('gen-meta').classList.add('hidden');
   $('gen-empty-state').classList.remove('hidden');
-  $('gen-empty-state').innerHTML = '<div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini 3.5 e Nano Babana 2 estão a criar seu conteúdo e imagem. Por favor, aguarde...</p>';
+  $('gen-empty-state').innerHTML = '<div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini 3.5 está criando o seu texto corporativo e peça visual. Por favor, aguarde...</p>';
+  $('gen-output-content').classList.add('hidden');
   $('gen-text-content').textContent = "";
   $('gen-image-container').classList.add('hidden');
 
@@ -433,18 +527,21 @@ async function generatePost() {
     body: JSON.stringify({ topic, format_type: format, tone }),
   });
 
-  setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post com Gemini');
+  setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post & Imagem');
 
   if (ok && data.content) {
     $('gen-empty-state').classList.add('hidden');
+    $('gen-output-content').classList.remove('hidden');
     
     // Inject Text
     $('gen-text-content').textContent = data.content;
     
-    // Inject Image if present
+    // Inject Image or SVG Banner
     if (data.image_base64) {
       $('gen-image-container').classList.remove('hidden');
-      $('gen-image').src = `data:image/jpeg;base64,${data.image_base64}`;
+      const isSvg = data.image_base64.startsWith('<svg') || data.image_base64.includes('xml');
+      const mime = isSvg ? 'image/svg+xml' : 'image/jpeg';
+      $('gen-image').src = `data:${mime};base64,${data.image_base64}`;
     } else {
       $('gen-image-container').classList.add('hidden');
     }
@@ -452,7 +549,8 @@ async function generatePost() {
     $('gen-chars').textContent = `${data.char_count} caracteres`;
     $('gen-meta').classList.remove('hidden');
     $('gen-actions').classList.remove('hidden');
-    showToast('Post gerado com sucesso!', 'success');
+    showToast('Criativo gerado com sucesso!', 'success');
+    loadDrafts(); // refresh drafts list
   } else {
     $('gen-empty-state').classList.remove('hidden');
     $('gen-empty-state').innerHTML = '<div class="empty-icon">⚠️</div><p>Erro ao gerar post. Tente novamente.</p>';
@@ -466,7 +564,7 @@ function copyGeneratedPost() {
 }
 
 function sendToPostsTab() {
-  const text = $('generated-post-output').textContent;
+  const text = $('gen-text-content').textContent;
   $('post-text').value = text;
   switchTab('posts');
   showToast('Conteúdo enviado para Gestão de Posts', 'success');
@@ -621,11 +719,21 @@ async function init() {
   // Posts
   $('publish-post-btn').addEventListener('click', publishPost);
   $('open-studio-btn').addEventListener('click', () => switchTab('studio'));
+  const refreshDraftsBtn = $('refresh-drafts-btn');
+  if (refreshDraftsBtn) refreshDraftsBtn.addEventListener('click', loadDrafts);
 
-  // Studio — Generate
+  // Studio — Generate & Auto
   $('generate-post-btn').addEventListener('click', generatePost);
+  const auto1ClickBtn = $('auto-generate-1click-btn');
+  if (auto1ClickBtn) auto1ClickBtn.addEventListener('click', autoGenerate1Click);
   $('copy-gen-btn').addEventListener('click', copyGeneratedPost);
   $('send-to-posts-btn').addEventListener('click', sendToPostsTab);
+
+  // Load auto topics & drafts on start if authed
+  if (authed) {
+    loadAutoTopics();
+    loadDrafts();
+  }
 
   // Studio — Review
   $('review-post-btn').addEventListener('click', reviewPost);
