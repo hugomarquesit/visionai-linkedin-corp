@@ -1,9 +1,11 @@
 import os
 import json
+import requests
+from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
 
-MODEL = "gemini-3.5-flash"
+MODEL = "gemini-3.1-flash-image"
 
 ORG_CONTEXT = """
 Empresa: VisionAi | Inovação, IA & Transformação Digital
@@ -20,7 +22,21 @@ class GeminiStudio:
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
         self.client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
         self.model = MODEL
-        self.fallback_models = ["gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        self.fallback_models = ["gemini-3.1-flash-image", "gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        self.scraped_context = self._scrape_visionai_website()
+
+    def _scrape_visionai_website(self) -> str:
+        """Scrapes the VisionAI website to get the latest context for creatives."""
+        try:
+            response = requests.get("https://visionai.com.br", timeout=10)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, "html.parser")
+                text = soup.get_text(separator=" ", strip=True)
+                # Keep first 2000 characters to avoid huge contexts
+                return f"\n\nCONTEÚDO DO SITE OFICIAL:\n{text[:2000]}"
+        except Exception as e:
+            print(f"Erro ao fazer scraping do site: {e}")
+        return ""
 
     def _generate(self, prompt: str, temperature: float = 0.8) -> str:
         for m in self.fallback_models:
@@ -62,25 +78,32 @@ class GeminiStudio:
         }
 
         prompt = f"""
-Você é o redator sênior de LinkedIn da VisionAi.
+Você é o redator sênior de LinkedIn da VisionAi e diretor de arte.
 
 CONTEXTO DA EMPRESA:
 {ORG_CONTEXT}
+{self.scraped_context}
 
-TAREFA: Crie um post de LinkedIn sobre o seguinte tema:
+TAREFA: Crie um "Criativo Completo" para um post de LinkedIn sobre o seguinte tema:
 TEMA: {topic}
 FORMATO: {format_guides.get(format_type, format_guides['standard'])}
 TOM: {tone_guides.get(tone, tone_guides['visionario'])}
 
-REGRAS:
-- Primeira linha deve ser um gancho poderoso (não comece com "Hoje" ou "Olá")
+REGRAS DO POST:
+- Primeira linha deve ser um gancho poderoso
 - Use emojis estrategicamente (máximo 5)
 - Hashtags no final (3-5, relevantes e em português/inglês)
-- NÃO use clichês como "num mundo cada vez mais digital"
 - Foque em valor real e insights acionáveis
 - Termine com uma pergunta ou CTA que gere engajamento
 
-Retorne APENAS o texto do post, sem explicações adicionais.
+REGRAS DO CRIATIVO (IMAGEM):
+- Você DEVE sugerir um prompt visual hiper-detalhado (em inglês) para gerar a arte que acompanhará o post.
+- Descreva a iluminação, estilo (ex: fotorealista, vetor, 3D render, cyberpunk, corporativo limpo), cores principais e elementos visuais.
+
+FORMATO DE SAÍDA OBRIGATÓRIO:
+Retorne APENAS um JSON válido contendo as chaves:
+"post_text": "o texto do post aqui",
+"image_prompt": "o prompt em inglês para o gerador de imagem aqui"
 """
         content = self._generate(prompt, temperature=0.85)
         return {
