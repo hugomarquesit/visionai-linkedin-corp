@@ -20,6 +20,9 @@ from dotenv import load_dotenv
 
 from linkedin_corp import LinkedInCorporate
 from gemini_studio import GeminiStudio
+from database import init_db, SessionLocal, PostDraft
+
+init_db()
 
 load_dotenv()
 
@@ -184,6 +187,26 @@ async def delete_post(payload: DeletePostPayload, _: bool = Depends(require_auth
 @app.post("/api/gemini/generate-post")
 async def gemini_generate_post(payload: GeneratePostPayload, _: bool = Depends(require_auth)):
     result = ai.generate_post(payload.topic, payload.format_type, payload.tone)
+    
+    # Save the generated post to the database
+    db = SessionLocal()
+    try:
+        draft = PostDraft(
+            topic=payload.topic,
+            format_type=payload.format_type,
+            tone=payload.tone,
+            post_text=result.get("content", ""),
+            image_prompt=result.get("image_prompt", ""),
+            image_base64=result.get("image_base64", ""),
+            model=result.get("model", "")
+        )
+        db.add(draft)
+        db.commit()
+    except Exception as e:
+        print("Erro ao salvar post no banco:", e)
+    finally:
+        db.close()
+        
     return result
 
 @app.post("/api/gemini/review-post")

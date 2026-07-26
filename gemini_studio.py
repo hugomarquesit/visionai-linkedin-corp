@@ -5,6 +5,7 @@ import base64
 from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
+from database import SessionLocal, ScrapedKnowledge
 
 TEXT_MODEL = "gemini-3.5-flash"
 IMAGE_MODEL = "gemini-3.1-flash-image"
@@ -28,16 +29,29 @@ class GeminiStudio:
         self.scraped_context = self._scrape_visionai_website()
 
     def _scrape_visionai_website(self) -> str:
-        """Scrapes the VisionAI website to get the latest context for creatives."""
+        """Busca o contexto do site do banco de dados (se existir) ou faz o scrape e salva."""
+        db = SessionLocal()
         try:
+            # Tenta pegar do banco
+            knowledge = db.query(ScrapedKnowledge).filter_by(category="institucional").first()
+            if knowledge and knowledge.content:
+                return f"\n\nCONTEÚDO INSTITUCIONAL DO SITE:\n{knowledge.content}"
+            
+            # Se não tem, faz scraping da home
             response = requests.get("https://visionai.com.br", timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, "html.parser")
-                text = soup.get_text(separator=" ", strip=True)
-                # Keep first 2000 characters to avoid huge contexts
-                return f"\n\nCONTEÚDO DO SITE OFICIAL:\n{text[:2000]}"
+                text = soup.get_text(separator=" ", strip=True)[:3000]
+                
+                # Salva no banco para persistência
+                new_k = ScrapedKnowledge(category="institucional", url="https://visionai.com.br", content=text)
+                db.add(new_k)
+                db.commit()
+                return f"\n\nCONTEÚDO INSTITUCIONAL DO SITE:\n{text}"
         except Exception as e:
-            print(f"Erro ao fazer scraping do site: {e}")
+            print(f"Erro ao acessar base de conhecimento/site: {e}")
+        finally:
+            db.close()
         return ""
 
     def _generate(self, prompt: str, temperature: float = 0.8) -> str:
@@ -81,21 +95,20 @@ class GeminiStudio:
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
     def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario") -> dict:
-        """Gera um post completo para o LinkedIn corporativo."""
+        """Gera um post completo para o LinkedIn corporativo usando frameworks avançados."""
         format_guides = {
             "standard": "Post de texto direto, 150-300 palavras, 3-5 hashtags relevantes.",
-            "storytelling": "Post narrativo com gancho inicial forte, história de transformação, CTA claro. 200-400 palavras.",
-            "lista": "Post em formato de lista numerada (5-7 itens), título impactante, conclusão forte.",
-            "insight": "Post de insight provocativo, dado/estatística de abertura, análise profunda, chamada à reflexão.",
-            "case": "Post sobre caso de uso ou resultado, antes/depois, números reais (use exemplos plausíveis), CTA.",
-            "poll_idea": "Sugira um poll de 4 opções sobre o tema, com contexto de introdução para o LinkedIn.",
+            "institucional": "Post sobre a cultura, visão e missão da VisionAI. Demonstre liderança corporativa, inovação sustentável e impacto no mercado LATAM. Termine com a visão de futuro.",
+            "produto_pitch": "Framework PAS (Problem, Agitation, Solution). Identifique uma dor clara de C-levels (ex: dados espalhados, processos manuais), agite a dor com impacto negativo (perda de ROI) e apresente as soluções/produtos da VisionAI como a bala de prata.",
+            "case_estudo": "Post focado em resultado (Estudo de Caso real ou simulado altamente verossímil). 1) O desafio crítico do cliente; 2) A solução técnica aplicada (IA/SAP/Cloud); 3) Métricas de impacto geradas (% ROI, horas ganhas).",
+            "lideranca_tecnica": "Post aprofundado, focando na arquitetura, governança ou segurança. Use linguagem técnica robusta e aborde temas como Soberania de Dados e IA responsável."
         }
 
         tone_guides = {
-            "visionario": "Tom visionário e desafiador — questione o status quo, provoque reflexão",
-            "tecnico": "Tom técnico com profundidade, cite frameworks, metodologias e métricas",
-            "inspirador": "Tom inspirador e motivacional, focado em transformação e impacto humano",
-            "educativo": "Tom educativo e didático, explique conceitos complexos de forma acessível",
+            "visionario": "Tom visionário e desafiador — questione o status quo, provoque reflexão profunda",
+            "tecnico": "Tom analítico e arquitetural, cite infraestrutura, metodologias ágeis e ROI",
+            "inspirador": "Tom focado em cultura corporativa e Employer Branding, destacando o valor humano",
+            "educativo": "Tom professoral e consultivo, educando o mercado sobre os benefícios de novas tecnologias",
         }
 
         prompt = f"""

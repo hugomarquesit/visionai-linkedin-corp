@@ -9,3 +9,4 @@ starlette>=0.37.2
 google-genai>=2.9.0
 apscheduler>=3.10.4
 beautifulsoup4>=4.12.3
+SQLAlchemy>=2.0.30
