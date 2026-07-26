@@ -874,3 +874,37 @@ select.select-field { appearance: none; cursor: pointer; }
 .ai-md ul, .ai-md ol { padding-left: 20px; margin-bottom: 10px; }
 .ai-md li { margin-bottom: 4px; color: var(--text-secondary); line-height: 1.5; }
 .ai-md code { background: var(--bg-elevated); padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; color: var(--ai-color); }
+
+.gen-image-container {
+  margin: 16px 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+}
+.gen-image-container img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.image-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(10, 13, 20, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--ai-color);
+  font-weight: 600;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+#gen-text-content {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}

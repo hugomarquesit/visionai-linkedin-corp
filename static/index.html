@@ -270,10 +270,15 @@
               </div>
             </div>
             <div id="generated-post-output" class="generated-output">
-              <div class="empty-state">
+              <div class="empty-state" id="gen-empty-state">
                 <div class="empty-icon">✦</div>
                 <p>Configure e clique em "Gerar Post com Gemini"</p>
               </div>
+              <div id="gen-image-container" class="gen-image-container hidden">
+                <img id="gen-image" src="" alt="Imagem gerada" />
+                <div class="image-badge">✨ Imagem gerada (Nano Babana 2)</div>
+              </div>
+              <div id="gen-text-content"></div>
             </div>
             <div id="gen-meta" class="gen-meta hidden">
               <span id="gen-chars">0 caracteres</span>

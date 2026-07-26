@@ -420,10 +420,13 @@ async function generatePost() {
 
   if (!topic) { showToast('Insira um tema para gerar o post', 'error'); return; }
 
-  setLoading('gen-btn-text', 'gen-spinner', true, 'A gerar com Gemini...');
+  setLoading('gen-btn-text', 'gen-spinner', true, 'A gerar com Gemini (Pode levar 10-20s para gerar a imagem)...');
   $('gen-actions').classList.add('hidden');
   $('gen-meta').classList.add('hidden');
-  $('generated-post-output').innerHTML = '<div class="empty-state"><div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini 3.5-flash está a escrever...</p></div>';
+  $('gen-empty-state').classList.remove('hidden');
+  $('gen-empty-state').innerHTML = '<div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini 3.5 e Nano Babana 2 estão a criar seu conteúdo e imagem. Por favor, aguarde...</p>';
+  $('gen-text-content').textContent = "";
+  $('gen-image-container').classList.add('hidden');
 
   const { ok, data } = await apiFetch('/api/gemini/generate-post', {
     method: 'POST',
@@ -433,19 +436,32 @@ async function generatePost() {
   setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post com Gemini');
 
   if (ok && data.content) {
-    $('generated-post-output').textContent = data.content;
+    $('gen-empty-state').classList.add('hidden');
+    
+    // Inject Text
+    $('gen-text-content').textContent = data.content;
+    
+    // Inject Image if present
+    if (data.image_base64) {
+      $('gen-image-container').classList.remove('hidden');
+      $('gen-image').src = `data:image/jpeg;base64,${data.image_base64}`;
+    } else {
+      $('gen-image-container').classList.add('hidden');
+    }
+    
     $('gen-chars').textContent = `${data.char_count} caracteres`;
     $('gen-meta').classList.remove('hidden');
     $('gen-actions').classList.remove('hidden');
     showToast('Post gerado com sucesso!', 'success');
   } else {
-    $('generated-post-output').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Erro ao gerar post. Tente novamente.</p></div>';
+    $('gen-empty-state').classList.remove('hidden');
+    $('gen-empty-state').innerHTML = '<div class="empty-icon">⚠️</div><p>Erro ao gerar post. Tente novamente.</p>';
     showToast('Erro ao gerar post', 'error');
   }
 }
 
 function copyGeneratedPost() {
-  const text = $('generated-post-output').textContent;
+  const text = $('gen-text-content').textContent;
   navigator.clipboard.writeText(text).then(() => showToast('Copiado!', 'success'));
 }
 
