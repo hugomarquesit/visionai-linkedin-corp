@@ -332,10 +332,12 @@ async function loadOrg() {
 }
 
 async function loadPostsOrgInfo() {
+  const el = $('org-info-display');
+  if (!el) return;
   const { ok, data } = await apiFetch('/api/org');
   if (!ok) return;
   const org = data.org?.data || {};
-  $('org-info-display').innerHTML = `
+  el.innerHTML = `
     <div class="org-info-row"><span class="org-info-label">Página</span><span class="org-info-value">${org.localizedName || 'VisionAi'}</span></div>
     <div class="org-info-row"><span class="org-info-label">URL</span><span class="org-info-value">linkedin.com/company/${org.vanityName || 'visionaicombr'}</span></div>
     <div class="org-info-row"><span class="org-info-label">ID Org</span><span class="org-info-value">${org.id || '106355456'}</span></div>
