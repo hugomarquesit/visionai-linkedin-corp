@@ -94,6 +94,8 @@ async function doLogin(e) {
   if (ok) {
     showApp();
     loadDashboard();
+    loadAutoTopics();
+    loadDrafts();
   } else {
     $('login-error').classList.remove('hidden');
     $('login-btn').disabled = false;
@@ -121,12 +123,13 @@ function switchTab(tab) {
   $(`tab-${tab}`)?.classList.add('active');
   document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
 
-  // Lazy load on first visit
+  // Lazy load on visit
   if (tab === 'analytics') loadAnalytics();
   if (tab === 'followers') loadFollowers();
   if (tab === 'org') loadOrg();
   if (tab === 'profile') loadProfile();
-  if (tab === 'posts') loadPostsOrgInfo();
+  if (tab === 'posts') { loadPostsOrgInfo(); loadDrafts(); }
+  if (tab === 'studio') loadAutoTopics();
 }
 
 function switchStudio(panel) {
@@ -559,13 +562,17 @@ async function generatePost() {
 }
 
 function copyGeneratedPost() {
-  const text = $('gen-text-content').textContent;
+  const el = $('gen-text-content');
+  const text = el ? el.textContent : '';
+  if (!text) { showToast('Nenhum post gerado para copiar', 'error'); return; }
   navigator.clipboard.writeText(text).then(() => showToast('Copiado!', 'success'));
 }
 
 function sendToPostsTab() {
-  const text = $('gen-text-content').textContent;
-  $('post-text').value = text;
+  const el = $('gen-text-content');
+  const text = el ? el.textContent : '';
+  if (!text) { showToast('Nenhum post gerado para enviar', 'error'); return; }
+  if ($('post-text')) $('post-text').value = text;
   switchTab('posts');
   showToast('Conteúdo enviado para Gestão de Posts', 'success');
 }
