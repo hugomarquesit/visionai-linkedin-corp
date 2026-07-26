@@ -63,6 +63,7 @@ function mdToHtml(text) {
 
 async function apiFetch(path, opts = {}) {
   const res = await fetch(API + path, {
+    credentials: 'include',
     ...opts,
     headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
   });
