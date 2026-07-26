@@ -149,20 +149,33 @@ Retorne APENAS um JSON válido contendo as chaves:
         image_b64 = ""
         
         try:
-            # Parse the JSON from the text model
-            start = content_raw.find("{")
-            end = content_raw.rfind("}") + 1
+            # Strip markdown code fences if model wrapped in ```json ... ```
+            cleaned = content_raw.strip()
+            if cleaned.startswith("```"):
+                cleaned = "\n".join(cleaned.split("\n")[1:])
+                cleaned = cleaned.rstrip("`").strip()
+
+            # Find JSON object
+            start = cleaned.find("{")
+            end = cleaned.rfind("}") + 1
             if start != -1 and end > start:
-                data = json.loads(content_raw[start:end])
-                post_text = data.get("post_text", content_raw)
-                image_prompt = data.get("image_prompt", "")
-                
-                # Step 2: Generate actual image if we got a prompt
+                data = json.loads(cleaned[start:end])
+                raw_post = data.get("post_text", "")
+                # Properly unescape \\n -> real newlines
+                if isinstance(raw_post, str):
+                    post_text = raw_post.replace("\\n", "\n").strip()
+                else:
+                    post_text = str(raw_post)
+                raw_img = data.get("image_prompt", "")
+                image_prompt = raw_img.replace("\\n", " ").strip() if isinstance(raw_img, str) else ""
+
+                # Generate image if we got a prompt
                 if image_prompt:
                     image_b64 = self._generate_image_base64(image_prompt)
             else:
                 post_text = content_raw
-        except Exception:
+        except Exception as e:
+            print(f"[GeminiStudio] JSON parse error: {e} — using raw content")
             post_text = content_raw
 
         return {
