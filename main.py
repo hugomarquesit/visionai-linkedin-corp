@@ -77,6 +77,8 @@ class PostPayload(BaseModel):
     text: str
     visibility: str = "PUBLIC"
     draft: bool = False
+    image_base64: Optional[str] = None
+    image_mime: Optional[str] = "image/jpeg"
 
 class DeletePostPayload(BaseModel):
     post_urn: str
@@ -192,7 +194,15 @@ async def create_post(payload: PostPayload, _: bool = Depends(require_auth)):
     if payload.draft:
         result = li.create_org_post_draft(payload.text)
     else:
-        result = li.create_org_post(payload.text, payload.visibility)
+        if payload.image_base64:
+            result = li.create_org_post_with_image(
+                text=payload.text,
+                image_b64=payload.image_base64,
+                image_mime=payload.image_mime or "image/jpeg",
+                visibility=payload.visibility
+            )
+        else:
+            result = li.create_org_post(payload.text, payload.visibility)
     return result
 
 @app.delete("/api/posts")

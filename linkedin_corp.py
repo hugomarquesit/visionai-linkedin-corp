@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Optional
 
-LI_API_VERSION = "202312"
+LI_API_VERSION = "202503"
 LI_BASE = "https://api.linkedin.com"
 
 
@@ -138,6 +138,94 @@ class LinkedInCorporate:
         """Apaga um post da organização."""
         encoded = post_urn.replace(":", "%3A")
         return self._delete(f"/rest/posts/{encoded}")
+
+    def _upload_image(self, image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
+        """
+        Faz upload de uma imagem para o LinkedIn e retorna o imageUrn.
+        Fluxo: initializeUpload → PUT bytes → retorna urn
+        """
+        import base64 as b64_mod
+
+        # Step 1: Initialize upload
+        init_payload = {
+            "initializeUploadRequest": {
+                "owner": self.org_urn,
+            }
+        }
+        init_headers = {**self.headers, "Content-Type": "application/json"}
+        init_url = f"{LI_BASE}/rest/images?action=initializeUpload"
+        try:
+            r = requests.post(init_url, headers=init_headers, json=init_payload, timeout=15)
+            if r.status_code not in [200, 201]:
+                return {"ok": False, "error": f"initializeUpload failed: {r.status_code} {r.text}"}
+            data = r.json().get("value", {})
+            upload_url = data.get("uploadUrl")
+            image_urn = data.get("image")
+            if not upload_url or not image_urn:
+                return {"ok": False, "error": f"Missing uploadUrl or imageUrn: {data}"}
+        except Exception as e:
+            return {"ok": False, "error": f"initializeUpload exception: {e}"}
+
+        # Step 2: PUT the image bytes
+        try:
+            put_headers = {"Authorization": f"Bearer {self.token}", "Content-Type": mime_type}
+            r2 = requests.put(upload_url, headers=put_headers, data=image_bytes, timeout=30)
+            if r2.status_code not in [200, 201, 204]:
+                return {"ok": False, "error": f"Image PUT failed: {r2.status_code} {r2.text}"}
+        except Exception as e:
+            return {"ok": False, "error": f"Image PUT exception: {e}"}
+
+        return {"ok": True, "image_urn": image_urn}
+
+    def create_org_post_with_image(
+        self,
+        text: str,
+        image_b64: str,
+        image_mime: str = "image/jpeg",
+        alt_text: str = "VisionAI — Enxergando o Futuro com Inteligência",
+        visibility: str = "PUBLIC",
+    ) -> dict:
+        """
+        Publica um post com imagem na página da organização VisionAI.
+        Aceita imagem em base64. Se SVG, publica só texto.
+        """
+        import base64 as b64_mod
+
+        # SVG não é suportado como imagem LinkedIn — publica só texto
+        if image_mime == "image/svg+xml" or not image_b64:
+            return self.create_org_post(text, visibility)
+
+        # Decodifica bytes da imagem
+        try:
+            img_bytes = b64_mod.b64decode(image_b64)
+        except Exception as e:
+            return {"ok": False, "error": f"Base64 decode failed: {e}"}
+
+        # Faz upload da imagem
+        upload_result = self._upload_image(img_bytes, image_mime)
+        if not upload_result.get("ok"):
+            # Fallback: publica só texto
+            print(f"Upload de imagem falhou ({upload_result.get('error')}). Publicando só texto.")
+            return self.create_org_post(text, visibility)
+
+        image_urn = upload_result["image_urn"]
+
+        # Cria post com imagem
+        payload = {
+            "author": self.org_urn,
+            "commentary": text,
+            "visibility": visibility,
+            "distribution": {"feedDistribution": "MAIN_FEED"},
+            "lifecycleState": "PUBLISHED",
+            "isReshareDisabledByAuthor": False,
+            "content": {
+                "media": {
+                    "altText": alt_text,
+                    "id": image_urn,
+                }
+            },
+        }
+        return self._post("/rest/posts", payload)
 
     # ─── rw_organization_admin ────────────────────────────────────────────────
     def get_org_admins(self) -> dict:

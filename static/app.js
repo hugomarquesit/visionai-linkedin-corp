@@ -381,6 +381,9 @@ async function loadProfile() {
 
 // ═══════════════════════════════════════════════════════ POSTS
 
+let currentGeneratedImageBase64 = null;
+let currentGeneratedImageMime = 'image/jpeg';
+
 async function publishPost() {
   const text       = $('post-text').value.trim();
   const visibility = $('post-visibility').value;
@@ -390,12 +393,20 @@ async function publishPost() {
 
   const btn = $('publish-post-btn');
   btn.disabled = true;
-  btn.textContent = draft ? 'A guardar...' : 'A publicar...';
+  btn.textContent = draft ? 'A guardar...' : 'A publicar no LinkedIn...';
   $('post-result').className = 'result-box hidden';
+
+  const payload = {
+    text,
+    visibility,
+    draft,
+    image_base64: currentGeneratedImageBase64,
+    image_mime: currentGeneratedImageMime
+  };
 
   const { ok, data } = await apiFetch('/api/posts', {
     method: 'POST',
-    body: JSON.stringify({ text, visibility, draft }),
+    body: JSON.stringify(payload),
   });
 
   btn.disabled = false;
@@ -546,10 +557,13 @@ async function generatePost() {
     if (data.image_base64) {
       $('gen-image-container').classList.remove('hidden');
       const isSvg = data.image_base64.startsWith('<svg') || data.image_base64.includes('xml');
-      const mime = isSvg ? 'image/svg+xml' : 'image/jpeg';
+      const mime = data.image_mime || (isSvg ? 'image/svg+xml' : 'image/jpeg');
+      currentGeneratedImageBase64 = data.image_base64;
+      currentGeneratedImageMime = mime;
       $('gen-image').src = `data:${mime};base64,${data.image_base64}`;
     } else {
       $('gen-image-container').classList.add('hidden');
+      currentGeneratedImageBase64 = null;
     }
     
     $('gen-chars').textContent = `${data.char_count} caracteres`;
@@ -578,6 +592,44 @@ function sendToPostsTab() {
   if ($('post-text')) $('post-text').value = text;
   switchTab('posts');
   showToast('Conteúdo enviado para Gestão de Posts', 'success');
+}
+
+async function publishGeneratedPostDirectly() {
+  const text = $('gen-text-content').textContent.trim();
+  if (!text) { showToast('Gere um post primeiro antes de publicar', 'error'); return; }
+
+  const btn = $('publish-direct-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🚀 Publicando no LinkedIn...';
+  }
+
+  const payload = {
+    text,
+    visibility: 'PUBLIC',
+    draft: false,
+    image_base64: currentGeneratedImageBase64,
+    image_mime: currentGeneratedImageMime
+  };
+
+  const { ok, data } = await apiFetch('/api/posts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '🚀 Publicar no LinkedIn';
+  }
+
+  if (ok && (data.id || data.ok)) {
+    showToast('🎉 Post publicado na página da VisionAI no LinkedIn!', 'success');
+    alert(`🎉 Sucesso!\nPost publicado na página da VisionAI no LinkedIn!\nID do Post: ${data.id || 'Confirmado'}`);
+  } else {
+    const err = data.detail || data.error || 'Falha ao comunicar com API LinkedIn';
+    showToast(`Erro ao publicar: ${err}`, 'error');
+    alert(`❌ Erro ao publicar no LinkedIn:\n${err}`);
+  }
 }
 
 async function reviewPost() {
@@ -738,6 +790,8 @@ async function init() {
   if (auto1ClickBtn) auto1ClickBtn.addEventListener('click', autoGenerate1Click);
   $('copy-gen-btn').addEventListener('click', copyGeneratedPost);
   $('send-to-posts-btn').addEventListener('click', sendToPostsTab);
+  const pubDirectBtn = $('publish-direct-btn');
+  if (pubDirectBtn) pubDirectBtn.addEventListener('click', publishGeneratedPostDirectly);
 
   // Load auto topics & drafts on start if authed
   if (authed) {

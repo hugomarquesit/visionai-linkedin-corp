@@ -252,70 +252,101 @@ Responda APENAS com JSON válido, sem markdown:
             {"topic": "Site institucional que não passa credibilidade afasta decisores antes do primeiro contato. Construímos portais corporativos otimizados para o público certo", "category": "Governança & Intelligence", "format": "insight", "tone": "educativo"},
         ]
 
-    def _generate_image_base64(self, prompt: str) -> str:
-        """Gera uma imagem a partir de um prompt e retorna em Base64 usando o modelo de imagem configurado."""
-        try:
-            res = self.client.models.generate_images(
-                model="imagen-3.0-generate-001",
-                prompt=prompt,
-                config=types.GenerateImagesConfig(
-                    number_of_images=1,
-                    output_mime_type="image/jpeg",
-                    aspect_ratio="1:1"
+    def _generate_image_base64(self, prompt: str) -> tuple[str, str]:
+        """Gera uma imagem e retorna (base64, mime_type). Tenta Gemini Flash Image, fallback para SVG."""
+        # Tenta Gemini 2.0 Flash Image Generation (API correta)
+        for model in ["gemini-2.0-flash-preview-image-generation", "gemini-2.0-flash-exp"]:
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["TEXT", "IMAGE"],
+                        temperature=0.8,
+                    )
                 )
-            )
-            for img in res.generated_images:
-                return base64.b64encode(img.image.image_bytes).decode('utf-8')
-        except Exception as e:
-            print(f"API de imagem indisponível ({e}). Gerando banner SVG corporativo VisionAi como fallback visual...")
-            return self._generate_svg_banner(prompt)
-        return ""
+                for part in response.candidates[0].content.parts:
+                    if part.inline_data and part.inline_data.data:
+                        mime = part.inline_data.mime_type or "image/jpeg"
+                        img_b64 = base64.b64encode(part.inline_data.data).decode("utf-8")
+                        print(f"Imagem gerada com sucesso via {model} ({mime})")
+                        return img_b64, mime
+            except Exception as e:
+                print(f"Modelo {model} falhou: {e}")
+                continue
+
+        # Fallback: SVG corporativo VisionAI
+        print("Usando banner SVG corporativo como fallback visual.")
+        svg_b64 = self._generate_svg_banner(prompt[:80])
+        return svg_b64, "image/svg+xml"
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
     def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario") -> dict:
         """Gera um post completo para o LinkedIn corporativo usando frameworks avançados."""
         format_guides = {
-            "standard": "Post de texto direto, 150-300 palavras, 3-5 hashtags relevantes.",
-            "institucional": "Post sobre a cultura, visão e missão da VisionAI. Demonstre liderança corporativa, inovação sustentável e impacto no mercado LATAM. Termine com a visão de futuro.",
-            "produto_pitch": "Framework PAS (Problem, Agitation, Solution). Identifique uma dor clara de C-levels (ex: dados espalhados, processos manuais), agite a dor com impacto negativo (perda de ROI) e apresente as soluções/produtos da VisionAI como a bala de prata.",
-            "case_estudo": "Post focado em resultado (Estudo de Caso real ou simulado altamente verossímil). 1) O desafio crítico do cliente; 2) A solução técnica aplicada (IA/SAP/Cloud); 3) Métricas de impacto geradas (% ROI, horas ganhas).",
-            "lideranca_tecnica": "Post aprofundado, focando na arquitetura, governança ou segurança. Use linguagem técnica robusta e aborde temas como Soberania de Dados e IA responsável."
+            "pulse_article": (
+                "Artigo Estratégico LinkedIn Pulse / Essay (350-500 palavras) — Estrutura de Liderança de Pensamento de Alto Nível C-Suite "
+                "(inspirado no estudo 'Computer Vision: Becoming the Next Strategic Sensor'):\n"
+                "1. TITLE: Título executivo provocativo (ex: 'Visão Computacional na Borda: O Novo Sensor Estratégico das Operações')\n"
+                "2. HOOK: Reenquadre a visão tradicional. Mostre por que câmeras e sensores não são mais ferramentas passivas, mas motores ativos de inteligência operacional.\n"
+                "3. PARADIGM SHIFT: A transição da vigilância retroativa para o processamento de borda (Edge AI) em tempo real.\n"
+                "4. 3 PILARES ESTRATÉGICOS: 1) Visão na Borda sem dependência de nuvem; 2) IA Multimodal (áudio+vídeo+imagem simultâneos); 3) Integração com infraestrutura legada.\n"
+                "5. ROI E IMPACTO OPERACIONAL: Cite métricas concretas (ex: +15% produtividade agrícola, 95% precisão em atendimento, fiscalização 24/7 de EPIs, treinamento VR com 4x mais retenção).\n"
+                "6. EXECUTIVE ROADMAP & CALL TO ACTION: Guia prático de implementação para C-Levels e pergunta estratégica para engajamento do Conselho."
+            ),
+            "strategic_framework": (
+                "Framework Executivo & Manifesto (250-400 palavras) — Apresente um modelo conceitual proprietário da VisionAI para transformar a operação. "
+                "Aborde os gargalos (ex: por que 80% das PoCs de IA morrem na nuvem) e estruture a solução em passos claros de arquitetura Edge AI e Visão Computacional."
+            ),
+            "case": (
+                "Estudo de Caso Executivo (200-350 palavras) — Focado estritamente em ROI e Operações Reais da VisionAI (Visão Computacional, IA Multimodal, Edge AI ou Realidade Mista/VR). "
+                "1) O desafio crítico de negócio; 2) Por que soluções convencionais falharam; 3) A arquitetura da VisionAI aplicada (sem trocar câmeras, processamento local); 4) Métricas de impacto geradas."
+            ),
+            "storytelling": (
+                "Storytelling Corporativo (200-300 palavras) — Narrativa envolvente sobre um problema real de indústria/agro/atendimento e como o Edge AI da VisionAI transformou aoperação."
+            ),
+            "insight": (
+                "Insight Provocativo C-Level (150-250 palavras) — Provocação de alto nível para diretores e VPs, desafiando dogmas de tecnologia e apresentando a Visão Computacional de Borda como diferencial competitivo."
+            ),
+            "standard": (
+                "Post B2B Padrão + Banner (150-250 palavras) — Post executivo direto ao ponto, com gancho poderoso, benefícios claros da VisionAI e CTA corporativo."
+            )
         }
 
         tone_guides = {
-            "visionario": "Tom visionário e desafiador — questione o status quo, provoque reflexão profunda",
-            "tecnico": "Tom analítico e arquitetural, cite infraestrutura, metodologias ágeis e ROI",
-            "inspirador": "Tom focado em cultura corporativa e Employer Branding, destacando o valor humano",
-            "educativo": "Tom professoral e consultivo, educando o mercado sobre os benefícios de novas tecnologias",
+            "visionario": "Tom visionário e autoritativo — questione o status quo com pragmatismo executivo, provoque reflexão profunda no C-level",
+            "tecnico": "Tom analítico e arquitetural — cite processamento na borda (Edge AI), latência, segurança sem nuvem e ROI mensurável",
+            "inspirador": "Tom focado em transformação de negócios e impacto real na sociedade e nas operações humanas",
+            "educativo": "Tom consultivo de alta liderança, educando o mercado sobre os benefícios reais da inteligência artificial aplicada",
         }
 
         prompt = f"""
-Você é o redator sênior de LinkedIn da VisionAi e diretor de arte.
+Você é o Chief Content Officer & Estrategista de Liderança de Pensamento da VisionAI.
 
-CONTEXTO DA EMPRESA:
+CONTEXTO INSTITUCIONAL E TÉCNICO DA VISIONAI:
 {ORG_CONTEXT}
 {self.scraped_context}
 
-TAREFA: Crie um "Criativo Completo" para um post de LinkedIn sobre o seguinte tema:
-TEMA: {topic}
-FORMATO: {format_guides.get(format_type, format_guides['standard'])}
-TOM: {tone_guides.get(tone, tone_guides['visionario'])}
+SUA MISSÃO: Escrever um post de altíssimo valor executivo para o LinkedIn Corporativo sobre o tema abaixo.
 
-REGRAS DO POST:
-- Primeira linha deve ser um gancho poderoso
-- Use emojis estrategicamente (máximo 5)
-- Hashtags no final (3-5, relevantes e em português/inglês)
-- Foque em valor real e insights acionáveis
-- Termine com uma pergunta ou CTA que gere engajamento
+TEMA/OBJETIVO: {topic}
+FORMATO DE CONTEÚDO: {format_guides.get(format_type, format_guides['standard'])}
+TOM DE VOZ: {tone_guides.get(tone, tone_guides['visionario'])}
 
-REGRAS DO CRIATIVO (IMAGEM):
-- Você DEVE sugerir um prompt visual hiper-detalhado (em inglês) para gerar a arte que acompanhará o post.
-- Descreva a iluminação, estilo (ex: fotorealista, vetor, 3D render, cyberpunk, corporativo limpo), cores principais e elementos visuais.
+DIRETRIZES DE QUALIDADE B2B EXECUTIVA:
+- NUNCA mencione SAP, consultoria ERP genérica ou clichês banais de IA.
+- Foque nas soluções reais da VisionAI: Visão Computacional na Borda, IA Multimodal (áudio/vídeo/docs), Realidade Mista em Meta Quest 3, Visão Agro-Industrial e Governança de Conteúdo.
+- Estruture o texto com subtítulos elegantes em emoji, tópicos legíveis e parágrafos curtos.
+- Inclua métricas e resultados reais (ex: +15% produtividade no agro, 95% precisão em atendimento, retenção 4x maior em VR, ciclo de vídeo de 3 semanas para 2 dias).
+- Termine com 3 a 5 hashtags corporativas estratégicas (ex: #VisaoComputacional #EdgeAI #InteligenciaArtificial #InovacaoCorporativa #VisionAI).
 
-FORMATO DE SAÍDA OBRIGATÓRIO:
+REGRAS DA ARTE VISUAL (IMAGEM):
+- Crie um prompt hiper-detalhado em INGLÊS para gerar um criativo corporativo de alta tecnologia (ex: 'Ultra-sleek corporate 3D render of an industrial edge AI node with computer vision data overlays, glowing neon green and dark obsidian background, 8k resolution, cinematic lighting, clean futuristic tech aesthetic').
+
+FORMATO DE SAÍDA OBRIGATÓRIO (APENAS JSON):
 Retorne APENAS um JSON válido contendo as chaves:
-"post_text": "o texto do post aqui",
-"image_prompt": "o prompt em inglês para o gerador de imagem aqui"
+"post_text": "o texto completo formatado do post",
+"image_prompt": "o prompt em inglês para a geração visual"
 """
         content_raw = self._generate(prompt, temperature=0.85)
         
@@ -346,7 +377,7 @@ Retorne APENAS um JSON válido contendo as chaves:
 
                 # Generate image if we got a prompt
                 if image_prompt:
-                    image_b64 = self._generate_image_base64(image_prompt)
+                    image_b64, image_mime = self._generate_image_base64(image_prompt)
             else:
                 post_text = content_raw
         except Exception as e:
@@ -360,6 +391,7 @@ Retorne APENAS um JSON válido contendo as chaves:
             "content": post_text,
             "image_prompt": image_prompt,
             "image_base64": image_b64,
+            "image_mime": image_mime,
             "char_count": len(post_text),
             "model": self.model,
             "image_model": IMAGE_MODEL if image_b64 else None
