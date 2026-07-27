@@ -271,9 +271,26 @@
               </select>
             </div>
             
-            <div class="btn-group-vertical">
+            <div class="field-group mt-3">
+              <label>Central de Mídia do Criativo</label>
+              <div class="media-mode-tabs" id="media-mode-tabs">
+                <button type="button" class="media-tab-btn active" data-media-type="image">🖼️ Imagem AI</button>
+                <button type="button" class="media-tab-btn" data-media-type="video">🎥 Vídeo AI</button>
+                <button type="button" class="media-tab-btn" data-media-type="custom">📁 Upload Próprio</button>
+              </div>
+            </div>
+
+            <!-- Custom Upload Panel (hidden by default) -->
+            <div id="custom-upload-box" class="upload-dropzone hidden">
+              <input type="file" id="custom-file-input" accept="image/*,video/*" style="display:none" />
+              <div class="upload-icon">📁</div>
+              <p>Arraste uma foto/vídeo ou <button type="button" id="trigger-file-btn" class="btn-text-link">clique aqui para escolher do computador</button></p>
+              <span class="upload-hint">Suporta JPG, PNG, MP4, WebM (até 200MB)</span>
+            </div>
+            
+            <div class="btn-group-vertical mt-3">
               <button class="btn-ai full-width" id="generate-post-btn">
-                <span id="gen-btn-text">✦ Gerar Post &amp; Imagem</span>
+                <span id="gen-btn-text">✦ Gerar Post &amp; Criativo Visual</span>
                 <span id="gen-spinner" class="spinner hidden"></span>
               </button>
               
@@ -286,12 +303,21 @@
           <!-- Output & LinkedIn Live Feed Preview -->
           <div class="card">
             <div class="card-title-row">
-              <h3 class="card-title">Preview no Feed do LinkedIn 📱</h3>
+              <h3 class="card-title">Live Canvas &amp; Preview no Feed 📱</h3>
               <div class="gen-actions hidden" id="gen-actions">
                 <button class="btn-mini" id="copy-gen-btn">Copiar</button>
                 <button class="btn-mini" id="send-to-posts-btn">Editar em Posts</button>
                 <button class="btn-mini primary" id="publish-direct-btn" style="background:#0a66c2;color:#fff;font-weight:600;">🚀 Publicar no LinkedIn</button>
               </div>
+            </div>
+
+            <!-- Editable Live Canvas Text Editor -->
+            <div id="live-editor-box" class="live-editor-box hidden mb-3">
+              <div class="editor-header">
+                <label>✏️ Edite o Texto em Tempo Real Antes de Publicar:</label>
+                <button class="btn-mini secondary" id="regenerate-media-btn">🔄 Re-gerar Mídia com Texto Revisado</button>
+              </div>
+              <textarea id="gen-editable-text" class="textarea editor-textarea" rows="5" placeholder="Altere ou complemente o texto aqui para atualizar a simulação live..."></textarea>
             </div>
 
             <!-- LinkedIn Feed Post Card Mockup -->
@@ -307,7 +333,7 @@
                   <div class="li-avatar">V</div>
                   <div class="li-meta">
                     <div class="li-author">VisionAi | Inovação &amp; IA <span class="li-badge">✓ Org</span></div>
-                    <div class="li-sub">Consultoria de IA, SAP &amp; Cloud • 1.420 seguidores</div>
+                    <div class="li-sub">Consultoria de IA, Visão Computacional &amp; Edge • 1.420 seguidores</div>
                     <div class="li-time">Agora • 🌐</div>
                   </div>
                 </div>
@@ -315,10 +341,11 @@
                 <!-- Post Text Body -->
                 <div id="gen-text-content" class="li-post-body"></div>
 
-                <!-- Attached Media Image/Banner -->
+                <!-- Attached Media Image/Banner/Video -->
                 <div id="gen-image-container" class="li-post-media hidden">
-                  <img id="gen-image" src="" alt="Criativo visual gerado" />
-                  <div class="image-badge">✨ Criativo Gerado para a VisionAi</div>
+                  <img id="gen-image" src="" alt="Criativo visual gerado" class="hidden" />
+                  <video id="gen-video" controls class="hidden" style="width:100%;max-height:400px;background:#000;"></video>
+                  <div class="image-badge" id="media-type-badge">✨ Criativo Visual Gerado para a VisionAi</div>
                 </div>
 
                 <!-- LinkedIn Post Reactions Bar -->

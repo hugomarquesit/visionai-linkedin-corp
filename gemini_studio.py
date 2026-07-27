@@ -280,6 +280,46 @@ Responda APENAS com JSON válido, sem markdown:
         svg_b64 = self._generate_svg_banner(prompt[:80])
         return svg_b64, "image/svg+xml"
 
+    def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image") -> dict:
+        """
+        Recebe o texto editado pelo usuário e gera uma nova peça visual (imagem ou banner)
+        que representa fielmente a versão final revisada pelo usuário.
+        """
+        prompt = f"""
+Você é o Diretor de Arte da VisionAI.
+
+TEXTO FINAL REVISADO PELO USUÁRIO:
+{revised_text}
+
+Sua tarefa: Crie um prompt hiper-detalhado em INGLÊS para gerar uma arte visual (imagem ou criativo corporativo 3D/Edge AI) que traduza perfeitamente a mensagem principal do texto revisado acima.
+
+Descreva estilo, iluminação, elementos centrais, paleta de cores (obsidian, neon cyan/green, corporativo clean) e estética de alta tecnologia.
+
+Responda APENAS com JSON:
+{{"image_prompt": "prompt em inglês aqui"}}
+"""
+        raw = self._generate(prompt, temperature=0.7)
+        import re
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        image_prompt = ""
+        if json_match:
+            try:
+                data = json.loads(json_match.group())
+                image_prompt = data.get("image_prompt", "")
+            except Exception:
+                pass
+        
+        if not image_prompt:
+            image_prompt = f"Corporate tech 3D render representing: {revised_text[:100]}"
+            
+        img_b64, mime = self._generate_image_base64(image_prompt)
+        return {
+            "image_prompt": image_prompt,
+            "image_base64": img_b64,
+            "image_mime": mime,
+            "media_type": media_type
+        }
+
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
     def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario") -> dict:
         """Gera um post completo para o LinkedIn corporativo usando frameworks avançados."""

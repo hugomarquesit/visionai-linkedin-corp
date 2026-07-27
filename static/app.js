@@ -523,6 +523,45 @@ function escapeHtml(str) {
 
 // ═══════════════════════════════════════════════════════ GEMINI STUDIO
 
+let currentMediaMode = 'image';
+let currentGeneratedMediaType = 'image';
+
+function updateMediaDisplay(b64, mime, mediaType = 'image') {
+  const container = $('gen-image-container');
+  const imgEl = $('gen-image');
+  const videoEl = $('gen-video');
+  const badgeEl = $('media-type-badge');
+
+  if (!b64) {
+    container.classList.add('hidden');
+    imgEl.classList.add('hidden');
+    videoEl.classList.add('hidden');
+    currentGeneratedImageBase64 = null;
+    return;
+  }
+
+  container.classList.remove('hidden');
+  currentGeneratedImageBase64 = b64;
+  currentGeneratedImageMime = mime;
+  currentGeneratedMediaType = mediaType;
+
+  const isVideo = mediaType === 'video' || (mime && mime.includes('video'));
+
+  if (isVideo) {
+    imgEl.classList.add('hidden');
+    videoEl.classList.remove('hidden');
+    videoEl.src = `data:${mime};base64,${b64}`;
+    if (badgeEl) badgeEl.textContent = '🎬 Vídeo Criativo Gerado para a VisionAi';
+  } else {
+    videoEl.classList.add('hidden');
+    imgEl.classList.remove('hidden');
+    const isSvg = b64.startsWith('<svg') || b64.includes('xml');
+    const actualMime = mime || (isSvg ? 'image/svg+xml' : 'image/jpeg');
+    imgEl.src = `data:${actualMime};base64,${b64}`;
+    if (badgeEl) badgeEl.textContent = '✨ Criativo Visual Gerado para a VisionAi';
+  }
+}
+
 async function generatePost() {
   const topic  = $('gen-topic').value.trim();
   const format = $('gen-format').value;
@@ -533,6 +572,7 @@ async function generatePost() {
   setLoading('gen-btn-text', 'gen-spinner', true, 'A gerar com Gemini (10-15s)...');
   $('gen-actions').classList.add('hidden');
   $('gen-meta').classList.add('hidden');
+  if ($('live-editor-box')) $('live-editor-box').classList.add('hidden');
   $('gen-empty-state').classList.remove('hidden');
   $('gen-empty-state').innerHTML = '<div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini 3.5 está criando o seu texto corporativo e peça visual. Por favor, aguarde...</p>';
   $('gen-output-content').classList.add('hidden');
@@ -544,7 +584,7 @@ async function generatePost() {
     body: JSON.stringify({ topic, format_type: format, tone }),
   });
 
-  setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post & Imagem');
+  setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post & Criativo Visual');
 
   if (ok && data.content) {
     $('gen-empty-state').classList.add('hidden');
@@ -552,25 +592,19 @@ async function generatePost() {
     
     // Inject Text
     $('gen-text-content').textContent = data.content;
+    if ($('gen-editable-text')) {
+      $('gen-editable-text').value = data.content;
+      $('live-editor-box').classList.remove('hidden');
+    }
     
     // Inject Image or SVG Banner
-    if (data.image_base64) {
-      $('gen-image-container').classList.remove('hidden');
-      const isSvg = data.image_base64.startsWith('<svg') || data.image_base64.includes('xml');
-      const mime = data.image_mime || (isSvg ? 'image/svg+xml' : 'image/jpeg');
-      currentGeneratedImageBase64 = data.image_base64;
-      currentGeneratedImageMime = mime;
-      $('gen-image').src = `data:${mime};base64,${data.image_base64}`;
-    } else {
-      $('gen-image-container').classList.add('hidden');
-      currentGeneratedImageBase64 = null;
-    }
+    updateMediaDisplay(data.image_base64, data.image_mime, 'image');
     
     $('gen-chars').textContent = `${data.char_count} caracteres`;
     $('gen-meta').classList.remove('hidden');
     $('gen-actions').classList.remove('hidden');
     showToast('Criativo gerado com sucesso!', 'success');
-    loadDrafts(); // refresh drafts list
+    loadDrafts();
   } else {
     $('gen-empty-state').classList.remove('hidden');
     $('gen-empty-state').innerHTML = '<div class="empty-icon">⚠️</div><p>Erro ao gerar post. Tente novamente.</p>';
@@ -578,16 +612,64 @@ async function generatePost() {
   }
 }
 
+async function regenerateMediaFromText() {
+  const revisedText = $('gen-editable-text').value.trim();
+  if (!revisedText) { showToast('Escreva ou revise o texto antes de re-gerar a mídia', 'error'); return; }
+
+  const btn = $('regenerate-media-btn');
+  btn.disabled = true;
+  btn.textContent = '🔄 Re-gerando Mídia...';
+
+  const { ok, data } = await apiFetch('/api/gemini/regenerate-media', {
+    method: 'POST',
+    body: JSON.stringify({ revised_text: revisedText, media_type: currentMediaMode }),
+  });
+
+  btn.disabled = false;
+  btn.textContent = '🔄 Re-gerar Mídia com Texto Revisado';
+
+  if (ok && data.image_base64) {
+    updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || 'image');
+    showToast('Mídia atualizada com base no texto revisado!', 'success');
+  } else {
+    showToast('Erro ao re-gerar mídia', 'error');
+  }
+}
+
+async function uploadCustomMediaFile(file) {
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  showToast('Enviando mídia...', 'info');
+
+  try {
+    const res = await fetch(API + '/api/media/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    const data = await res.json();
+    if (res.ok && data.media_b64) {
+      updateMediaDisplay(data.media_b64, data.media_mime, data.media_type);
+      showToast(`Mídia carregada com sucesso (${data.filename})!`, 'success');
+    } else {
+      showToast('Erro no upload da mídia', 'error');
+    }
+  } catch (e) {
+    showToast(`Erro de conexão no upload: ${e.message}`, 'error');
+  }
+}
+
 function copyGeneratedPost() {
-  const el = $('gen-text-content');
-  const text = el ? el.textContent : '';
+  const text = $('gen-editable-text') ? $('gen-editable-text').value : $('gen-text-content').textContent;
   if (!text) { showToast('Nenhum post gerado para copiar', 'error'); return; }
   navigator.clipboard.writeText(text).then(() => showToast('Copiado!', 'success'));
 }
 
 function sendToPostsTab() {
-  const el = $('gen-text-content');
-  const text = el ? el.textContent : '';
+  const text = $('gen-editable-text') ? $('gen-editable-text').value : $('gen-text-content').textContent;
   if (!text) { showToast('Nenhum post gerado para enviar', 'error'); return; }
   if ($('post-text')) $('post-text').value = text;
   switchTab('posts');
@@ -595,7 +677,7 @@ function sendToPostsTab() {
 }
 
 async function publishGeneratedPostDirectly() {
-  const text = $('gen-text-content').textContent.trim();
+  const text = $('gen-editable-text') ? $('gen-editable-text').value.trim() : $('gen-text-content').textContent.trim();
   if (!text) { showToast('Gere um post primeiro antes de publicar', 'error'); return; }
 
   const btn = $('publish-direct-btn');
@@ -609,7 +691,8 @@ async function publishGeneratedPostDirectly() {
     visibility: 'PUBLIC',
     draft: false,
     image_base64: currentGeneratedImageBase64,
-    image_mime: currentGeneratedImageMime
+    image_mime: currentGeneratedImageMime,
+    media_type: currentGeneratedMediaType
   };
 
   const { ok, data } = await apiFetch('/api/posts', {
@@ -792,6 +875,45 @@ async function init() {
   $('send-to-posts-btn').addEventListener('click', sendToPostsTab);
   const pubDirectBtn = $('publish-direct-btn');
   if (pubDirectBtn) pubDirectBtn.addEventListener('click', publishGeneratedPostDirectly);
+
+  // Media Mode Tabs (Image / Video / Custom Upload)
+  document.querySelectorAll('.media-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.media-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentMediaMode = btn.dataset.mediaType || 'image';
+      const uploadBox = $('custom-upload-box');
+      if (currentMediaMode === 'custom') {
+        if (uploadBox) uploadBox.classList.remove('hidden');
+      } else {
+        if (uploadBox) uploadBox.classList.add('hidden');
+      }
+    });
+  });
+
+  // Custom File Upload Trigger & Listener
+  const triggerFileBtn = $('trigger-file-btn');
+  const customFileInput = $('custom-file-input');
+  if (triggerFileBtn && customFileInput) {
+    triggerFileBtn.addEventListener('click', () => customFileInput.click());
+    customFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        uploadCustomMediaFile(e.target.files[0]);
+      }
+    });
+  }
+
+  // Live Text Canvas Editor Sync & Regenerate Media Button
+  const editableTextEl = $('gen-editable-text');
+  if (editableTextEl) {
+    editableTextEl.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if ($('gen-text-content')) $('gen-text-content').textContent = val;
+      if ($('gen-chars')) $('gen-chars').textContent = `${val.length} caracteres`;
+    });
+  }
+  const regenMediaBtn = $('regenerate-media-btn');
+  if (regenMediaBtn) regenMediaBtn.addEventListener('click', regenerateMediaFromText);
 
   // Load auto topics & drafts on start if authed
   if (authed) {

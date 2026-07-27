@@ -20,6 +20,20 @@ class ScrapedKnowledge(Base):
     url = Column(String)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
+class BrandDNA(Base):
+    __tablename__ = "brand_dna"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    company_name = Column(String, default="VisionAI")
+    website_url = Column(String, default="https://visionai.com.br")
+    industry = Column(String, default="Inteligência Artificial & Computação de Borda")
+    target_audience = Column(String, default="C-Levels, Diretores de TI, Heads de Operações e Gestores Industriais")
+    tone_of_voice = Column(String, default="Visionário, Técnico, Pragmático e Orientado a ROI")
+    core_services = Column(Text)
+    differentials = Column(Text)
+    content_pillars = Column(Text)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
 class PostDraft(Base):
     __tablename__ = "post_drafts"
     
@@ -30,6 +44,8 @@ class PostDraft(Base):
     post_text = Column(Text)
     image_prompt = Column(Text)
     image_base64 = Column(Text)
+    media_type = Column(String, default="image") # "image", "video", "custom"
+    media_mime = Column(String, default="image/jpeg")
     model = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

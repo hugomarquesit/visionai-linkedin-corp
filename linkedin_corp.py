@@ -227,6 +227,84 @@ class LinkedInCorporate:
         }
         return self._post("/rest/posts", payload)
 
+    def _upload_video(self, video_bytes: bytes, mime_type: str = "video/mp4") -> dict:
+        """
+        Faz upload de um vídeo para o LinkedIn REST API v202503 e retorna o videoUrn.
+        Fluxo: initializeUpload (videos) → PUT bytes → retorna urn
+        """
+        init_payload = {
+            "initializeUploadRequest": {
+                "owner": self.org_urn,
+                "fileSizeBytes": len(video_bytes),
+            }
+        }
+        init_headers = {**self.headers, "Content-Type": "application/json"}
+        init_url = f"{LI_BASE}/rest/videos?action=initializeUpload"
+        try:
+            r = requests.post(init_url, headers=init_headers, json=init_payload, timeout=15)
+            if r.status_code not in [200, 201]:
+                return {"ok": False, "error": f"initializeUpload video failed: {r.status_code} {r.text}"}
+            val = r.json().get("value", {})
+            upload_url = val.get("uploadUrl") or (val.get("uploadInstructions", [{}])[0].get("uploadUrl"))
+            video_urn = val.get("video")
+            if not upload_url or not video_urn:
+                return {"ok": False, "error": f"Missing uploadUrl or videoUrn in response: {val}"}
+        except Exception as e:
+            return {"ok": False, "error": f"initializeUpload video exception: {e}"}
+
+        # Step 2: PUT video bytes
+        try:
+            put_headers = {"Authorization": f"Bearer {self.token}", "Content-Type": mime_type}
+            r2 = requests.put(upload_url, headers=put_headers, data=video_bytes, timeout=60)
+            if r2.status_code not in [200, 201, 204]:
+                return {"ok": False, "error": f"Video PUT failed: {r2.status_code} {r2.text}"}
+        except Exception as e:
+            return {"ok": False, "error": f"Video PUT exception: {e}"}
+
+        return {"ok": True, "video_urn": video_urn}
+
+    def create_org_post_with_video(
+        self,
+        text: str,
+        video_b64: str,
+        video_mime: str = "video/mp4",
+        title: str = "VisionAI — Vídeo Institucional",
+        visibility: str = "PUBLIC",
+    ) -> dict:
+        """Publica um post com vídeo na página da organização VisionAI."""
+        import base64 as b64_mod
+
+        if not video_b64:
+            return self.create_org_post(text, visibility)
+
+        try:
+            v_bytes = b64_mod.b64decode(video_b64)
+        except Exception as e:
+            return {"ok": False, "error": f"Base64 decode video failed: {e}"}
+
+        upload_result = self._upload_video(v_bytes, video_mime)
+        if not upload_result.get("ok"):
+            print(f"Upload de vídeo falhou ({upload_result.get('error')}). Publicando texto.")
+            return self.create_org_post(text, visibility)
+
+        video_urn = upload_result["video_urn"]
+
+        payload = {
+            "author": self.org_urn,
+            "commentary": text,
+            "visibility": visibility,
+            "distribution": {"feedDistribution": "MAIN_FEED"},
+            "lifecycleState": "PUBLISHED",
+            "isReshareDisabledByAuthor": False,
+            "content": {
+                "media": {
+                    "title": title,
+                    "id": video_urn,
+                }
+            },
+        }
+        return self._post("/rest/posts", payload)
+
     # ─── rw_organization_admin ────────────────────────────────────────────────
     def get_org_admins(self) -> dict:
         """Lista administradores da organização."""

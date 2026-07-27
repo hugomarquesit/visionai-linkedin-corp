@@ -9,7 +9,7 @@ import threading
 from datetime import datetime
 from functools import wraps
 
-from fastapi import FastAPI, Request, Depends, HTTPException, Body
+from fastapi import FastAPI, Request, Depends, HTTPException, Body, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 
 from linkedin_corp import LinkedInCorporate
 from gemini_studio import GeminiStudio
-from database import init_db, SessionLocal, PostDraft
+from database import init_db, SessionLocal, PostDraft, BrandDNA
 
 init_db()
 
@@ -79,6 +79,21 @@ class PostPayload(BaseModel):
     draft: bool = False
     image_base64: Optional[str] = None
     image_mime: Optional[str] = "image/jpeg"
+    media_type: Optional[str] = "image" # "image" or "video"
+
+class RegenerateMediaPayload(BaseModel):
+    revised_text: str
+    media_type: Optional[str] = "image"
+
+class BrandDNAPayload(BaseModel):
+    company_name: Optional[str] = "VisionAI"
+    website_url: Optional[str] = "https://visionai.com.br"
+    industry: Optional[str] = "Inteligência Artificial & Computação de Borda"
+    target_audience: Optional[str] = "C-Levels, Diretores de TI, Heads de Operações"
+    tone_of_voice: Optional[str] = "Visionário, Técnico, Pragmático"
+    core_services: Optional[str] = None
+    differentials: Optional[str] = None
+    content_pillars: Optional[str] = None
 
 class DeletePostPayload(BaseModel):
     post_urn: str
@@ -195,12 +210,21 @@ async def create_post(payload: PostPayload, _: bool = Depends(require_auth)):
         result = li.create_org_post_draft(payload.text)
     else:
         if payload.image_base64:
-            result = li.create_org_post_with_image(
-                text=payload.text,
-                image_b64=payload.image_base64,
-                image_mime=payload.image_mime or "image/jpeg",
-                visibility=payload.visibility
-            )
+            is_video = payload.media_type == "video" or (payload.image_mime and "video" in payload.image_mime)
+            if is_video:
+                result = li.create_org_post_with_video(
+                    text=payload.text,
+                    video_b64=payload.image_base64,
+                    video_mime=payload.image_mime or "video/mp4",
+                    visibility=payload.visibility
+                )
+            else:
+                result = li.create_org_post_with_image(
+                    text=payload.text,
+                    image_b64=payload.image_base64,
+                    image_mime=payload.image_mime or "image/jpeg",
+                    visibility=payload.visibility
+                )
         else:
             result = li.create_org_post(payload.text, payload.visibility)
     return result
@@ -209,6 +233,84 @@ async def create_post(payload: PostPayload, _: bool = Depends(require_auth)):
 async def delete_post(payload: DeletePostPayload, _: bool = Depends(require_auth)):
     result = li.delete_org_post(payload.post_urn)
     return result
+
+# ── Brand DNA & Intelligence ───────────────────────────────────────────────
+@app.get("/api/brand/dna")
+async def get_brand_dna(_: bool = Depends(require_auth)):
+    db = SessionLocal()
+    try:
+        dna = db.query(BrandDNA).first()
+        if not dna:
+            dna = BrandDNA(
+                company_name="VisionAI",
+                website_url="https://visionai.com.br",
+                industry="Inteligência Artificial & Computação de Borda",
+                target_audience="C-Levels, Diretores de TI, Heads de Operações e Gestores Industriais",
+                tone_of_voice="Visionário, Técnico, Pragmático e Orientado a ROI",
+                core_services="Visão Computacional na Borda, IA Multimodal, Realidade Mista em Meta Quest 3, Visão Agro-Industrial, Geração de Conteúdo AI, Governança",
+                differentials="Edge AI sem dependência de nuvem, câmeras já instaladas, 95% precisão em atendimento, +15% produtividade agro",
+                content_pillars="Casos de ROI, Liderança de Pensamento, Desmistificação Técnica, Automação Operacional"
+            )
+            db.add(dna)
+            db.commit()
+            db.refresh(dna)
+        return {
+            "ok": True,
+            "dna": {
+                "company_name": dna.company_name,
+                "website_url": dna.website_url,
+                "industry": dna.industry,
+                "target_audience": dna.target_audience,
+                "tone_of_voice": dna.tone_of_voice,
+                "core_services": dna.core_services,
+                "differentials": dna.differentials,
+                "content_pillars": dna.content_pillars,
+            }
+        }
+    finally:
+        db.close()
+
+@app.post("/api/brand/dna")
+async def update_brand_dna(payload: BrandDNAPayload, _: bool = Depends(require_auth)):
+    db = SessionLocal()
+    try:
+        dna = db.query(BrandDNA).first()
+        if not dna:
+            dna = BrandDNA()
+            db.add(dna)
+        if payload.company_name: dna.company_name = payload.company_name
+        if payload.website_url: dna.website_url = payload.website_url
+        if payload.industry: dna.industry = payload.industry
+        if payload.target_audience: dna.target_audience = payload.target_audience
+        if payload.tone_of_voice: dna.tone_of_voice = payload.tone_of_voice
+        if payload.core_services: dna.core_services = payload.core_services
+        if payload.differentials: dna.differentials = payload.differentials
+        if payload.content_pillars: dna.content_pillars = payload.content_pillars
+        db.commit()
+        return {"ok": True, "message": "Brand DNA atualizado com sucesso"}
+    finally:
+        db.close()
+
+@app.post("/api/gemini/regenerate-media")
+async def regenerate_media(payload: RegenerateMediaPayload, _: bool = Depends(require_auth)):
+    result = ai.regenerate_media_from_revised_text(payload.revised_text, payload.media_type or "image")
+    return {"ok": True, **result}
+
+@app.post("/api/media/upload")
+async def upload_custom_media(file: UploadFile = File(...), _: bool = Depends(require_auth)):
+    import base64
+    contents = await file.read()
+    b64 = base64.b64encode(contents).decode("utf-8")
+    mime = file.content_type or "image/jpeg"
+    is_video = "video" in mime
+    return {
+        "ok": True,
+        "filename": file.filename,
+        "media_b64": b64,
+        "media_mime": mime,
+        "media_type": "video" if is_video else "image",
+        "size_bytes": len(contents)
+    }
 
 # ── Gemini — Geração de Posts ───────────────────────────────────────────────
 @app.get("/api/gemini/auto-topics")
