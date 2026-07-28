@@ -229,13 +229,40 @@
       <div id="studio-generate" class="studio-panel active">
         <!-- Tópicos Sugeridos pelo Site -->
         <div class="auto-topics-bar card mb-3">
-          <div class="topics-header">
-            <span class="sparkle">✦</span>
-            <strong>Tópicos Sugeridos pelo Site (visionai.com.br):</strong>
-            <span class="topics-sub">Clique em um tema para preencher ou gerar em 1-clique</span>
+          <div class="topics-header-row">
+            <div class="topics-title-area">
+              <span class="sparkle">✦</span>
+              <strong>Tópicos Sugeridos pelo Site (visionai.com.br/#servicos):</strong>
+              <span class="topics-sub">Estrutura oficial dos 6 serviços reais da VisionAI.</span>
+            </div>
+            <div class="topics-actions-btns">
+              <button class="btn btn-secondary btn-sm" onclick="loadAutoTopics(true)" id="btn-refresh-topics" title="Buscar novos temas do site via Gemini">
+                🔄 Buscar Novos Tópicos
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="autoGenerate1Click()" title="Sortear um tópico e gerar criativo em 1-clique">
+                ⚡ Sortear &amp; Gerar 1-Clique
+              </button>
+            </div>
           </div>
-          <div id="auto-topics-chips" class="topics-chips">
-            <span class="chip-loading">Carregando sugestões institucionais...</span>
+
+          <!-- Filtros por Categoria & Busca de Tópicos -->
+          <div class="topics-filter-row">
+            <div class="topics-categories-pills" id="topics-category-filters">
+              <button class="pill-filter active" onclick="filterTopicsByCategory('')">Todas as 6 Linhas</button>
+              <button class="pill-filter" onclick="filterTopicsByCategory('Visão Computacional')">Visão Computacional</button>
+              <button class="pill-filter" onclick="filterTopicsByCategory('IA Multimodal')">IA Multimodal</button>
+              <button class="pill-filter" onclick="filterTopicsByCategory('EdTech & VR')">EdTech &amp; VR</button>
+              <button class="pill-filter" onclick="filterTopicsByCategory('Agro-Industrial')">Agro-Industrial</button>
+              <button class="pill-filter" onclick="filterTopicsByCategory('Conteúdo & Mídia IA')">Conteúdo &amp; Mídia</button>
+              <button class="pill-filter" onclick="filterTopicsByCategory('Governança & Intelligence')">Governança</button>
+            </div>
+            <div class="topics-search-box">
+              <input type="text" id="topics-search-input" class="input-field input-sm" placeholder="🔍 Filtrar por palavra..." oninput="onSearchTopicsInput()" />
+            </div>
+          </div>
+
+          <div id="auto-topics-chips" class="topics-chips mt-2">
+            <span class="chip-loading">Carregando sugestões institucionais do site...</span>
           </div>
         </div>
 

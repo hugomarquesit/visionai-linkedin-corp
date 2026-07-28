@@ -431,32 +431,128 @@ async function publishPost() {
 // ═══════════════════════════════════════════════════════ AUTO TOPICS & DRAFTS
 
 let cachedAutoTopics = [];
+let activeCategoryFilter = '';
+let topicSearchQuery = '';
 
-async function loadAutoTopics() {
+async function loadAutoTopics(forceRefresh = false) {
   const chipsContainer = $('auto-topics-chips');
+  const btnRefresh = $('btn-refresh-topics');
   if (!chipsContainer) return;
-  
-  const { ok, data } = await apiFetch('/api/gemini/auto-topics');
+
+  if (forceRefresh) {
+    if (btnRefresh) {
+      btnRefresh.disabled = true;
+      btnRefresh.innerHTML = '⏳ Gerando Tópicos...';
+    }
+    chipsContainer.innerHTML = '<span class="chip-loading">🧠 IA analisando os 6 serviços do site visionai.com.br...</span>';
+  }
+
+  let url = '/api/gemini/auto-topics';
+  if (forceRefresh) url += '?refresh=true';
+
+  const { ok, data } = await apiFetch(url);
+
+  if (btnRefresh) {
+    btnRefresh.disabled = false;
+    btnRefresh.innerHTML = '🔄 Buscar Novos Tópicos';
+  }
+
   if (ok && data.topics && data.topics.length > 0) {
     cachedAutoTopics = data.topics;
-    chipsContainer.innerHTML = data.topics.map((t, idx) => `
-      <div class="topic-chip" onclick="selectAutoTopic(${idx})">
-        <span class="chip-badge">${t.category}</span>
-        <span class="chip-text">${t.topic}</span>
-      </div>
-    `).join('');
+    renderAutoTopics();
+    if (forceRefresh) {
+      showToast('Novos tópicos gerados com sucesso!', 'success');
+    }
   } else {
-    chipsContainer.innerHTML = '<span class="chip-sub">Nenhuma sugestão carregada do site.</span>';
+    chipsContainer.innerHTML = '<span class="chip-sub">Nenhuma sugestão carregada. Tente novamente.</span>';
   }
 }
 
-function selectAutoTopic(index) {
+function renderAutoTopics() {
+  const chipsContainer = $('auto-topics-chips');
+  if (!chipsContainer) return;
+
+  let filtered = cachedAutoTopics;
+
+  if (activeCategoryFilter) {
+    const catLower = activeCategoryFilter.toLowerCase();
+    filtered = filtered.filter(t => (t.category || '').toLowerCase().includes(catLower));
+  }
+
+  if (topicSearchQuery) {
+    const qLower = topicSearchQuery.toLowerCase();
+    filtered = filtered.filter(t =>
+      (t.topic || '').toLowerCase().includes(qLower) ||
+      (t.category || '').toLowerCase().includes(qLower)
+    );
+  }
+
+  if (filtered.length === 0) {
+    chipsContainer.innerHTML = '<span class="chip-sub">Nenhum tópico encontrado para o filtro selecionado.</span>';
+    return;
+  }
+
+  chipsContainer.innerHTML = filtered.map((t) => {
+    const realIdx = cachedAutoTopics.indexOf(t);
+    const catLabel = t.category || 'VisionAI';
+    return `
+      <div class="topic-chip-card" onclick="selectAutoTopic(${realIdx}, false)">
+        <div class="topic-chip-header">
+          <span class="chip-badge">${catLabel}</span>
+          <div class="chip-actions">
+            <button class="btn-chip-action btn-use" onclick="event.stopPropagation(); selectAutoTopic(${realIdx}, false)" title="Usar este tema no formulário">
+              ✍️ Usar
+            </button>
+            <button class="btn-chip-action btn-gen" onclick="event.stopPropagation(); selectAutoTopic(${realIdx}, true)" title="Gerar post com este tema imediatamente">
+              ⚡ Gerar
+            </button>
+          </div>
+        </div>
+        <div class="topic-chip-body">${t.topic}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterTopicsByCategory(cat) {
+  activeCategoryFilter = cat;
+  const pills = document.querySelectorAll('#topics-category-filters .pill-filter');
+  pills.forEach(pill => {
+    const pillText = pill.innerText.trim();
+    if ((!cat && pillText.startsWith('Todas')) || (cat && pillText.toLowerCase().includes(cat.toLowerCase()))) {
+      pill.classList.add('active');
+    } else {
+      pill.classList.remove('active');
+    }
+  });
+  renderAutoTopics();
+}
+
+function onSearchTopicsInput() {
+  const input = $('topics-search-input');
+  if (input) {
+    topicSearchQuery = input.value.trim();
+    renderAutoTopics();
+  }
+}
+
+function selectAutoTopic(index, autoGenerate = false) {
   const item = cachedAutoTopics[index];
   if (!item) return;
-  $('gen-topic').value = item.topic;
-  if (item.format) $('gen-format').value = item.format;
-  if (item.tone) $('gen-tone').value = item.tone;
-  showToast('Tema do site selecionado!', 'info');
+
+  const topicInput = $('gen-topic');
+  if (topicInput) topicInput.value = item.topic;
+
+  if (item.format && $('gen-format')) $('gen-format').value = item.format;
+  if (item.tone && $('gen-tone')) $('gen-tone').value = item.tone;
+
+  if (autoGenerate) {
+    showToast(`Gerando criativo para: ${item.category}...`, 'info');
+    generatePost();
+  } else {
+    showToast(`Tema selecionado: ${item.category}`, 'info');
+    if (topicInput) topicInput.focus();
+  }
 }
 
 async function autoGenerate1Click() {
@@ -464,15 +560,14 @@ async function autoGenerate1Click() {
     await loadAutoTopics();
   }
   if (cachedAutoTopics.length > 0) {
-    const randomTopic = cachedAutoTopics[Math.floor(Math.random() * cachedAutoTopics.length)];
-    $('gen-topic').value = randomTopic.topic;
-    if (randomTopic.format) $('gen-format').value = randomTopic.format;
-    if (randomTopic.tone) $('gen-tone').value = randomTopic.tone;
-    showToast('Tópico sorteado do site! Gerando criativo...', 'info');
-    generatePost();
+    const randomIndex = Math.floor(Math.random() * cachedAutoTopics.length);
+    selectAutoTopic(randomIndex, true);
   } else {
-    $('gen-topic').value = "IA Generativa no SAP S/4HANA: Como extrair ROI real em 2026";
-    generatePost();
+    showToast('Carregando tópicos antes de gerar...', 'info');
+    await loadAutoTopics(true);
+    if (cachedAutoTopics.length > 0) {
+      selectAutoTopic(0, true);
+    }
   }
 }
 

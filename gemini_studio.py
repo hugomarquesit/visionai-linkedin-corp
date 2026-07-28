@@ -45,49 +45,45 @@ class GeminiStudio:
         self.scraped_context = self._scrape_visionai_website()
 
     def _scrape_visionai_website(self) -> str:
-        """Scrape do bundle JS da SPA visionai.com.br para extrair conteúdo real dos serviços."""
+        """Scrape limpo do site e bundles da SPA visionai.com.br para extrair conteúdo das 6 linhas de serviço."""
         import re
+        from database import init_db
+        init_db()
         db = SessionLocal()
         try:
             # Cache: se já foi feito scraping recente (< 24h), usa do banco
             knowledge = db.query(ScrapedKnowledge).filter_by(category="institucional_v2").first()
-            if knowledge and knowledge.content and len(knowledge.content) > 200:
+            if knowledge and knowledge.content and len(knowledge.content) > 100:
                 return f"\n\nCONTEÚDO DO SITE VISIONAI.COM.BR:\n{knowledge.content}"
             
-            # Pega o HTML para descobrir o bundle JS
-            home_resp = requests.get("https://visionai.com.br", timeout=10)
+            home_resp = requests.get("https://visionai.com.br", timeout=4)
             js_urls = re.findall(r'/assets/[^"]+\.js', home_resp.text)
             
             extracted = []
-            for js_path in js_urls[:2]:  # máx 2 bundles
+            js_code_words = {'function', 'document', 'var ', 'const ', 'return', 'element', 'import',
+                             'catch', 'math', 'void ', '==', '=>', 'childlist', 'undefined', 'props',
+                             'classname', 'queryselectorall', 'addeventlistener', 'dataset', 'innerhtml'}
+            
+            for js_path in js_urls[:2]:
                 try:
-                    js_resp = requests.get(f"https://visionai.com.br{js_path}", timeout=15)
+                    js_resp = requests.get(f"https://visionai.com.br{js_path}", timeout=4)
                     content = js_resp.text
-                    # Extrai strings em PT-BR com conteúdo real
-                    strings = re.findall(r'"([^"\\]{15,300})"', content)
-                    pt_chars = 'áéíóúãõâêôçàèìòùÁÉÍÓÚÃÕÂÊÔÇ'
-                    pt_words = ['visão','inteligên','solução','análise','dados','monitoramento',
-                                'drone','câmera','automação','educação','empresa','processo',
-                                'resultado','tecnologia','document','identificamos','automatiz',
-                                'negócio','cliente','risco','operação','imagem','vídeo','áudio',
-                                'computação','nuvem','segurança','gestão','relatório','inspeção',
-                                'agrícola','industrial','treinamento','realidade','mista','borda',
-                                'detecção','monitoram','precisão','produtividade']
+                    strings = re.findall(r'"([^"\\]{25,300})"', content)
                     seen = set()
                     for t in strings:
                         t = t.strip()
-                        if t in seen or t.startswith('http') or len(t) < 20:
+                        t_lower = t.lower()
+                        if t in seen or t.startswith('http') or len(t.split()) < 3:
                             continue
-                        has_pt = any(c in t for c in pt_chars) or any(w.lower() in t.lower() for w in pt_words)
-                        if has_pt:
-                            seen.add(t)
-                            extracted.append(t)
+                        if any(w in t_lower for w in js_code_words):
+                            continue
+                        seen.add(t)
+                        extracted.append(t)
                 except Exception:
                     continue
             
             if extracted:
-                text = "\n".join(extracted[:80])  # limita para não explodir o contexto
-                # Salva no banco
+                text = "\n".join(extracted[:50])
                 if knowledge:
                     knowledge.content = text
                 else:
@@ -95,7 +91,7 @@ class GeminiStudio:
                 db.commit()
                 return f"\n\nCONTEÚDO DO SITE VISIONAI.COM.BR:\n{text}"
         except Exception as e:
-            print(f"Erro no scraping do site: {e}")
+            print(f"Aviso no scraping do site visionai.com.br: {e}")
         finally:
             db.close()
         return ""
@@ -194,63 +190,70 @@ class GeminiStudio:
 </svg>"""
         return base64.b64encode(svg_code.encode('utf-8')).decode('utf-8')
 
-    def get_auto_topics(self) -> list:
-        """Gera 12 tópicos cobrindo todos os serviços reais do site visionai.com.br via Gemini."""
+    def get_auto_topics(self, category: str = None, force_refresh: bool = False) -> list:
+        """Gera ou filtra tópicos B2B cobrindo as 6 linhas de serviço reais do site visionai.com.br."""
         import re as _re
-        site_content = self.scraped_context or ""
 
-        prompt = f"""
-Você é um estrategista de conteúdo LinkedIn B2B para a empresa VisionAI.
-
-INFORMAÇÕES DA EMPRESA:
-{ORG_CONTEXT}
-
-CONTEÚDO REAL EXTRAÍDO DO SITE (visionai.com.br):
-{site_content[:3000]}
-
-Gere EXATAMENTE 12 ideias de posts, 2 por linha de serviço abaixo (cubra TODAS):
-1. Visão Computacional & Edge — câmeras existentes, EPI, rastreamento, mapas de calor
-2. IA Multimodal & Atendimento — áudio+vídeo+imagem simultâneos, voz com contexto, URA
-3. Realidade Mista & EdTech — VR/Meta Quest 3, simulação de riscos, neurodiversidade
-4. Visão Agro-Industrial — drones, detecção de pragas, manutenção preditiva Edge AI
-5. Geração de Conteúdo & Analytics — automação de vídeos, apresentações automáticas
-6. Governança Corporativa & Intelligence — portais, inteligência competitiva
-
-REGRAS ABSOLUTAS:
-- NUNCA mencionar SAP em nenhum tópico
-- NUNCA mencionar Cloud genérico ou Soberania de Dados
-- Use dados reais: +15% produtividade agro, 95% precisão atendimento, 3sem→2dias, 4x retenção VR
-- Público: C-Levels, Gestores Industriais, Diretores de TI
-
-Responda APENAS com JSON válido, sem markdown:
-[{{"topic": "...", "category": "...", "format": "...", "tone": "..."}}]
-"""
-
-        try:
-            raw = self._generate(prompt, temperature=0.85)
-            json_match = _re.search(r'\[.*?\]', raw, _re.DOTALL)
-            if json_match:
-                topics = json.loads(json_match.group())
-                if isinstance(topics, list) and len(topics) > 0:
-                    return topics[:12]
-        except Exception as e:
-            print(f"Erro ao gerar tópicos via Gemini: {e}")
-
-        # Fallback rico: 12 tópicos cobrindo TODAS as 6 linhas de serviço reais da VisionAI
-        return [
+        fallback_topics = [
             {"topic": "As câmeras que você já tem instaladas podem fiscalizar EPIs 24h/dia — sem nenhum humano olhando. Isso já é realidade com Edge AI", "category": "Visão Computacional", "format": "insight", "tone": "direto"},
             {"topic": "Fluxo invisível no armazém? Rastreamos 100% dos ativos, veículos e pessoas em tempo real — sem nova infraestrutura, só IA nas câmeras existentes", "category": "Visão Computacional", "format": "case", "tone": "tecnico"},
             {"topic": "Seu cliente envia foto + áudio + documento. Nossa IA analisa tudo em segundos com 95% de precisão. Isso é atendimento multimodal real", "category": "IA Multimodal", "format": "educativo", "tone": "tecnico"},
             {"topic": "URA que perde o fio quando o usuário muda de assunto? Criamos assistentes de voz com memória de contexto que executam ações em tempo real", "category": "IA Multimodal", "format": "provocativo", "tone": "provocativo"},
-            {"topic": "No Meta Quest 3, simulamos cenários de risco real onde o erro não tem consequência — retenção 4x mais eficaz que treinamento convencional", "category": "Realidade Mista & EdTech", "format": "case", "tone": "inspirador"},
-            {"topic": "Como treinar líderes para neurodiversidade? Criamos ambiente VR que simula como uma pessoa neurodiversa percebe o mundo. Empatia que se aprende na prática", "category": "Realidade Mista & EdTech", "format": "storytelling", "tone": "visionario"},
-            {"topic": "Perdas de safra por identificação tardia de pragas. Detectamos anomalias dias antes de serem visíveis a olho nu — +15% produtividade, menos defensivos", "category": "Agro & Industrial", "format": "case", "tone": "inspirador"},
-            {"topic": "Máquinas parando sem aviso em produção? Identificamos desgaste no hardware local, sem depender de nuvem. Manutenção preditiva onde não chega internet", "category": "Agro & Industrial", "format": "insight", "tone": "direto"},
-            {"topic": "Produção de vídeo institucional: 3 semanas de trabalho → 2 dias com automação IA. Roteiro, narração e edição. Custo 70% menor, qualidade superior", "category": "Geração de Conteúdo", "format": "storytelling", "tone": "visionario"},
-            {"topic": "Propostas genéricas não fecham negócio. Geramos apresentações personalizadas por segmento de cliente de forma automática — para o decisor certo, na hora certa", "category": "Geração de Conteúdo", "format": "lista", "tone": "direto"},
-            {"topic": "Sua equipe gasta horas coletando dados de concorrentes manualmente? Automatizamos a análise competitiva — relatórios de inteligência em minutos, não dias", "category": "Governança & Intelligence", "format": "lista", "tone": "provocativo"},
-            {"topic": "Site institucional que não passa credibilidade afasta decisores antes do primeiro contato. Construímos portais corporativos otimizados para o público certo", "category": "Governança & Intelligence", "format": "insight", "tone": "educativo"},
+            {"topic": "No Meta Quest 3, simulamos cenários de risco real onde o erro não tem consequência — retenção 4x mais eficaz que treinamento convencional", "category": "EdTech & VR", "format": "case", "tone": "inspirador"},
+            {"topic": "Como medir engajamento real em salas de aula e treinamentos corporativos com visão computacional ética e análise temporal em tempo real", "category": "EdTech & VR", "format": "storytelling", "tone": "visionario"},
+            {"topic": "Perdas de safra por identificação tardia de pragas. Detectamos anomalias agrícolas dias antes de serem visíveis a olho nu — +15% produtividade, menos defensivos", "category": "Agro-Industrial", "format": "case", "tone": "inspirador"},
+            {"topic": "Máquinas parando sem aviso em produção? Identificamos desgaste no hardware local, sem depender de nuvem. Manutenção preditiva onde não chega internet", "category": "Agro-Industrial", "format": "insight", "tone": "direto"},
+            {"topic": "Produção de vídeo institucional: 3 semanas de trabalho → 2 dias com automação IA (roteiro, narração e edição automatizados)", "category": "Conteúdo & Mídia IA", "format": "storytelling", "tone": "visionario"},
+            {"topic": "Propostas comerciais genéricas não fecham negócio. Geramos apresentações personalizadas por segmento de cliente de forma automática", "category": "Conteúdo & Mídia IA", "format": "lista", "tone": "direto"},
+            {"topic": "Sua equipe gasta horas coletando dados de concorrentes manualmente? Automatizamos a inteligência competitiva com relatórios executivos em minutos", "category": "Governança & Intelligence", "format": "lista", "tone": "provocativo"},
+            {"topic": "Portais corporativos orientados a conversão B2B: construímos ecossistemas digitais de alta credibilidade para decisores C-Level", "category": "Governança & Intelligence", "format": "insight", "tone": "educativo"},
         ]
+
+        topics_list = []
+        if force_refresh:
+            site_content = self.scraped_context or ""
+            cat_prompt = f" com foco exclusivo na categoria '{category}'" if category else ""
+            prompt = f"""
+Você é um estrategista de conteúdo LinkedIn B2B para a empresa VisionAI (https://visionai.com.br).
+
+INFORMAÇÕES DA EMPRESA:
+{ORG_CONTEXT}
+
+CONTEÚDO REAL DO SITE:
+{site_content[:2000]}
+
+Gere EXATAMENTE 12 ideias de posts B2B{cat_prompt}, distribuídos entre as 6 linhas de serviço da VisionAI:
+1. Visão Computacional (Câmeras existentes, EPIs, Rastreamento, Edge AI)
+2. IA Multimodal (OmniVoice, Voz+Vídeo+Texto, URA Cognitiva)
+3. EdTech & VR (Realidade Mista, Meta Quest 3, Engajamento Educacional)
+4. Agro-Industrial (Drones, Manutenção Preditiva Offline, Detecção Pragas)
+5. Conteúdo & Mídia IA (Vídeos Corporativos, Apresentações Automatizadas)
+6. Governança & Intelligence (Portais Executivos, Análise Competitiva)
+
+REGRAS:
+- NUNCA mencionar SAP
+- Responda APENAS JSON válido sem markdown:
+[{"topic": "...", "category": "Visão Computacional|IA Multimodal|EdTech & VR|Agro-Industrial|Conteúdo & Mídia IA|Governança & Intelligence", "format": "insight|case|storytelling|lista", "tone": "direto|tecnico|provocativo|visionario"}]
+"""
+            try:
+                raw = self._generate(prompt, temperature=0.85)
+                json_match = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+                if json_match:
+                    parsed = json.loads(json_match.group())
+                    if isinstance(parsed, list) and len(parsed) > 0:
+                        topics_list = parsed
+            except Exception as e:
+                print(f"Aviso ao gerar tópicos via Gemini: {e}")
+
+        if not topics_list:
+            topics_list = fallback_topics
+
+        if category:
+            cat_lower = category.lower()
+            filtered = [t for t in topics_list if cat_lower in t.get("category", "").lower()]
+            return filtered if filtered else topics_list
+
+        return topics_list
 
     def _generate_image_base64(self, prompt: str) -> tuple[str, str]:
         """Gera uma imagem e retorna (base64, mime_type). Tenta Gemini Flash Image, fallback para SVG."""

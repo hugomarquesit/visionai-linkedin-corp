@@ -314,10 +314,10 @@ async def upload_custom_media(file: UploadFile = File(...), _: bool = Depends(re
 
 # ── Gemini — Geração de Posts ───────────────────────────────────────────────
 @app.get("/api/gemini/auto-topics")
-async def gemini_auto_topics(_: bool = Depends(require_auth)):
-    """Retorna sugestões de tópicos baseados no site da VisionAi."""
-    topics = ai.get_auto_topics()
-    return {"topics": topics, "model": ai.model}
+async def gemini_auto_topics(category: Optional[str] = None, refresh: bool = False, _: bool = Depends(require_auth)):
+    """Retorna sugestões de tópicos baseados no site da VisionAI (https://visionai.com.br/#servicos)."""
+    topics = ai.get_auto_topics(category=category, force_refresh=refresh)
+    return {"topics": topics, "model": ai.model, "category": category}
 
 @app.get("/api/posts/drafts")
 async def get_post_drafts(_: bool = Depends(require_auth)):
