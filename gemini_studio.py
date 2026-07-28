@@ -256,16 +256,21 @@ REGRAS:
         return topics_list
 
     def _generate_image_base64(self, prompt: str) -> tuple[str, str]:
-        """Gera uma imagem e retorna (base64, mime_type). Tenta Gemini Flash Image, fallback para SVG."""
+        """Gera uma imagem artística pura e retorna (base64, mime_type). Tenta Gemini Flash Image, fallback para SVG."""
+        clean_prompt = prompt.replace("\n", " ").strip()
+        # Enforce pure visual art without text/typography in pixels
+        negative_rules = ", NO text, NO written words, NO letters, NO signs, NO typography, pure 3D photographic art, 8k resolution, cinematic lighting, corporate obsidian and neon cyan color palette"
+        full_prompt = clean_prompt + negative_rules if "NO text" not in clean_prompt else clean_prompt
+
         # Tenta Gemini 2.0 Flash Image Generation (API correta)
         for model in ["gemini-2.0-flash-preview-image-generation", "gemini-2.0-flash-exp"]:
             try:
                 response = self.client.models.generate_content(
                     model=model,
-                    contents=prompt,
+                    contents=full_prompt,
                     config=types.GenerateContentConfig(
                         response_modalities=["TEXT", "IMAGE"],
-                        temperature=0.8,
+                        temperature=0.7,
                     )
                 )
                 for part in response.candidates[0].content.parts:
