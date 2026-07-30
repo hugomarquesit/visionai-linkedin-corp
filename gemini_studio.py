@@ -272,10 +272,99 @@ REGRAS:
 
         return topics_list
 
+    def _composite_advertising_creative(self, raw_img_bytes: bytes, pt_headline: str, category: str = "VisionAi Insights") -> tuple[str, str]:
+        """
+        Combina a foto realista gerada por IA com a Moldura Publicitária da VisionAI (Peça Publicitária de Agência).
+        Cria um criativo publicitário 1200x630 profissional em JPEG de alta resolução.
+        """
+        import io
+        from PIL import Image
+        import cairosvg
+
+        try:
+            # 1. Carrega e redimensiona a foto de fundo para 1200x630
+            bg = Image.open(io.BytesIO(raw_img_bytes)).convert("RGB")
+            bg = bg.resize((1200, 630), Image.Resampling.LANCZOS)
+
+            # 2. Formata manchete em PT-BR para o SVG overlay
+            first_line = pt_headline.strip().split("\n")[0]
+            clean_first_line = first_line.replace("#", "").replace("**", "").strip()
+            clean_title = (clean_first_line[:75] + "...") if len(clean_first_line) > 75 else clean_first_line
+            clean_category = category.upper()
+
+            # 3. Cria a moldura de design gráfico publicitário (SVG com gradiente escuro, marca VisionAI e badges)
+            svg_overlay = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="shadow" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="rgba(7,11,20,0.88)"/>
+      <stop offset="60%" stop-color="rgba(7,11,20,0.45)"/>
+      <stop offset="100%" stop-color="rgba(7,11,20,0.25)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Gradiente de escurecimento para legibilidade perfeita do texto -->
+  <rect width="1200" height="630" fill="url(#shadow)"/>
+
+  <!-- HUD Telemetria Visão Computacional -->
+  <g opacity="0.6">
+    <path d="M 950 140 L 980 140 M 950 140 L 950 170" stroke="#38bdf8" stroke-width="2" fill="none"/>
+    <path d="M 1080 140 L 1050 140 M 1080 140 L 1080 170" stroke="#38bdf8" stroke-width="2" fill="none"/>
+    <path d="M 950 240 L 980 240 M 950 240 L 950 210" stroke="#38bdf8" stroke-width="2" fill="none"/>
+    <path d="M 1080 240 L 1050 240 M 1080 240 L 1080 210" stroke="#38bdf8" stroke-width="2" fill="none"/>
+    <rect x="950" y="122" width="130" height="16" fill="rgba(56, 189, 248, 0.25)" rx="2"/>
+    <text x="955" y="134" font-family="'Inter', monospace" font-size="10" fill="#38bdf8" font-weight="bold">AI DETECT: 99.8%</text>
+  </g>
+
+  <!-- Cabeçalho: Logo VisionAI & Branding -->
+  <g transform="translate(80, 60)">
+    <rect width="44" height="44" rx="10" fill="url(#grad)"/>
+    <text x="22" y="30" font-family="'Inter', sans-serif" font-weight="bold" font-size="22" fill="#ffffff" text-anchor="middle">V</text>
+    <text x="58" y="30" font-family="'Inter', sans-serif" font-weight="bold" font-size="22" fill="#ffffff">VisionAi</text>
+    <text x="165" y="30" font-family="'Inter', sans-serif" font-size="14" fill="#94a3b8">| Corporate Tech</text>
+  </g>
+
+  <!-- Selo de Categoria -->
+  <g transform="translate(940, 62)">
+    <rect width="180" height="34" rx="17" fill="rgba(56, 189, 248, 0.18)" stroke="rgba(56, 189, 248, 0.5)" stroke-width="1"/>
+    <text x="90" y="22" font-family="'Inter', sans-serif" font-weight="bold" font-size="11" fill="#38bdf8" text-anchor="middle">{clean_category}</text>
+  </g>
+
+  <!-- Título Principal do Criativo em PT-BR -->
+  <foreignObject x="80" y="190" width="1040" height="280">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Outfit', 'Inter', system-ui, sans-serif; color: #ffffff; font-size: 38px; font-weight: 800; line-height: 1.3; text-shadow: 0 4px 16px rgba(0,0,0,0.9);">
+      {clean_title}
+    </div>
+  </foreignObject>
+
+  <!-- Rodapé Publicitário -->
+  <rect x="80" y="540" width="100" height="3" rx="1.5" fill="url(#grad)"/>
+  <text x="80" y="575" font-family="'Inter', sans-serif" font-weight="500" font-size="14" fill="#94a3b8">Inovação, Inteligência Artificial &amp; Computação na Borda</text>
+  <text x="1120" y="575" font-family="'Inter', sans-serif" font-weight="bold" font-size="14" fill="#38bdf8" text-anchor="end">visionai.com.br ✦</text>
+</svg>"""
+
+            # 4. Renderiza moldura e faz composição alfa sobre a foto
+            overlay_png = cairosvg.svg2png(bytestring=svg_overlay.encode('utf-8'))
+            overlay_img = Image.open(io.BytesIO(overlay_png)).convert('RGBA')
+
+            composite = Image.alpha_composite(bg.convert('RGBA'), overlay_img)
+            out = io.BytesIO()
+            composite.convert('RGB').save(out, format='JPEG', quality=95)
+            
+            img_b64 = base64.b64encode(out.getvalue()).decode('utf-8')
+            print("Peça publicitária corporativa (foto + moldura de design) criada com sucesso!")
+            return img_b64, "image/jpeg"
+        except Exception as e:
+            print(f"Erro ao compor peça publicitária: {e} — usando foto original")
+            img_b64 = base64.b64encode(raw_img_bytes).decode('utf-8')
+            return img_b64, "image/jpeg"
+
     def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights") -> tuple[str, str]:
-        """Gera uma imagem realista pura e retorna (base64, mime_type). Tenta Gemini 3.1 Flash Image, fallback para SVG em PT-BR."""
+        """Gera uma imagem realista pura e compõe a peça publicitária com branding VisionAI. Retorna (base64, mime_type)."""
         clean_prompt = prompt.replace("\n", " ").strip()
-        # Enforce realistic professional corporate photography without sci-fi, text, or futuristic fantasy
         negative_rules = ", NO sci-fi, NO futuristic fantasy, NO glowing cyber portals, NO text, NO written words, NO letters, NO signs, NO typography, authentic realistic professional corporate photography, 35mm lens, Sony Alpha camera, natural lighting, highly realistic 8k photo"
         full_prompt = clean_prompt + negative_rules if "NO text" not in clean_prompt else clean_prompt
 
@@ -290,9 +379,7 @@ REGRAS:
                     )
                     if res.generated_images:
                         img_bytes = res.generated_images[0].image.image_bytes
-                        img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-                        print(f"Imagem REAL gerada com sucesso via {model} (image/jpeg)")
-                        return img_b64, "image/jpeg"
+                        return self._composite_advertising_creative(img_bytes, pt_headline=pt_title)
                 else:
                     response = self.client.models.generate_content(
                         model=model,
@@ -304,10 +391,8 @@ REGRAS:
                     )
                     for part in response.candidates[0].content.parts:
                         if part.inline_data and part.inline_data.data:
-                            mime = part.inline_data.mime_type or "image/jpeg"
-                            img_b64 = base64.b64encode(part.inline_data.data).decode("utf-8")
-                            print(f"Imagem REAL gerada com sucesso via {model} ({mime})")
-                            return img_b64, mime
+                            img_bytes = part.inline_data.data
+                            return self._composite_advertising_creative(img_bytes, pt_headline=pt_title)
             except Exception as e:
                 print(f"Modelo de imagem {model} falhou: {e}")
                 continue
