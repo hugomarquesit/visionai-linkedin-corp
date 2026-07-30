@@ -187,24 +187,37 @@ class LinkedInCorporate:
     ) -> dict:
         """
         Publica um post com imagem na página da organização VisionAI.
-        Aceita imagem em base64. Se SVG, publica só texto.
+        Aceita imagem em base64 (JPEG, PNG ou SVG). Converte SVG para PNG automaticamente via cairosvg.
         """
         import base64 as b64_mod
 
-        # SVG não é suportado como imagem LinkedIn — publica só texto
-        if image_mime == "image/svg+xml" or not image_b64:
+        if not image_b64:
             return self.create_org_post(text, visibility)
 
-        # Decodifica bytes da imagem
-        try:
-            img_bytes = b64_mod.b64decode(image_b64)
-        except Exception as e:
-            return {"ok": False, "error": f"Base64 decode failed: {e}"}
+        # Se for SVG, converte para PNG via cairosvg para o LinkedIn aceitar 100% dos uploads com imagem!
+        if image_mime == "image/svg+xml" or "<svg" in image_b64.lower() or image_b64.startswith("PHN2Z"):
+            try:
+                import cairosvg
+                svg_bytes = b64_mod.b64decode(image_b64)
+                img_bytes = cairosvg.svg2png(bytestring=svg_bytes)
+                image_mime = "image/png"
+                print("SVG convertido com sucesso para PNG (cairosvg) para envio ao LinkedIn.")
+            except Exception as e:
+                print(f"Erro ao converter SVG para PNG: {e} — tentando decode simples")
+                try:
+                    img_bytes = b64_mod.b64decode(image_b64)
+                except Exception:
+                    return self.create_org_post(text, visibility)
+        else:
+            try:
+                img_bytes = b64_mod.b64decode(image_b64)
+            except Exception as e:
+                return {"ok": False, "error": f"Base64 decode failed: {e}"}
 
-        # Faz upload da imagem
+        # Faz upload da imagem no LinkedIn (retorna imageUrn)
         upload_result = self._upload_image(img_bytes, image_mime)
         if not upload_result.get("ok"):
-            # Fallback: publica só texto
+            # Fallback se upload falhar: publica só texto
             print(f"Upload de imagem falhou ({upload_result.get('error')}). Publicando só texto.")
             return self.create_org_post(text, visibility)
 

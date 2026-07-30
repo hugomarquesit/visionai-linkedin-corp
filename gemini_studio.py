@@ -117,7 +117,7 @@ class GeminiStudio:
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
     def _generate_svg_banner(self, title: str, category: str = "VisionAi Insights") -> str:
-        """Gera um banner SVG corporativo 1200x630 com branding VisionAi e título em Português (PT-BR)."""
+        """Gera um banner SVG corporativo 1200x630 com branding VisionAi, HUD de computação visual e título em PT-BR."""
         # Clean title for SVG embedding - ensure PT-BR text
         first_line = title.strip().split("\n")[0]
         clean_first_line = first_line.replace("#", "").replace("**", "").strip()
@@ -149,16 +149,31 @@ class GeminiStudio:
   <!-- Background -->
   <rect width="1200" height="630" fill="url(#bg)"/>
   
-  <!-- Glowing Orbs -->
+  <!-- Glowing Orbs & AI Scan Grid -->
   <circle cx="150" cy="120" r="180" fill="#38bdf8" opacity="0.15" filter="url(#glow)"/>
   <circle cx="1050" cy="500" r="220" fill="#818cf8" opacity="0.18" filter="url(#glow)"/>
   
   <!-- Grid Lines -->
-  <path d="M 0 150 L 1200 150 M 0 300 L 1200 300 M 0 450 L 1200 450" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
-  <path d="M 300 0 L 300 630 M 600 0 L 600 630 M 900 0 L 900 630" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <path d="M 0 150 L 1200 150 M 0 300 L 1200 300 M 0 450 L 1200 450" stroke="rgba(56, 189, 248, 0.05)" stroke-width="1"/>
+  <path d="M 300 0 L 300 630 M 600 0 L 600 630 M 900 0 L 900 630" stroke="rgba(56, 189, 248, 0.05)" stroke-width="1"/>
+
+  <!-- Computer Vision Bounding Box Overlay Simulation (HUD) -->
+  <g opacity="0.4">
+    <!-- Camera Bounding Box Top Right -->
+    <path d="M 980 160 L 1020 160 M 980 160 L 980 200" stroke="#38bdf8" stroke-width="2" fill="none"/>
+    <path d="M 1120 160 L 1080 160 M 1120 160 L 1120 200" stroke="#38bdf8" stroke-width="2" fill="none"/>
+    <path d="M 980 280 L 1020 280 M 980 280 L 980 240" stroke="#38bdf8" stroke-width="2" fill="none"/>
+    <path d="M 1120 280 L 1080 280 M 1120 280 L 1120 240" stroke="#38bdf8" stroke-width="2" fill="none"/>
+    <rect x="980" y="140" width="140" height="18" fill="rgba(56, 189, 248, 0.2)" rx="2"/>
+    <text x="985" y="153" font-family="'Inter', monospace" font-size="10" fill="#38bdf8" font-weight="700">AI DETECT: 99.8%</text>
+
+    <!-- Camera Reticle Bottom Left -->
+    <circle cx="150" cy="480" r="24" stroke="#34d399" stroke-width="1.5" stroke-dasharray="4 4" fill="none"/>
+    <text x="185" y="484" font-family="'Inter', monospace" font-size="11" fill="#34d399" font-weight="600">[ EDGE NODE 01: COMPLIANT ]</text>
+  </g>
 
   <!-- Glass Card Container -->
-  <rect x="80" y="80" width="1040" height="470" rx="24" fill="url(#card-bg)" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+  <rect x="80" y="80" width="1040" height="470" rx="24" fill="url(#card-bg)" stroke="rgba(56,189,248,0.2)" stroke-width="1.5"/>
   
   <!-- Top Bar: Logo & Badge -->
   <g transform="translate(130, 130)">
@@ -379,7 +394,7 @@ Responda APENAS com JSON:
 
         # ── ETAPA 1: GERAÇÃO DO TEXTO DO POST ──────────────────────────────────
         text_prompt = f"""
-Você é o Chief Content Officer & Estrategista de Liderança de Pensamento da VisionAI (visionai.com.br).
+Você é o VP de Engenharia de Operações & CCO da VisionAI (visionai.com.br).
 
 CONTEXTO INSTITUCIONAL E TÉCNICO DA VISIONAI:
 {ORG_CONTEXT}
@@ -391,11 +406,12 @@ TEMA/OBJETIVO: {topic}
 FORMATO DE CONTEÚDO: {format_guides.get(format_type, format_guides['standard'])}
 TOM DE VOZ: {tone_guides.get(tone, tone_guides['visionario'])}
 
-DIRETRIZES DE QUALIDADE B2B EXECUTIVA:
-- NUNCA mencione SAP, consultoria ERP genérica ou clichês banais de IA.
-- Foque nas soluções reais da VisionAI: Visão Computacional na Borda, IA Multimodal (áudio/vídeo/docs), Realidade Mista em Meta Quest 3, Visão Agro-Industrial e Governança de Conteúdo.
-- Estruture o texto com subtítulos elegantes em emoji, tópicos legíveis e parágrafos curtos.
-- Inclua métricas e resultados reais (ex: +15% produtividade no agro, 95% precisão em atendimento, retenção 4x maior em VR, ciclo de vídeo de 3 semanas para 2 dias).
+PROIBIDO CLICHÊS DE IA & ESTILO ARTIFICIAL (REGRAS CRÍTICAS):
+- PROIBIDO usar introduções genéricas ou clichês como: "No mundo de hoje", "Em um cenário dinâmico/competitivo", "Na era da Inteligência Artificial", "Em constante evolução", "Em suma", "Vamos juntos", "Desbloquear o potencial", "Revolucionar a forma", "Impulsionar o futuro".
+- PROIBIDO parecer um folheto publicitário raso. Escreva como um CTO ou VP de Operações real falando pragmaticamente de engenharia e negócios com diretores executivos (C-Level).
+- Aborde DORES OPERACIONAIS REAIS: latência de streaming RTSP, estouro de orçamento de banda/nuvem, processamento Edge AI a 30 FPS nas câmeras que a fábrica já possui, fiscalização 24/7 de EPIs sem humanos na sala de controle, passivo trabalhista, retenção 4x maior em VR, LGPD.
+- Parágrafos curtos, subtítulos com emojis elegantes e frases diretas.
+- Inclua métricas e resultados concretos (+15% produtividade no agro, 95% precisão em atendimento, retenção 4x em VR, ciclo de vídeo de 3 semanas para 2 dias).
 - Termine com 3 a 5 hashtags corporativas estratégicas (ex: #VisaoComputacional #EdgeAI #InteligenciaArtificial #InovacaoCorporativa #VisionAI).
 
 FORMATO DE SAÍDA: Retorne APENAS o texto completo e formatado do post em português.
