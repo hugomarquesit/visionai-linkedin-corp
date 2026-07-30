@@ -286,10 +286,33 @@ REGRAS:
             bg = Image.open(io.BytesIO(raw_img_bytes)).convert("RGB")
             bg = bg.resize((1200, 630), Image.Resampling.LANCZOS)
 
-            # 2. Formata manchete em PT-BR para o SVG overlay
+            # 2. Formata manchete em PT-BR para o SVG overlay usando tspan nativo
+            def wrap_text_to_tspans(text: str, max_chars: int = 42, start_x: int = 80, dy: int = 48) -> str:
+                words = text.strip().replace('#', '').replace('*', '').split()
+                lines = []
+                current_line = []
+                current_len = 0
+                for word in words:
+                    if current_len + len(word) + 1 > max_chars and current_line:
+                        lines.append(" ".join(current_line))
+                        current_line = [word]
+                        current_len = len(word)
+                    else:
+                        current_line.append(word)
+                        current_len += len(word) + 1
+                if current_line:
+                    lines.append(" ".join(current_line))
+                
+                lines = lines[:4]
+                tspans = []
+                for i, l in enumerate(lines):
+                    d = 0 if i == 0 else dy
+                    tspans.append(f'<tspan x="{start_x}" dy="{d}">{l}</tspan>')
+                return "\n".join(tspans)
+
             first_line = pt_headline.strip().split("\n")[0]
             clean_first_line = first_line.replace("#", "").replace("**", "").strip()
-            clean_title = (clean_first_line[:75] + "...") if len(clean_first_line) > 75 else clean_first_line
+            headline_tspans = wrap_text_to_tspans(clean_first_line)
             clean_category = category.upper()
 
             # 3. Cria a moldura de design gráfico publicitário (SVG com gradiente escuro, marca VisionAI e badges)
@@ -300,9 +323,9 @@ REGRAS:
       <stop offset="100%" stop-color="#6366f1"/>
     </linearGradient>
     <linearGradient id="shadow" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="rgba(7,11,20,0.88)"/>
-      <stop offset="60%" stop-color="rgba(7,11,20,0.45)"/>
-      <stop offset="100%" stop-color="rgba(7,11,20,0.25)"/>
+      <stop offset="0%" stop-color="rgba(7,11,20,0.90)"/>
+      <stop offset="60%" stop-color="rgba(7,11,20,0.50)"/>
+      <stop offset="100%" stop-color="rgba(7,11,20,0.20)"/>
     </linearGradient>
   </defs>
 
@@ -334,11 +357,9 @@ REGRAS:
   </g>
 
   <!-- Título Principal do Criativo em PT-BR -->
-  <foreignObject x="80" y="190" width="1040" height="280">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Outfit', 'Inter', system-ui, sans-serif; color: #ffffff; font-size: 38px; font-weight: 800; line-height: 1.3; text-shadow: 0 4px 16px rgba(0,0,0,0.9);">
-      {clean_title}
-    </div>
-  </foreignObject>
+  <text x="80" y="220" font-family="'Outfit', 'Inter', sans-serif" font-size="36" fill="#ffffff" font-weight="800">
+    {headline_tspans}
+  </text>
 
   <!-- Rodapé Publicitário -->
   <rect x="80" y="540" width="100" height="3" rx="1.5" fill="url(#grad)"/>
