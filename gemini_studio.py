@@ -383,7 +383,7 @@ REGRAS:
             img_b64 = base64.b64encode(raw_img_bytes).decode('utf-8')
             return img_b64, "image/jpeg"
 
-    def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights") -> tuple[str, str]:
+    def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights", category: str = "VisionAi Insights") -> tuple[str, str]:
         """Gera uma imagem realista pura e compõe a peça publicitária com branding VisionAI. Retorna (base64, mime_type)."""
         clean_prompt = prompt.replace("\n", " ").strip()
         negative_rules = ", NO sci-fi, NO futuristic fantasy, NO glowing cyber portals, NO text, NO written words, NO letters, NO signs, NO typography, authentic realistic professional corporate photography, 35mm lens, Sony Alpha camera, natural lighting, highly realistic 8k photo"
@@ -400,7 +400,7 @@ REGRAS:
                     )
                     if res.generated_images:
                         img_bytes = res.generated_images[0].image.image_bytes
-                        return self._composite_advertising_creative(img_bytes, pt_headline=pt_title)
+                        return self._composite_advertising_creative(img_bytes, pt_headline=pt_title, category=category)
                 else:
                     response = self.client.models.generate_content(
                         model=model,
@@ -413,7 +413,7 @@ REGRAS:
                     for part in response.candidates[0].content.parts:
                         if part.inline_data and part.inline_data.data:
                             img_bytes = part.inline_data.data
-                            return self._composite_advertising_creative(img_bytes, pt_headline=pt_title)
+                            return self._composite_advertising_creative(img_bytes, pt_headline=pt_title, category=category)
             except Exception as e:
                 print(f"Modelo de imagem {model} falhou: {e}")
                 continue
@@ -431,39 +431,50 @@ REGRAS:
         prompt = f"""
 Você é o Diretor de Fotografia Corporativa Sênior da VisionAI (visionai.com.br).
 
-TEXTO FINAL DO POST NO LINKEDIN:
+TEXTO DO POST NO LINKEDIN:
 ---
-{revised_text[:1500]}
+{revised_text[:2000]}
 ---
 
-Sua tarefa: Crie um prompt de imagem em INGLÊS para gerar UMA FOTOGRAFIA CORPORATIVA 100% REALISTA E PRÁTICA da aplicação descrita no texto acima.
+SUA TAREFA:
+1. Identifique o TEMA CENTRAL EXATO do texto (Ex: Agronegócio/Drones, Treinamento VR/Meta Quest 3, Atendimento Multimodal/SAC, Câmeras Industriais/EPIs, Governança/C-Level).
+2. Crie um prompt de imagem em INGLÊS que descreva UMA FOTOGRAFIA CORPORATIVA 100% ADERENTE E FIEL a esse tema central específico.
 
-REGRAS RÍGIDAS DE FOTOGRAFIA REALISTA (SEM FUTURISMO EXAGERADO OU SCI-FI):
-1. FOTOGRAFIA REALISTA: Crie um prompt para uma FOTO CORPORATIVA/INDUSTRIAL REALISTA (ex: foto tirada com câmera profissional 35mm, iluminação natural de fábrica ou escritório, operadores de fábrica reais trabalhando com capacetes e coletes refletivos, câmeras de segurança CCTV reais no teto da fábrica, drones agrícolas reais sobrevoando lavouras de milho/soja).
-2. PROIBIDO ELEMENTOS FUTURISTAS/SCI-FI: NUNCA crie portais cibernéticos, luzes laser de ficção científica ou néons brilhantes irreais. A imagem deve parecer uma fotografia real de capa da Forbes ou Harvard Business Review.
-3. SEM TEXTO EM PIXELS: NUNCA coloque títulos ou palavras no prompt da imagem.
-4. ADICIONE NO FINAL DO PROMPT: 'authentic realistic professional corporate photography, Hasselblad medium format camera, natural office or factory lighting, sharp focus, 8k resolution, NO sci-fi, NO text, NO letters, NO typography'.
+REGRAS RÍGIDAS DE ADERÊNCIA AO TEXTO E FOTOGRAFIA REALISTA:
+- EXTREMA ADERÊNCIA AO TEMA DO TEXTO:
+  * Se o texto for sobre AGRO/LAVOURA: foto de campo agrícola real de milho/soja com agrônomo e drone de monitoramento.
+  * Se o texto for sobre VR/META QUEST 3: foto de profissional em escritório usando headset VR Meta Quest 3 em treinamento de segurança.
+  * Se o texto for sobre ATENDIMENTO/SAC MULTIMODAL: foto de especialista de atendimento com headset em mesa corporativa moderna com monitores de dados.
+  * Se o texto for sobre FÁBRICA/EPIs: foto de galpão industrial com câmera dome CCTV no teto e operadores com capacetes/coletes.
+  * Se o texto for sobre GOVERNANÇA/C-LEVEL: foto de executivos em sala de reunião corporativa analisando painéis operacionais.
+- NUNCA USE CÂMERAS DE FÁBRICA SE O TEXTO FOR SOBRE AGRO, VR OU ATENDIMENTO!
+- PROIBIDO SCI-FI: NUNCA crie portais virtuais, raios laser ou néons brilhantes irreais. A imagem deve parecer uma fotografia real de reportagem da Forbes/Harvard Business Review.
+- SEM TEXTO EM PIXELS: NUNCA coloque palavras ou letras no prompt da imagem.
+- ADICIONE NO FINAL DO PROMPT: 'authentic realistic professional corporate photography, Hasselblad medium format camera, natural office or factory lighting, sharp focus, 8k resolution, NO sci-fi, NO text, NO letters, NO typography'.
 
 Responda APENAS com JSON:
-{{"image_prompt": "prompt de fotografia realista em inglês aqui"}}
+{{"category": "NOME_CURTO_DA_CATEGORIA_EM_PT", "image_prompt": "prompt de fotografia aderente ao texto em inglês"}}
 """
         raw = self._generate(prompt, temperature=0.7)
         import re
         json_match = re.search(r'\{.*\}', raw, re.DOTALL)
         image_prompt = ""
+        category_name = "VISIONAI INSIGHTS"
         if json_match:
             try:
                 data = json.loads(json_match.group())
                 image_prompt = data.get("image_prompt", "")
+                category_name = data.get("category", "VISIONAI INSIGHTS")
             except Exception:
                 pass
         
         if not image_prompt:
-            image_prompt = f"Corporate tech 3D render representing: {revised_text[:100]}"
+            image_prompt = f"Corporate tech photo representing: {revised_text[:100]}"
             
         pt_headline = revised_text.strip().split("\n")[0]
-        img_b64, mime = self._generate_image_base64(image_prompt, pt_title=pt_headline)
+        img_b64, mime = self._generate_image_base64(image_prompt, pt_title=pt_headline, category=category_name)
         return {
+            "category": category_name,
             "image_prompt": image_prompt,
             "image_base64": img_b64,
             "image_mime": mime,
