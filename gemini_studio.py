@@ -273,10 +273,10 @@ REGRAS:
         return topics_list
 
     def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights") -> tuple[str, str]:
-        """Gera uma imagem artística pura e retorna (base64, mime_type). Tenta Gemini 3.1 Flash Image, fallback para SVG em PT-BR."""
+        """Gera uma imagem realista pura e retorna (base64, mime_type). Tenta Gemini 3.1 Flash Image, fallback para SVG em PT-BR."""
         clean_prompt = prompt.replace("\n", " ").strip()
-        # Enforce pure visual art without text/typography in pixels
-        negative_rules = ", NO text, NO written words, NO letters, NO signs, NO typography, pure 3D photographic art, 8k resolution, cinematic lighting, corporate obsidian and neon cyan color palette"
+        # Enforce realistic professional corporate photography without sci-fi, text, or futuristic fantasy
+        negative_rules = ", NO sci-fi, NO futuristic fantasy, NO glowing cyber portals, NO text, NO written words, NO letters, NO signs, NO typography, authentic realistic professional corporate photography, 35mm lens, Sony Alpha camera, natural lighting, highly realistic 8k photo"
         full_prompt = clean_prompt + negative_rules if "NO text" not in clean_prompt else clean_prompt
 
         # Tenta modelos ativos de imagem (Gemini 3.1 Flash Image & Imagen 4)
@@ -299,7 +299,7 @@ REGRAS:
                         contents=full_prompt,
                         config=types.GenerateContentConfig(
                             response_modalities=["TEXT", "IMAGE"],
-                            temperature=0.7,
+                            temperature=0.6,
                         )
                     )
                     for part in response.candidates[0].content.parts:
@@ -323,20 +323,23 @@ REGRAS:
         que representa fielmente a versão final revisada pelo usuário.
         """
         prompt = f"""
-Você é o Diretor de Arte da VisionAI (visionai.com.br).
+Você é o Diretor de Fotografia Corporativa Sênior da VisionAI (visionai.com.br).
 
-TEXTO FINAL REVISADO PELO USUÁRIO:
+TEXTO FINAL DO POST NO LINKEDIN:
+---
 {revised_text[:1500]}
+---
 
-Sua tarefa: Crie um prompt de imagem artística em INGLÊS para gerar uma arte visual 3D/Edge AI que traduza VISUALMENTE a mensagem principal do texto acima.
+Sua tarefa: Crie um prompt de imagem em INGLÊS para gerar UMA FOTOGRAFIA CORPORATIVA 100% REALISTA E PRÁTICA da aplicação descrita no texto acima.
 
-REGRAS OBRIGATÓRIAS DO PROMPT DE IMAGEM:
-1. Descreva EXCLUSIVAMENTE a cena visual fotográfica ou render 3D (ex: câmeras inteligentes na borda com escaneamento holográfico cyan, drones agrícolas, headset VR Meta Quest 3 em ambiente corporativo).
-2. NUNCA insira frases, títulos ou palavras do texto dentro do prompt da imagem. O gerador de imagem não deve desenhar letras.
-3. Adicione no final do prompt: 'NO text, NO written words, NO letters, NO typography, pure 3D photographic art, 8k resolution, cinematic lighting, corporate obsidian and neon cyan color palette'.
+REGRAS RÍGIDAS DE FOTOGRAFIA REALISTA (SEM FUTURISMO EXAGERADO OU SCI-FI):
+1. FOTOGRAFIA REALISTA: Crie um prompt para uma FOTO CORPORATIVA/INDUSTRIAL REALISTA (ex: foto tirada com câmera profissional 35mm, iluminação natural de fábrica ou escritório, operadores de fábrica reais trabalhando com capacetes e coletes refletivos, câmeras de segurança CCTV reais no teto da fábrica, drones agrícolas reais sobrevoando lavouras de milho/soja).
+2. PROIBIDO ELEMENTOS FUTURISTAS/SCI-FI: NUNCA crie portais cibernéticos, luzes laser de ficção científica ou néons brilhantes irreais. A imagem deve parecer uma fotografia real de capa da Forbes ou Harvard Business Review.
+3. SEM TEXTO EM PIXELS: NUNCA coloque títulos ou palavras no prompt da imagem.
+4. ADICIONE NO FINAL DO PROMPT: 'authentic realistic professional corporate photography, Hasselblad medium format camera, natural office or factory lighting, sharp focus, 8k resolution, NO sci-fi, NO text, NO letters, NO typography'.
 
 Responda APENAS com JSON:
-{{"image_prompt": "prompt em inglês aqui"}}
+{{"image_prompt": "prompt de fotografia realista em inglês aqui"}}
 """
         raw = self._generate(prompt, temperature=0.7)
         import re
