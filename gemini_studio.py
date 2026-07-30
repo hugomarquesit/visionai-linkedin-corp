@@ -117,15 +117,17 @@ class GeminiStudio:
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
     def _generate_svg_banner(self, title: str, category: str = "VisionAi Insights") -> str:
-        """Gera um banner SVG corporativo 1200x630 com branding VisionAi e retorna em Base64."""
-        # Clean title for SVG embedding
-        clean_title = (title[:65] + "...") if len(title) > 65 else title
+        """Gera um banner SVG corporativo 1200x630 com branding VisionAi e título em Português (PT-BR)."""
+        # Clean title for SVG embedding - ensure PT-BR text
+        first_line = title.strip().split("\n")[0]
+        clean_first_line = first_line.replace("#", "").replace("**", "").strip()
+        clean_title = (clean_first_line[:75] + "...") if len(clean_first_line) > 75 else clean_first_line
         clean_category = category.upper()
         
         svg_code = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0a0d14"/>
+      <stop offset="0%" stop-color="#070b14"/>
       <stop offset="50%" stop-color="#0f172a"/>
       <stop offset="100%" stop-color="#1e1b4b"/>
     </linearGradient>
@@ -174,9 +176,9 @@ class GeminiStudio:
     <text x="85" y="22" font-family="'Inter', sans-serif" font-weight="600" font-size="12" fill="#38bdf8" text-anchor="middle" letter-spacing="1">{clean_category}</text>
   </g>
 
-  <!-- Main Headline -->
+  <!-- Main Headline in PT-BR -->
   <foreignObject x="130" y="210" width="940" height="220">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Inter', system-ui, sans-serif; color: #f8fafc; font-size: 42px; font-weight: 700; line-height: 1.25; letter-spacing: -1px; text-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Outfit', 'Inter', system-ui, sans-serif; color: #f8fafc; font-size: 42px; font-weight: 700; line-height: 1.25; letter-spacing: -1px; text-shadow: 0 4px 12px rgba(0,0,0,0.5);">
       {clean_title}
     </div>
   </foreignObject>
@@ -184,8 +186,8 @@ class GeminiStudio:
   <!-- Accent Line -->
   <rect x="130" y="460" width="120" height="4" rx="2" fill="url(#accent)"/>
 
-  <!-- Footer Info -->
-  <text x="130" y="500" font-family="'Inter', sans-serif" font-weight="500" font-size="16" fill="#94a3b8">Inovação, IA &amp; Transformação Digital Corporativa</text>
+  <!-- Footer Info in PT-BR -->
+  <text x="130" y="500" font-family="'Inter', sans-serif" font-weight="500" font-size="16" fill="#94a3b8">Inovação, Inteligência Artificial &amp; Computação na Borda</text>
   <text x="1070" y="500" font-family="'Inter', sans-serif" font-weight="600" font-size="15" fill="#38bdf8" text-anchor="end">visionai.com.br ✦</text>
 </svg>"""
         return base64.b64encode(svg_code.encode('utf-8')).decode('utf-8')
@@ -255,8 +257,8 @@ REGRAS:
 
         return topics_list
 
-    def _generate_image_base64(self, prompt: str) -> tuple[str, str]:
-        """Gera uma imagem artística pura e retorna (base64, mime_type). Tenta Gemini Flash Image, fallback para SVG."""
+    def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights") -> tuple[str, str]:
+        """Gera uma imagem artística pura e retorna (base64, mime_type). Tenta Gemini Flash Image, fallback para SVG em PT-BR."""
         clean_prompt = prompt.replace("\n", " ").strip()
         # Enforce pure visual art without text/typography in pixels
         negative_rules = ", NO text, NO written words, NO letters, NO signs, NO typography, pure 3D photographic art, 8k resolution, cinematic lighting, corporate obsidian and neon cyan color palette"
@@ -283,9 +285,9 @@ REGRAS:
                 print(f"Modelo {model} falhou: {e}")
                 continue
 
-        # Fallback: SVG corporativo VisionAI
-        print("Usando banner SVG corporativo como fallback visual.")
-        svg_b64 = self._generate_svg_banner(prompt[:80])
+        # Fallback: SVG corporativo VisionAI com título em Português (PT-BR)
+        print("Usando banner SVG corporativo como fallback visual com título em Português.")
+        svg_b64 = self._generate_svg_banner(title=pt_title)
         return svg_b64, "image/svg+xml"
 
     def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image") -> dict:
@@ -294,14 +296,17 @@ REGRAS:
         que representa fielmente a versão final revisada pelo usuário.
         """
         prompt = f"""
-Você é o Diretor de Arte da VisionAI.
+Você é o Diretor de Arte da VisionAI (visionai.com.br).
 
 TEXTO FINAL REVISADO PELO USUÁRIO:
-{revised_text}
+{revised_text[:1500]}
 
-Sua tarefa: Crie um prompt hiper-detalhado em INGLÊS para gerar uma arte visual (imagem ou criativo corporativo 3D/Edge AI) que traduza perfeitamente a mensagem principal do texto revisado acima.
+Sua tarefa: Crie um prompt de imagem artística em INGLÊS para gerar uma arte visual 3D/Edge AI que traduza VISUALMENTE a mensagem principal do texto acima.
 
-Descreva estilo, iluminação, elementos centrais, paleta de cores (obsidian, neon cyan/green, corporativo clean) e estética de alta tecnologia.
+REGRAS OBRIGATÓRIAS DO PROMPT DE IMAGEM:
+1. Descreva EXCLUSIVAMENTE a cena visual fotográfica ou render 3D (ex: câmeras inteligentes na borda com escaneamento holográfico cyan, drones agrícolas, headset VR Meta Quest 3 em ambiente corporativo).
+2. NUNCA insira frases, títulos ou palavras do texto dentro do prompt da imagem. O gerador de imagem não deve desenhar letras.
+3. Adicione no final do prompt: 'NO text, NO written words, NO letters, NO typography, pure 3D photographic art, 8k resolution, cinematic lighting, corporate obsidian and neon cyan color palette'.
 
 Responda APENAS com JSON:
 {{"image_prompt": "prompt em inglês aqui"}}
@@ -320,7 +325,8 @@ Responda APENAS com JSON:
         if not image_prompt:
             image_prompt = f"Corporate tech 3D render representing: {revised_text[:100]}"
             
-        img_b64, mime = self._generate_image_base64(image_prompt)
+        pt_headline = revised_text.strip().split("\n")[0]
+        img_b64, mime = self._generate_image_base64(image_prompt, pt_title=pt_headline)
         return {
             "image_prompt": image_prompt,
             "image_base64": img_b64,
