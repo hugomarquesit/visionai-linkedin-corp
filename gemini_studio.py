@@ -330,34 +330,37 @@ Responda APENAS com JSON:
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
     def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario") -> dict:
-        """Gera um post completo para o LinkedIn corporativo usando frameworks avançados."""
+        """Gera um post completo usando um fluxo estritamente sequencial em 2 etapas:
+           ETAPA 1: Criação do texto final do post.
+           ETAPA 2: Análise do texto final gerado para criar a arte visual com 100% de alinhamento semântico.
+        """
         format_guides = {
             "pulse_article": (
                 "Artigo Estratégico LinkedIn Pulse / Essay (350-500 palavras) — Estrutura de Liderança de Pensamento de Alto Nível C-Suite "
                 "(inspirado no estudo 'Computer Vision: Becoming the Next Strategic Sensor'):\n"
-                "1. TITLE: Título executivo provocativo (ex: 'Visão Computacional na Borda: O Novo Sensor Estratégico das Operações')\n"
-                "2. HOOK: Reenquadre a visão tradicional. Mostre por que câmeras e sensores não são mais ferramentas passivas, mas motores ativos de inteligência operacional.\n"
-                "3. PARADIGM SHIFT: A transição da vigilância retroativa para o processamento de borda (Edge AI) em tempo real.\n"
-                "4. 3 PILARES ESTRATÉGICOS: 1) Visão na Borda sem dependência de nuvem; 2) IA Multimodal (áudio+vídeo+imagem simultâneos); 3) Integração com infraestrutura legada.\n"
-                "5. ROI E IMPACTO OPERACIONAL: Cite métricas concretas (ex: +15% produtividade agrícola, 95% precisão em atendimento, fiscalização 24/7 de EPIs, treinamento VR com 4x mais retenção).\n"
-                "6. EXECUTIVE ROADMAP & CALL TO ACTION: Guia prático de implementação para C-Levels e pergunta estratégica para engajamento do Conselho."
+                "1. TITLE: Título executivo provocativo\n"
+                "2. HOOK: Reenquadre a visão tradicional da tecnologia.\n"
+                "3. PARADIGM SHIFT: A transição para a inteligência operacional na borda (Edge AI).\n"
+                "4. 3 PILARES ESTRATÉGICOS da VisionAI.\n"
+                "5. ROI E IMPACTO OPERACIONAL (métricas reais).\n"
+                "6. EXECUTIVE ROADMAP & CALL TO ACTION."
             ),
             "strategic_framework": (
-                "Framework Executivo & Manifesto (250-400 palavras) — Apresente um modelo conceitual proprietário da VisionAI para transformar a operação. "
-                "Aborde os gargalos (ex: por que 80% das PoCs de IA morrem na nuvem) e estruture a solução em passos claros de arquitetura Edge AI e Visão Computacional."
+                "Framework Executivo & Manifesto (250-400 palavras) — Modelo conceitual proprietário da VisionAI para transformar a operação. "
+                "Passos claros de arquitetura Edge AI e Visão Computacional."
             ),
             "case": (
-                "Estudo de Caso Executivo (200-350 palavras) — Focado estritamente em ROI e Operações Reais da VisionAI (Visão Computacional, IA Multimodal, Edge AI ou Realidade Mista/VR). "
-                "1) O desafio crítico de negócio; 2) Por que soluções convencionais falharam; 3) A arquitetura da VisionAI aplicada (sem trocar câmeras, processamento local); 4) Métricas de impacto geradas."
+                "Estudo de Caso Executivo (200-350 palavras) — Focado estritamente em ROI e Operações Reais da VisionAI. "
+                "Desafio, Solução Aplicada e Métricas de Impacto."
             ),
             "storytelling": (
-                "Storytelling Corporativo (200-300 palavras) — Narrativa envolvente sobre um problema real de indústria/agro/atendimento e como o Edge AI da VisionAI transformou aoperação."
+                "Storytelling Corporativo (200-300 palavras) — Narrativa envolvente sobre transformação de operações com IA da VisionAI."
             ),
             "insight": (
-                "Insight Provocativo C-Level (150-250 palavras) — Provocação de alto nível para diretores e VPs, desafiando dogmas de tecnologia e apresentando a Visão Computacional de Borda como diferencial competitivo."
+                "Insight Provocativo C-Level (150-250 palavras) — Provocação executiva desafiando dogmas do mercado."
             ),
             "standard": (
-                "Post B2B Padrão + Banner (150-250 palavras) — Post executivo direto ao ponto, com gancho poderoso, benefícios claros da VisionAI e CTA corporativo."
+                "Post B2B Padrão + Banner (150-250 palavras) — Post executivo direto ao ponto com gancho poderoso e CTA."
             )
         }
 
@@ -368,8 +371,9 @@ Responda APENAS com JSON:
             "educativo": "Tom consultivo de alta liderança, educando o mercado sobre os benefícios reais da inteligência artificial aplicada",
         }
 
-        prompt = f"""
-Você é o Chief Content Officer & Estrategista de Liderança de Pensamento da VisionAI.
+        # ── ETAPA 1: GERAÇÃO DO TEXTO DO POST ──────────────────────────────────
+        text_prompt = f"""
+Você é o Chief Content Officer & Estrategista de Liderança de Pensamento da VisionAI (visionai.com.br).
 
 CONTEXTO INSTITUCIONAL E TÉCNICO DA VISIONAI:
 {ORG_CONTEXT}
@@ -388,49 +392,19 @@ DIRETRIZES DE QUALIDADE B2B EXECUTIVA:
 - Inclua métricas e resultados reais (ex: +15% produtividade no agro, 95% precisão em atendimento, retenção 4x maior em VR, ciclo de vídeo de 3 semanas para 2 dias).
 - Termine com 3 a 5 hashtags corporativas estratégicas (ex: #VisaoComputacional #EdgeAI #InteligenciaArtificial #InovacaoCorporativa #VisionAI).
 
-REGRAS DA ARTE VISUAL (IMAGEM):
-- Crie um prompt hiper-detalhado em INGLÊS para gerar um criativo corporativo de alta tecnologia (ex: 'Ultra-sleek corporate 3D render of an industrial edge AI node with computer vision data overlays, glowing neon green and dark obsidian background, 8k resolution, cinematic lighting, clean futuristic tech aesthetic').
-
-FORMATO DE SAÍDA OBRIGATÓRIO (APENAS JSON):
-Retorne APENAS um JSON válido contendo as chaves:
-"post_text": "o texto completo formatado do post",
-"image_prompt": "o prompt em inglês para a geração visual"
+FORMATO DE SAÍDA: Retorne APENAS o texto completo e formatado do post em português.
 """
-        content_raw = self._generate(prompt, temperature=0.85)
-        
-        post_text = ""
-        image_prompt = ""
-        image_b64 = ""
-        
-        try:
-            # Strip markdown code fences if model wrapped in ```json ... ```
-            cleaned = content_raw.strip()
-            if cleaned.startswith("```"):
-                cleaned = "\n".join(cleaned.split("\n")[1:])
-                cleaned = cleaned.rstrip("`").strip()
+        post_text = self._generate(text_prompt, temperature=0.85).strip()
+        if post_text.startswith("```"):
+            post_text = "\n".join(post_text.split("\n")[1:]).rstrip("`").strip()
 
-            # Find JSON object
-            start = cleaned.find("{")
-            end = cleaned.rfind("}") + 1
-            if start != -1 and end > start:
-                data = json.loads(cleaned[start:end])
-                raw_post = data.get("post_text", "")
-                # Properly unescape \\n -> real newlines
-                if isinstance(raw_post, str):
-                    post_text = raw_post.replace("\\n", "\n").strip()
-                else:
-                    post_text = str(raw_post)
-                raw_img = data.get("image_prompt", "")
-                image_prompt = raw_img.replace("\\n", " ").strip() if isinstance(raw_img, str) else ""
-
-                # Generate image if we got a prompt
-                if image_prompt:
-                    image_b64, image_mime = self._generate_image_base64(image_prompt)
-            else:
-                post_text = content_raw
-        except Exception as e:
-            print(f"[GeminiStudio] JSON parse error: {e} — using raw content")
-            post_text = content_raw
+        # ── ETAPA 2: GERAÇÃO DA ARTE VISUAL BASEADA NO TEXTO CRIADO ──────────────
+        # O prompt visual e a imagem são criados APÓS o texto existir, com 100% de alinhamento com o seu significado!
+        art_result = self.regenerate_media_from_revised_text(post_text, media_type="image")
+        
+        image_prompt = art_result.get("image_prompt", "")
+        image_b64 = art_result.get("image_base64", "")
+        image_mime = art_result.get("image_mime", "image/svg+xml")
 
         return {
             "topic": topic,
