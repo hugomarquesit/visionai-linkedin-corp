@@ -39,9 +39,9 @@ Público-alvo: C-Levels, Heads de Operação, Diretores de TI, Gestores Industri
 class GeminiStudio:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
-        self.client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
+        self.client = genai.Client(api_key=api_key)
         self.model = TEXT_MODEL
-        self.fallback_models = ["gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        self.fallback_models = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-2.5-flash"]
         self.scraped_context = self._scrape_visionai_website()
 
     def _scrape_visionai_website(self) -> str:
@@ -273,31 +273,43 @@ REGRAS:
         return topics_list
 
     def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights") -> tuple[str, str]:
-        """Gera uma imagem artística pura e retorna (base64, mime_type). Tenta Gemini Flash Image, fallback para SVG em PT-BR."""
+        """Gera uma imagem artística pura e retorna (base64, mime_type). Tenta Gemini 3.1 Flash Image, fallback para SVG em PT-BR."""
         clean_prompt = prompt.replace("\n", " ").strip()
         # Enforce pure visual art without text/typography in pixels
         negative_rules = ", NO text, NO written words, NO letters, NO signs, NO typography, pure 3D photographic art, 8k resolution, cinematic lighting, corporate obsidian and neon cyan color palette"
         full_prompt = clean_prompt + negative_rules if "NO text" not in clean_prompt else clean_prompt
 
-        # Tenta Gemini 2.0 Flash Image Generation (API correta)
-        for model in ["gemini-2.0-flash-preview-image-generation", "gemini-2.0-flash-exp"]:
+        # Tenta modelos ativos de imagem (Gemini 3.1 Flash Image & Imagen 4)
+        for model in ["gemini-3.1-flash-image", "imagen-4.0-fast-generate-001", "gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"]:
             try:
-                response = self.client.models.generate_content(
-                    model=model,
-                    contents=full_prompt,
-                    config=types.GenerateContentConfig(
-                        response_modalities=["TEXT", "IMAGE"],
-                        temperature=0.7,
+                if "imagen" in model:
+                    res = self.client.models.generate_images(
+                        model=model,
+                        prompt=full_prompt,
+                        config=types.GenerateImagesConfig(number_of_images=1, output_mime_type="image/jpeg")
                     )
-                )
-                for part in response.candidates[0].content.parts:
-                    if part.inline_data and part.inline_data.data:
-                        mime = part.inline_data.mime_type or "image/jpeg"
-                        img_b64 = base64.b64encode(part.inline_data.data).decode("utf-8")
-                        print(f"Imagem gerada com sucesso via {model} ({mime})")
-                        return img_b64, mime
+                    if res.generated_images:
+                        img_bytes = res.generated_images[0].image.image_bytes
+                        img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+                        print(f"Imagem REAL gerada com sucesso via {model} (image/jpeg)")
+                        return img_b64, "image/jpeg"
+                else:
+                    response = self.client.models.generate_content(
+                        model=model,
+                        contents=full_prompt,
+                        config=types.GenerateContentConfig(
+                            response_modalities=["TEXT", "IMAGE"],
+                            temperature=0.7,
+                        )
+                    )
+                    for part in response.candidates[0].content.parts:
+                        if part.inline_data and part.inline_data.data:
+                            mime = part.inline_data.mime_type or "image/jpeg"
+                            img_b64 = base64.b64encode(part.inline_data.data).decode("utf-8")
+                            print(f"Imagem REAL gerada com sucesso via {model} ({mime})")
+                            return img_b64, mime
             except Exception as e:
-                print(f"Modelo {model} falhou: {e}")
+                print(f"Modelo de imagem {model} falhou: {e}")
                 continue
 
         # Fallback: SVG corporativo VisionAI com título em Português (PT-BR)
