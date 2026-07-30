@@ -116,9 +116,36 @@ class GeminiStudio:
                 return f"[Erro Gemini: {err_str}]"
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
+    def _get_official_logo_b64(self) -> str:
+        """Carrega e redimensiona a logomarca oficial do site visionai.com.br."""
+        import os, io, base64
+        from PIL import Image
+
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), "logo.png"),
+            "/app/logo.png",
+            "/home/hufema/vizionai/08_Governance_Corporate/Visionai_Corporate_Web/public/logo.png"
+        ]
+
+        for p in possible_paths:
+            if os.path.exists(p):
+                try:
+                    img = Image.open(p)
+                    img = img.resize((96, 96), Image.Resampling.LANCZOS)
+                    buf = io.BytesIO()
+                    img.save(buf, format="PNG")
+                    return base64.b64encode(buf.getvalue()).decode("utf-8")
+                except Exception as e:
+                    print(f"Erro ao carregar logo de {p}: {e}")
+                    continue
+        return ""
+
     def _generate_svg_banner(self, title: str, category: str = "VisionAi Insights") -> str:
-        """Gera um banner SVG corporativo 1200x630 com branding VisionAi, HUD de computação visual e título em PT-BR."""
-        # Clean title for SVG embedding - ensure PT-BR text
+        """Gera um banner SVG corporativo 1200x630 com a logomarca e paleta oficial do site visionai.com.br (#9EFF00)."""
+        import base64
+        logo_b64 = self._get_official_logo_b64()
+        logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="125" y="115" width="44" height="44"/>' if logo_b64 else '<rect x="125" y="115" width="44" height="44" rx="10" fill="url(#vision-grad)"/>'
+
         first_line = title.strip().split("\n")[0]
         clean_first_line = first_line.replace("#", "").replace("**", "").strip()
         clean_title = (clean_first_line[:75] + "...") if len(clean_first_line) > 75 else clean_first_line
@@ -127,14 +154,13 @@ class GeminiStudio:
         svg_code = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#070b14"/>
+      <stop offset="0%" stop-color="#050505"/>
       <stop offset="50%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#111111"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="50%" stop-color="#818cf8"/>
-      <stop offset="100%" stop-color="#c084fc"/>
+    <linearGradient id="vision-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9EFF00"/>
+      <stop offset="100%" stop-color="#0055FF"/>
     </linearGradient>
     <linearGradient id="card-bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="rgba(255,255,255,0.06)"/>
@@ -146,64 +172,54 @@ class GeminiStudio:
     </filter>
   </defs>
 
-  <!-- Background -->
+  <!-- Background corporativo oficial (#050505) -->
   <rect width="1200" height="630" fill="url(#bg)"/>
   
-  <!-- Glowing Orbs & AI Scan Grid -->
-  <circle cx="150" cy="120" r="180" fill="#38bdf8" opacity="0.15" filter="url(#glow)"/>
-  <circle cx="1050" cy="500" r="220" fill="#818cf8" opacity="0.18" filter="url(#glow)"/>
+  <!-- Glows com tom verde oficial (#9EFF00) -->
+  <circle cx="150" cy="120" r="180" fill="#9EFF00" opacity="0.12" filter="url(#glow)"/>
+  <circle cx="1050" cy="500" r="220" fill="#0055FF" opacity="0.15" filter="url(#glow)"/>
   
-  <!-- Grid Lines -->
-  <path d="M 0 150 L 1200 150 M 0 300 L 1200 300 M 0 450 L 1200 450" stroke="rgba(56, 189, 248, 0.05)" stroke-width="1"/>
-  <path d="M 300 0 L 300 630 M 600 0 L 600 630 M 900 0 L 900 630" stroke="rgba(56, 189, 248, 0.05)" stroke-width="1"/>
+  <!-- Linhas Guia da Computação Visual -->
+  <path d="M 0 150 L 1200 150 M 0 300 L 1200 300 M 0 450 L 1200 450" stroke="rgba(158, 255, 0, 0.05)" stroke-width="1"/>
+  <path d="M 300 0 L 300 630 M 600 0 L 600 630 M 900 0 L 900 630" stroke="rgba(158, 255, 0, 0.05)" stroke-width="1"/>
 
-  <!-- Computer Vision Bounding Box Overlay Simulation (HUD) -->
-  <g opacity="0.4">
-    <!-- Camera Bounding Box Top Right -->
-    <path d="M 980 160 L 1020 160 M 980 160 L 980 200" stroke="#38bdf8" stroke-width="2" fill="none"/>
-    <path d="M 1120 160 L 1080 160 M 1120 160 L 1120 200" stroke="#38bdf8" stroke-width="2" fill="none"/>
-    <path d="M 980 280 L 1020 280 M 980 280 L 980 240" stroke="#38bdf8" stroke-width="2" fill="none"/>
-    <path d="M 1120 280 L 1080 280 M 1120 280 L 1120 240" stroke="#38bdf8" stroke-width="2" fill="none"/>
-    <rect x="980" y="140" width="140" height="18" fill="rgba(56, 189, 248, 0.2)" rx="2"/>
-    <text x="985" y="153" font-family="'Inter', monospace" font-size="10" fill="#38bdf8" font-weight="700">AI DETECT: 99.8%</text>
-
-    <!-- Camera Reticle Bottom Left -->
-    <circle cx="150" cy="480" r="24" stroke="#34d399" stroke-width="1.5" stroke-dasharray="4 4" fill="none"/>
-    <text x="185" y="484" font-family="'Inter', monospace" font-size="11" fill="#34d399" font-weight="600">[ EDGE NODE 01: COMPLIANT ]</text>
+  <!-- Telemetria HUD retículo em Verde Neon (#9EFF00) -->
+  <g opacity="0.7">
+    <path d="M 980 160 L 1020 160 M 980 160 L 980 200" stroke="#9EFF00" stroke-width="2" fill="none"/>
+    <path d="M 1120 160 L 1080 160 M 1120 160 L 1120 200" stroke="#9EFF00" stroke-width="2" fill="none"/>
+    <rect x="980" y="140" width="140" height="18" fill="rgba(158, 255, 0, 0.2)" rx="2"/>
+    <text x="985" y="153" font-family="'Inter', monospace" font-size="10" fill="#9EFF00" font-weight="700">AI DETECT: 99.8%</text>
   </g>
 
-  <!-- Glass Card Container -->
-  <rect x="80" y="80" width="1040" height="470" rx="24" fill="url(#card-bg)" stroke="rgba(56,189,248,0.2)" stroke-width="1.5"/>
+  <!-- Container de Vidro Glassmorphism -->
+  <rect x="80" y="80" width="1040" height="470" rx="24" fill="url(#card-bg)" stroke="rgba(158,255,0,0.2)" stroke-width="1.5"/>
   
-  <!-- Top Bar: Logo & Badge -->
+  <!-- Logo Oficial & Nome da Marca (VISION + AI em #9EFF00) -->
   <g transform="translate(130, 130)">
-    <!-- Logo Icon -->
-    <rect width="48" height="48" rx="12" fill="url(#accent)"/>
-    <text x="24" y="32" font-family="'Inter', sans-serif" font-weight="800" font-size="24" fill="#ffffff" text-anchor="middle">V</text>
-    <!-- Brand Name -->
-    <text x="64" y="32" font-family="'Inter', sans-serif" font-weight="700" font-size="24" fill="#ffffff" letter-spacing="-0.5">VisionAi</text>
-    <text x="165" y="32" font-family="'Inter', sans-serif" font-weight="400" font-size="14" fill="#94a3b8">| Corporate Tech</text>
+    {logo_tag}
+    <text x="58" y="32" font-family="'Outfit', 'Inter', sans-serif" font-weight="900" font-size="26" fill="#ffffff" letter-spacing="-0.5">VISION<tspan fill="#9EFF00">AI</tspan></text>
+    <text x="210" y="32" font-family="'Inter', sans-serif" font-weight="400" font-size="14" fill="#94a3b8">| Corporate Tech</text>
   </g>
   
-  <!-- Category Badge -->
+  <!-- Selo de Categoria com Cores do Site -->
   <g transform="translate(900, 135)">
-    <rect width="170" height="34" rx="17" fill="rgba(56, 189, 248, 0.15)" stroke="rgba(56, 189, 248, 0.4)" stroke-width="1"/>
-    <text x="85" y="22" font-family="'Inter', sans-serif" font-weight="600" font-size="12" fill="#38bdf8" text-anchor="middle" letter-spacing="1">{clean_category}</text>
+    <rect width="180" height="34" rx="17" fill="rgba(158, 255, 0, 0.12)" stroke="rgba(158, 255, 0, 0.45)" stroke-width="1.5"/>
+    <text x="90" y="22" font-family="'Inter', sans-serif" font-weight="800" font-size="11" fill="#9EFF00" text-anchor="middle" letter-spacing="1">{clean_category}</text>
   </g>
 
-  <!-- Main Headline in PT-BR -->
+  <!-- Título Principal em PT-BR -->
   <foreignObject x="130" y="210" width="940" height="220">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Outfit', 'Inter', system-ui, sans-serif; color: #f8fafc; font-size: 42px; font-weight: 700; line-height: 1.25; letter-spacing: -1px; text-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Outfit', 'Inter', system-ui, sans-serif; color: #f8fafc; font-size: 40px; font-weight: 700; line-height: 1.25; letter-spacing: -1px; text-shadow: 0 4px 12px rgba(0,0,0,0.5);">
       {clean_title}
     </div>
   </foreignObject>
 
-  <!-- Accent Line -->
-  <rect x="130" y="460" width="120" height="4" rx="2" fill="url(#accent)"/>
+  <!-- Linha de Acento Verde-Azul -->
+  <rect x="130" y="460" width="140" height="4" rx="2" fill="url(#vision-grad)"/>
 
-  <!-- Footer Info in PT-BR -->
+  <!-- Rodapé Institucional do Site -->
   <text x="130" y="500" font-family="'Inter', sans-serif" font-weight="500" font-size="16" fill="#94a3b8">Inovação, Inteligência Artificial &amp; Computação na Borda</text>
-  <text x="1070" y="500" font-family="'Inter', sans-serif" font-weight="600" font-size="15" fill="#38bdf8" text-anchor="end">visionai.com.br ✦</text>
+  <text x="1070" y="500" font-family="'Inter', sans-serif" font-weight="800" font-size="15" fill="#9EFF00" text-anchor="end">visionai.com.br ✦</text>
 </svg>"""
         return base64.b64encode(svg_code.encode('utf-8')).decode('utf-8')
 
@@ -274,8 +290,8 @@ REGRAS:
 
     def _composite_advertising_creative(self, raw_img_bytes: bytes, pt_headline: str, category: str = "VisionAi Insights") -> tuple[str, str]:
         """
-        Combina a foto realista gerada por IA com a Moldura Publicitária da VisionAI (Peça Publicitária de Agência).
-        Cria um criativo publicitário 1200x630 profissional em JPEG de alta resolução.
+        Combina a foto realista gerada por IA com a Moldura Publicitária oficial da VisionAI
+        usando a logomarca do site (logo.png) e paleta de cores corporativa (#9EFF00 / #0055FF).
         """
         import io
         from PIL import Image
@@ -286,7 +302,11 @@ REGRAS:
             bg = Image.open(io.BytesIO(raw_img_bytes)).convert("RGB")
             bg = bg.resize((1200, 630), Image.Resampling.LANCZOS)
 
-            # 2. Formata manchete em PT-BR para o SVG overlay usando tspan nativo
+            # 2. Carrega a logo oficial
+            logo_b64 = self._get_official_logo_b64()
+            logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="80" y="55" width="44" height="44"/>' if logo_b64 else '<rect x="80" y="55" width="44" height="44" rx="10" fill="url(#vision-grad)"/>'
+
+            # 3. Formata manchete em PT-BR para o SVG overlay usando tspan nativo
             def wrap_text_to_tspans(text: str, max_chars: int = 42, start_x: int = 80, dy: int = 48) -> str:
                 words = text.strip().replace('#', '').replace('*', '').split()
                 lines = []
@@ -315,59 +335,58 @@ REGRAS:
             headline_tspans = wrap_text_to_tspans(clean_first_line)
             clean_category = category.upper()
 
-            # 3. Cria a moldura de design gráfico publicitário (SVG com gradiente escuro, marca VisionAI e badges)
+            # 4. Moldura gráfica oficial com a paleta do site (#9EFF00)
             svg_overlay = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#6366f1"/>
+    <linearGradient id="vision-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9EFF00"/>
+      <stop offset="100%" stop-color="#0055FF"/>
     </linearGradient>
     <linearGradient id="shadow" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="rgba(7,11,20,0.90)"/>
-      <stop offset="60%" stop-color="rgba(7,11,20,0.50)"/>
-      <stop offset="100%" stop-color="rgba(7,11,20,0.20)"/>
+      <stop offset="0%" stop-color="rgba(5,5,5,0.92)"/>
+      <stop offset="60%" stop-color="rgba(5,5,5,0.55)"/>
+      <stop offset="100%" stop-color="rgba(5,5,5,0.20)"/>
     </linearGradient>
   </defs>
 
-  <!-- Gradiente de escurecimento para legibilidade perfeita do texto -->
+  <!-- Gradiente de escurecimento escuro (#050505) -->
   <rect width="1200" height="630" fill="url(#shadow)"/>
 
-  <!-- HUD Telemetria Visão Computacional -->
-  <g opacity="0.6">
-    <path d="M 950 140 L 980 140 M 950 140 L 950 170" stroke="#38bdf8" stroke-width="2" fill="none"/>
-    <path d="M 1080 140 L 1050 140 M 1080 140 L 1080 170" stroke="#38bdf8" stroke-width="2" fill="none"/>
-    <path d="M 950 240 L 980 240 M 950 240 L 950 210" stroke="#38bdf8" stroke-width="2" fill="none"/>
-    <path d="M 1080 240 L 1050 240 M 1080 240 L 1080 210" stroke="#38bdf8" stroke-width="2" fill="none"/>
-    <rect x="950" y="122" width="130" height="16" fill="rgba(56, 189, 248, 0.25)" rx="2"/>
-    <text x="955" y="134" font-family="'Inter', monospace" font-size="10" fill="#38bdf8" font-weight="bold">AI DETECT: 99.8%</text>
+  <!-- Telemetria HUD Visão Computacional em Verde Neon (#9EFF00) -->
+  <g opacity="0.7">
+    <path d="M 950 140 L 980 140 M 950 140 L 950 170" stroke="#9EFF00" stroke-width="2" fill="none"/>
+    <path d="M 1080 140 L 1050 140 M 1080 140 L 1080 170" stroke="#9EFF00" stroke-width="2" fill="none"/>
+    <path d="M 950 240 L 980 240 M 950 240 L 950 210" stroke="#9EFF00" stroke-width="2" fill="none"/>
+    <path d="M 1080 240 L 1050 240 M 1080 240 L 1080 210" stroke="#9EFF00" stroke-width="2" fill="none"/>
+    <rect x="950" y="122" width="130" height="16" fill="rgba(158, 255, 0, 0.2)" rx="2"/>
+    <text x="955" y="134" font-family="'Inter', monospace" font-size="10" fill="#9EFF00" font-weight="bold">AI DETECT: 99.8%</text>
   </g>
 
-  <!-- Cabeçalho: Logo VisionAI & Branding -->
-  <g transform="translate(80, 60)">
-    <rect width="44" height="44" rx="10" fill="url(#grad)"/>
-    <text x="22" y="30" font-family="'Inter', sans-serif" font-weight="bold" font-size="22" fill="#ffffff" text-anchor="middle">V</text>
-    <text x="58" y="30" font-family="'Inter', sans-serif" font-weight="bold" font-size="22" fill="#ffffff">VisionAi</text>
-    <text x="165" y="30" font-family="'Inter', sans-serif" font-size="14" fill="#94a3b8">| Corporate Tech</text>
+  <!-- Cabeçalho: Logo Oficial PNG + Marca VISION AI (#9EFF00) -->
+  <g transform="translate(80, 55)">
+    {logo_tag}
+    <text x="54" y="32" font-family="'Outfit', 'Inter', sans-serif" font-weight="900" font-size="26" fill="#ffffff" letter-spacing="-0.5">VISION<tspan fill="#9EFF00">AI</tspan></text>
+    <text x="205" y="32" font-family="'Inter', sans-serif" font-weight="400" font-size="14" fill="#94a3b8">| Corporate Tech</text>
   </g>
 
-  <!-- Selo de Categoria -->
-  <g transform="translate(940, 62)">
-    <rect width="180" height="34" rx="17" fill="rgba(56, 189, 248, 0.18)" stroke="rgba(56, 189, 248, 0.5)" stroke-width="1"/>
-    <text x="90" y="22" font-family="'Inter', sans-serif" font-weight="bold" font-size="11" fill="#38bdf8" text-anchor="middle">{clean_category}</text>
+  <!-- Selo de Categoria Oficial em Verde Neon (#9EFF00) -->
+  <g transform="translate(920, 58)">
+    <rect width="200" height="36" rx="18" fill="rgba(158, 255, 0, 0.12)" stroke="rgba(158, 255, 0, 0.45)" stroke-width="1.5"/>
+    <text x="100" y="23" font-family="'Inter', sans-serif" font-weight="800" font-size="12" fill="#9EFF00" text-anchor="middle" letter-spacing="1">{clean_category}</text>
   </g>
 
   <!-- Título Principal do Criativo em PT-BR -->
-  <text x="80" y="220" font-family="'Outfit', 'Inter', sans-serif" font-size="36" fill="#ffffff" font-weight="800">
+  <text x="80" y="220" font-family="'Outfit', 'Inter', sans-serif" font-size="38" fill="#ffffff" font-weight="800">
     {headline_tspans}
   </text>
 
-  <!-- Rodapé Publicitário -->
-  <rect x="80" y="540" width="100" height="3" rx="1.5" fill="url(#grad)"/>
+  <!-- Rodapé Publicitário Oficial (#9EFF00 / #0055FF) -->
+  <rect x="80" y="535" width="140" height="4" rx="2" fill="url(#vision-grad)"/>
   <text x="80" y="575" font-family="'Inter', sans-serif" font-weight="500" font-size="14" fill="#94a3b8">Inovação, Inteligência Artificial &amp; Computação na Borda</text>
-  <text x="1120" y="575" font-family="'Inter', sans-serif" font-weight="bold" font-size="14" fill="#38bdf8" text-anchor="end">visionai.com.br ✦</text>
+  <text x="1120" y="575" font-family="'Inter', sans-serif" font-weight="800" font-size="15" fill="#9EFF00" text-anchor="end">visionai.com.br ✦</text>
 </svg>"""
 
-            # 4. Renderiza moldura e faz composição alfa sobre a foto
+            # 5. Renderiza moldura e faz composição alfa sobre a foto
             overlay_png = cairosvg.svg2png(bytestring=svg_overlay.encode('utf-8'))
             overlay_img = Image.open(io.BytesIO(overlay_png)).convert('RGBA')
 
@@ -376,7 +395,7 @@ REGRAS:
             composite.convert('RGB').save(out, format='JPEG', quality=95)
             
             img_b64 = base64.b64encode(out.getvalue()).decode('utf-8')
-            print("Peça publicitária corporativa (foto + moldura de design) criada com sucesso!")
+            print("Peça publicitária corporativa oficial (foto + branding do site VisionAI) criada com sucesso!")
             return img_b64, "image/jpeg"
         except Exception as e:
             print(f"Erro ao compor peça publicitária: {e} — usando foto original")
