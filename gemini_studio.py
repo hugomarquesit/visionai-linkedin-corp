@@ -293,7 +293,7 @@ REGRAS:
         Combina a foto realista gerada por IA com a Moldura Publicitária oficial da VisionAI
         usando a logomarca do site (logo.png) e paleta de cores corporativa (#9EFF00 / #0055FF).
         """
-        import io
+        import io, html
         from PIL import Image
         import cairosvg
 
@@ -327,13 +327,14 @@ REGRAS:
                 tspans = []
                 for i, l in enumerate(lines):
                     d = 0 if i == 0 else dy
-                    tspans.append(f'<tspan x="{start_x}" dy="{d}">{l}</tspan>')
+                    escaped_line = html.escape(l)
+                    tspans.append(f'<tspan x="{start_x}" dy="{d}">{escaped_line}</tspan>')
                 return "\n".join(tspans)
 
             first_line = pt_headline.strip().split("\n")[0]
             clean_first_line = first_line.replace("#", "").replace("**", "").strip()
             headline_tspans = wrap_text_to_tspans(clean_first_line)
-            clean_category = category.upper()
+            clean_category = html.escape(category.upper())
 
             # 4. Moldura gráfica oficial com a paleta do site (#9EFF00)
             svg_overlay = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
