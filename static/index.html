@@ -218,33 +218,34 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Estúdio Criativo Gemini 3.5 ✦</h1>
-          <p class="page-sub">Geração inteligente de conteúdo e criativos visuais para a VisionAi</p>
+          <p class="page-sub">Central inteligente de inteligência artificial para a VisionAI</p>
         </div>
       </div>
 
+      <!-- Studio Navigation Bar -->
       <div class="studio-tabs">
         <button class="studio-tab active" data-studio="generate">✦ Gerar Post &amp; Imagem</button>
+        <button class="studio-tab" data-studio="web-trends">📡 Radar de Tendências Web</button>
+        <button class="studio-tab" data-studio="carousel">📊 PDF Carrossel Multi-Slide</button>
+        <button class="studio-tab" data-studio="doc-upload">📑 Extrair de Documento PDF</button>
         <button class="studio-tab" data-studio="review">🔍 Rever Rascunho</button>
         <button class="studio-tab" data-studio="strategy">📅 Estratégia Editorial</button>
         <button class="studio-tab" data-studio="hashtags">🏷️ Hashtags</button>
       </div>
 
-      <!-- Gerar post -->
+      <!-- 1. GERAR POST & IMAGEM/VÍDEO PANEL -->
       <div id="studio-generate" class="studio-panel active">
         <!-- Tópicos Sugeridos pelo Site -->
         <div class="auto-topics-bar card mb-3">
           <div class="topics-header-row">
             <div class="topics-title-area">
               <span class="sparkle">✦</span>
-              <strong>Tópicos Sugeridos pelo Site (visionai.com.br/#servicos):</strong>
-              <span class="topics-sub">Estrutura oficial dos 6 serviços reais da VisionAI.</span>
+              <strong>Tópicos Institucionais VisionAI (visionai.com.br):</strong>
+              <span class="topics-sub">Estrutura oficial dos 6 serviços da VisionAI.</span>
             </div>
             <div class="topics-actions-btns">
               <button class="btn btn-secondary btn-sm" onclick="loadAutoTopics(true)" id="btn-refresh-topics" title="Buscar novos temas do site via Gemini">
                 🔄 Buscar Novos Tópicos
-              </button>
-              <button class="btn btn-primary btn-sm" onclick="autoGenerate1Click()" title="Sortear um tópico e gerar criativo em 1-clique">
-                ⚡ Sortear &amp; Gerar 1-Clique
               </button>
             </div>
           </div>
@@ -255,9 +256,9 @@
               <button class="pill-filter active" onclick="filterTopicsByCategory('')">Todas as 6 Linhas</button>
               <button class="pill-filter" onclick="filterTopicsByCategory('Visão Computacional')">Visão Computacional</button>
               <button class="pill-filter" onclick="filterTopicsByCategory('IA Multimodal')">IA Multimodal</button>
-              <button class="pill-filter" onclick="filterTopicsByCategory('EdTech & VR')">EdTech &amp; VR</button>
+              <button class="pill-filter" onclick="filterTopicsByCategory('EdTech & VR')">EdTech & VR</button>
               <button class="pill-filter" onclick="filterTopicsByCategory('Agro-Industrial')">Agro-Industrial</button>
-              <button class="pill-filter" onclick="filterTopicsByCategory('Conteúdo & Mídia IA')">Conteúdo &amp; Mídia</button>
+              <button class="pill-filter" onclick="filterTopicsByCategory('Conteúdo & Mídia IA')">Conteúdo & Mídia</button>
               <button class="pill-filter" onclick="filterTopicsByCategory('Governança & Intelligence')">Governança</button>
             </div>
             <div class="topics-search-box">
@@ -267,22 +268,6 @@
 
           <div id="auto-topics-chips" class="topics-chips mt-2">
             <span class="chip-loading">Carregando sugestões institucionais do site...</span>
-          </div>
-        </div>
-
-        <!-- RADAR DE TENDÊNCIAS DA WEB (LIVE WEB NEWS ENGINE) -->
-        <div class="auto-topics-container mb-4" style="border-left: 4px solid #9EFF00; background: rgba(15, 23, 42, 0.6);">
-          <div class="topics-header">
-            <div>
-              <h3 class="topics-title" style="color:#9EFF00;">📡 Radar de Tendências da Web (Notícias &amp; Inovações em Tempo Real)</h3>
-              <span class="topics-sub">Busca automaticamente novidades do setor de IA, Visão Computacional, Agro e VR para criar conteúdo fresco.</span>
-            </div>
-            <button class="btn btn-secondary btn-sm" id="btn-fetch-web-trends" onclick="loadWebTrends()">
-              🌐 Escanear Notícias da Web
-            </button>
-          </div>
-          <div id="web-trends-container" class="topics-chips mt-2">
-            <span class="chip-loading">Clique em 'Escanear Notícias da Web' para buscar tendências ao vivo...</span>
           </div>
         </div>
 
@@ -329,10 +314,8 @@
             <div class="field-group mt-3">
               <label>Central de Mídia do Criativo</label>
               <div class="media-mode-tabs" id="media-mode-tabs">
-                <button type="button" class="media-tab-btn active" data-media-type="image">🖼️ Imagem AI</button>
-                <button type="button" class="media-tab-btn" data-media-type="video">🎥 Vídeo AI</button>
-                <button type="button" class="media-tab-btn" data-media-type="carousel">📄 PDF Carrossel</button>
-                <button type="button" class="media-tab-btn" data-media-type="doc">📑 Doc PDF Upload</button>
+                <button type="button" class="media-tab-btn active" data-media-type="image">🖼️ Foto Publicitária</button>
+                <button type="button" class="media-tab-btn" data-media-type="video">🎥 Vídeo Corporativo</button>
                 <button type="button" class="media-tab-btn" data-media-type="custom">📁 Upload Próprio</button>
               </div>
             </div>
@@ -344,23 +327,11 @@
               <p>Arraste uma foto/vídeo ou <button type="button" id="trigger-file-btn" class="btn-text-link">clique aqui para escolher do computador</button></p>
               <span class="upload-hint">Suporta JPG, PNG, MP4, WebM (até 200MB)</span>
             </div>
-
-            <!-- Internal PDF/Doc Upload Panel -->
-            <div id="doc-upload-box" class="upload-dropzone hidden" style="border-color:#0055FF;">
-              <input type="file" id="doc-file-input" accept=".pdf,.txt,.doc,.docx" style="display:none" />
-              <div class="upload-icon">📑</div>
-              <p>Suba um PDF corporativo da VisionAI para extrair 3 posts B2B: <button type="button" id="trigger-doc-file-btn" class="btn-text-link">Escolher PDF</button></p>
-              <span class="upload-hint">Extrai automaticamente apresentações, propostas e relatórios técnicos.</span>
-            </div>
             
             <div class="btn-group-vertical mt-3">
               <button class="btn-ai full-width" id="generate-post-btn">
                 <span id="gen-btn-text">✦ Gerar Post &amp; Criativo Visual</span>
                 <span id="gen-spinner" class="spinner hidden"></span>
-              </button>
-              
-              <button class="btn-secondary full-width mt-2" id="auto-generate-1click-btn">
-                <span>🚀 Criar 100% Automático (1-Click)</span>
               </button>
             </div>
           </div>
@@ -369,31 +340,12 @@
           <div class="card">
             <div class="card-title-row">
               <h3 class="card-title">Live Canvas &amp; Preview no Feed 📱</h3>
-              <div class="gen-actions hidden" id="gen-actions">
-                <button class="btn-mini" id="copy-gen-btn">Copiar</button>
-                <button class="btn-mini" id="send-to-posts-btn">Editar em Posts</button>
-                <button class="btn-mini primary" id="publish-direct-btn" style="background:#0a66c2;color:#fff;font-weight:600;">🚀 Publicar no LinkedIn</button>
-              </div>
-            </div>
-
-            <!-- Editable Live Canvas Text Editor -->
-            <div id="live-editor-box" class="live-editor-box hidden mb-3">
-              <div class="editor-header">
-                <label>✏️ Edite o Texto em Tempo Real Antes de Publicar:</label>
-                <button class="btn-mini secondary" id="regenerate-media-btn">🔄 Re-gerar Mídia com Texto Revisado</button>
-              </div>
-              <textarea id="gen-editable-text" class="textarea editor-textarea" rows="5" placeholder="Altere ou complemente o texto aqui para atualizar a simulação live..."></textarea>
             </div>
 
             <!-- LinkedIn Feed Post Card Mockup -->
             <div id="linkedin-preview-card" class="linkedin-preview-card">
               <div class="empty-state" id="gen-empty-state">
                 <div class="empty-icon">✦</div>
-                <p>Selecione um tema do site ou clique em "Gerar Post" para visualizar a simulação no LinkedIn.</p>
-              </div>
-
-              <div id="gen-output-content" class="linkedin-post-mockup hidden">
-                <!-- LinkedIn Post Header -->
                 <div class="li-post-header">
                   <div class="li-avatar">V</div>
                   <div class="li-meta">

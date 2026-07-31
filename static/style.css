@@ -3,25 +3,26 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
-  --bg-base:      #070b14;
-  --bg-surface:   #0d1424;
-  --bg-card:      rgba(15, 23, 42, 0.75);
-  --bg-elevated:  #162036;
-  --bg-hover:     #1e2c4a;
-  --border:       rgba(56, 189, 248, 0.12);
-  --border-light: rgba(56, 189, 248, 0.22);
-  --border-glow:  rgba(56, 189, 248, 0.45);
+  --bg-base:      #050505;
+  --bg-surface:   #0c1220;
+  --bg-card:      rgba(15, 23, 42, 0.85);
+  --bg-elevated:  #141e33;
+  --bg-hover:     #1c2a47;
+  --border:       rgba(158, 255, 0, 0.22);
+  --border-light: rgba(158, 255, 0, 0.38);
+  --border-glow:  rgba(158, 255, 0, 0.60);
 
   --text-primary:   #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted:     #64748b;
 
-  --accent:       #38bdf8;
-  --accent-hover: #0284c7;
-  --accent-glow:  rgba(56, 189, 248, 0.25);
-  --ai-color:     #38bdf8;
-  --ai-glow:      rgba(56, 189, 248, 0.2);
-  --success:      #34d399;
+  --accent:       #9EFF00;
+  --accent-hover: #8be000;
+  --accent-glow:  rgba(158, 255, 0, 0.30);
+  --ai-color:     #9EFF00;
+  --ai-glow:      rgba(158, 255, 0, 0.25);
+  --blue-accent:  #0055FF;
+  --success:      #9EFF00;
   --warning:      #fbbf24;
   --danger:       #f87171;
 
@@ -364,6 +365,12 @@ body {
 .kpi-sub   { font-size: 11px; color: var(--text-secondary); }
 
 /* ── Cards ─────────────────────────────────────────────────────── */
+.grid-2col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+}
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);

@@ -138,6 +138,10 @@ function switchStudio(panel) {
   document.querySelectorAll('.studio-panel').forEach(p => p.classList.remove('active'));
   document.querySelector(`[data-studio="${panel}"]`)?.classList.add('active');
   $(`studio-${panel}`)?.classList.add('active');
+
+  if (panel === 'web-trends' && cachedWebTrends.length === 0) {
+    loadWebTrends();
+  }
 }
 
 // ═══════════════════════════════════════════════════════ DASHBOARD
@@ -1020,6 +1024,15 @@ async function init() {
     });
   }
 
+  const docPanelFileInput = $('doc-panel-file-input');
+  if (docPanelFileInput) {
+    docPanelFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        uploadDocumentFile(e.target.files[0]);
+      }
+    });
+  }
+
   // Live Text Canvas Editor Sync & Regenerate Media Button
   const editableTextEl = $('gen-editable-text');
   if (editableTextEl) {
@@ -1049,36 +1062,35 @@ async function init() {
 let cachedWebTrends = [];
 
 async function loadWebTrends(query = '') {
-  const container = $('web-trends-container');
-  const btn = $('btn-fetch-web-trends');
+  const container = $('web-trends-panel-container') || $('web-trends-container');
+  const btn = $('btn-fetch-web-trends-panel') || $('btn-fetch-web-trends');
   if (!container) return;
 
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = '⏳ Escaneando Web...';
   }
-  container.innerHTML = '<span class="chip-loading">O Gemini 3.5 está varrendo as últimas notícias e artigos da internet...</span>';
+  container.innerHTML = '<div class="empty-state"><p class="chip-loading">O Gemini 3.5 está varrendo as últimas notícias e artigos da internet...</p></div>';
 
   try {
     const url = query ? `/api/gemini/web-trends?query=${encodeURIComponent(query)}` : '/api/gemini/web-trends';
     const { ok, data } = await apiFetch(url);
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '🌐 Escanear Notícias da Web';
+      btn.innerHTML = '🌐 Escanear Notícias Agora';
     }
 
     if (ok && data.trends && Array.isArray(data.trends)) {
       cachedWebTrends = data.trends;
       container.innerHTML = data.trends.map((t, idx) => `
-        <div class="topic-chip-card" style="border-left:3px solid #9EFF00;">
-          <div class="topic-chip-header">
-            <span class="chip-badge" style="background:rgba(158,255,0,0.2);color:#9EFF00;">📡 ${escapeHtml(t.category || 'TENDÊNCIA')}</span>
-            <div class="chip-actions">
-              <button class="btn-chip-action btn-gen" onclick="generatePostFromTrend(${idx})">⚡ Gerar Post</button>
-            </div>
+        <div class="card" style="border-left:4px solid #9EFF00; background: rgba(15, 23, 42, 0.85);">
+          <div class="draft-header mb-2" style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="chip-badge" style="background:rgba(158,255,0,0.15); color:#9EFF00; padding:4px 10px; border-radius:12px; font-weight:700;">📡 ${escapeHtml(t.category || 'TENDÊNCIA')}</span>
+            <button class="btn btn-primary btn-sm" onclick="generatePostFromTrend(${idx})">⚡ Gerar Post</button>
           </div>
-          <div class="topic-chip-body"><strong>${escapeHtml(t.title)}</strong></div>
-          <div style="font-size:12px;color:#94a3b8;margin-top:4px;">${escapeHtml(t.summary)}</div>
+          <h4 style="color:#ffffff; font-size:16px; margin-bottom:8px;">${escapeHtml(t.title)}</h4>
+          <p style="font-size:13px; color:#94a3b8; margin-bottom:8px;">${escapeHtml(t.summary)}</p>
+          <div style="font-size:12px; color:#9EFF00; font-weight:600;">💡 Impacto B2B: ${escapeHtml(t.impact_b2b || '')}</div>
         </div>
       `).join('');
       showToast('Tendências da web carregadas!', 'success');
@@ -1088,7 +1100,7 @@ async function loadWebTrends(query = '') {
   } catch (e) {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '🌐 Escanear Notícias da Web';
+      btn.innerHTML = '🌐 Escanear Notícias Agora';
     }
     container.innerHTML = '<div class="empty-state"><p>Erro de conexão ao buscar notícias.</p></div>';
   }
@@ -1098,11 +1110,93 @@ function generatePostFromTrend(idx) {
   const item = cachedWebTrends[idx];
   if (!item) return;
 
+  switchStudio('generate');
   const topicInput = $('gen-topic');
   if (topicInput) topicInput.value = item.suggested_topic || item.title;
 
   showToast(`Gerando post sobre tendência: ${item.title.substring(0, 30)}...`, 'info');
   generatePost();
+}
+
+async function generateCarouselPdfAction() {
+  const topic = $('carousel-topic') ? $('carousel-topic').value.trim() : '';
+  const count = $('carousel-slides-count') ? parseInt($('carousel-slides-count').value) : 5;
+  const previewArea = $('carousel-preview-area');
+  const btn = $('btn-generate-carousel');
+
+  if (!topic) {
+    showToast('Informe o tema do carrossel em PDF', 'error');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Criando slides e compondo PDF...';
+  }
+
+  try {
+    const { ok, data } = await apiFetch('/api/gemini/generate-carousel', {
+      method: 'POST',
+      body: JSON.stringify({ topic: topic, slides_count: count })
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '📄 Gerar Carrossel em PDF';
+    }
+
+    if (ok && data.pdf_base64) {
+      const pdfDataUrl = `data:application/pdf;base64,${data.pdf_base64}`;
+      currentGeneratedImageBase64 = data.pdf_base64;
+      currentGeneratedImageMime = 'application/pdf';
+
+      if (previewArea) {
+        previewArea.innerHTML = `
+          <div class="card mb-3" style="text-align:center;">
+            <h4 style="color:#9EFF00;margin-bottom:8px;">✅ Carrossel PDF Gerado (${data.slides_count} Slides)</h4>
+            <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">${escapeHtml(data.title)}</p>
+            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
+              <a href="${pdfDataUrl}" download="carrossel-visionai.pdf" class="btn btn-primary btn-sm">📥 Baixar PDF (${data.slides_count} slides)</a>
+              <button class="btn btn-secondary btn-sm" onclick="sendCarouselToCalendar()">📅 Agendar no LinkedIn</button>
+            </div>
+            <iframe src="${pdfDataUrl}" style="width:100%;height:450px;border:1px solid rgba(158,255,0,0.3);border-radius:12px;"></iframe>
+          </div>
+        `;
+      }
+      showToast('Carrossel PDF criado com sucesso!', 'success');
+    } else {
+      showToast('Erro ao gerar carrossel PDF', 'error');
+    }
+  } catch (e) {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '📄 Gerar Carrossel em PDF';
+    }
+    showToast(`Erro de conexão: ${e.message}`, 'error');
+  }
+}
+
+function sendCarouselToCalendar() {
+  switchTab('calendar');
+  if ($('sched-topic')) $('sched-topic').value = $('carousel-topic') ? $('carousel-topic').value : 'Carrossel PDF VisionAI';
+  if ($('sched-text')) $('sched-text').value = `📊 Carrossel Corporativo: ${$('carousel-topic') ? $('carousel-topic').value : ''}\n\nConfira os slides em PDF acima! #VisionAI #VisaoComputacional #EdgeAI`;
+}
+
+let cachedExtractedPosts = [];
+
+function useExtractedPost(idx) {
+  const post = cachedExtractedPosts[idx];
+  if (!post) return;
+
+  switchStudio('generate');
+  if ($('gen-topic')) $('gen-topic').value = post.topic || 'Documento Interno VisionAI';
+  if ($('gen-editable-text')) $('gen-editable-text').value = post.content;
+  if ($('gen-text-content')) $('gen-text-content').textContent = post.content;
+  if ($('live-editor-box')) $('live-editor-box').classList.remove('hidden');
+  if ($('gen-output-content')) $('gen-output-content').classList.remove('hidden');
+  if ($('gen-empty-state')) $('gen-empty-state').classList.add('hidden');
+  if ($('gen-actions')) $('gen-actions').classList.remove('hidden');
+  showToast('Post carregado no editor principal!', 'info');
 }
 
 async function uploadDocumentFile(file) {
@@ -1119,17 +1213,23 @@ async function uploadDocumentFile(file) {
       body: formData,
     });
     const data = await res.json();
+    const container = $('doc-extracted-posts-container');
+
     if (res.ok && data.generated_posts && data.generated_posts.length > 0) {
-      const firstPost = data.generated_posts[0];
-      if ($('gen-topic')) $('gen-topic').value = firstPost.topic || 'Documento Interno VisionAI';
-      if ($('gen-editable-text')) $('gen-editable-text').value = firstPost.content;
-      if ($('gen-text-content')) $('gen-text-content').textContent = firstPost.content;
-      if ($('live-editor-box')) $('live-editor-box').classList.remove('hidden');
-      if ($('gen-output-content')) $('gen-output-content').classList.remove('hidden');
-      if ($('gen-empty-state')) $('gen-empty-state').classList.add('hidden');
-      if ($('gen-actions')) $('gen-actions').classList.remove('hidden');
-      
-      showToast(`Documento extraído com sucesso! 3 posts gerados (${data.filename})`, 'success');
+      cachedExtractedPosts = data.generated_posts;
+      if (container) {
+        container.innerHTML = data.generated_posts.map((p, idx) => `
+          <div class="card mb-3" style="border-left:4px solid #0055FF; background: rgba(15, 23, 42, 0.85);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-weight:700;color:#0055FF;">POST ${p.post_number || idx + 1}: ${escapeHtml(p.topic || '')}</span>
+              <button class="btn btn-primary btn-sm" onclick="useExtractedPost(${idx})">⚡ Usar este Post</button>
+            </div>
+            <p style="font-size:12px;color:#94a3b8;margin-bottom:8px;"><strong>Ângulo:</strong> ${escapeHtml(p.angle || '')}</p>
+            <div style="font-size:13px;white-space:pre-wrap;color:#f8fafc;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;">${escapeHtml(p.content || '')}</div>
+          </div>
+        `).join('');
+      }
+      showToast(`Documento extraído com sucesso! ${data.generated_posts.length} posts gerados`, 'success');
     } else {
       showToast('Erro ao processar documento', 'error');
     }
