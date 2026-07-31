@@ -61,6 +61,11 @@ function mdToHtml(text) {
     .replace(/^(?!<[hul])(.+)$/gm, (m, g) => g ? `<p>${g}</p>` : '');
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 async function apiFetch(path, opts = {}) {
   const res = await fetch(API + path, {
     credentials: 'include',
