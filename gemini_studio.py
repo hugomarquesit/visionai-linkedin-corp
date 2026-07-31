@@ -569,7 +569,7 @@ Responda APENAS com JSON:
         }
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
-    def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario") -> dict:
+    def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario", media_type: str = "image") -> dict:
         """Gera um post completo usando um fluxo estritamente sequencial em 2 etapas:
            ETAPA 1: Criação do texto final do post.
            ETAPA 2: Análise do texto final gerado para criar a arte visual com 100% de alinhamento semântico.
@@ -640,7 +640,7 @@ FORMATO DE SAÍDA: Retorne APENAS o texto completo e formatado do post em portug
 
         # ── ETAPA 2: GERAÇÃO DA ARTE VISUAL BASEADA NO TEXTO CRIADO ──────────────
         # O prompt visual e a imagem são criados APÓS o texto existir, com 100% de alinhamento com o seu significado!
-        art_result = self.regenerate_media_from_revised_text(post_text, media_type="image")
+        art_result = self.regenerate_media_from_revised_text(post_text, media_type=media_type)
         
         image_prompt = art_result.get("image_prompt", "")
         image_b64 = art_result.get("image_base64", "")
@@ -651,9 +651,12 @@ FORMATO DE SAÍDA: Retorne APENAS o texto completo e formatado do post em portug
             "format": format_type,
             "tone": tone,
             "content": post_text,
+            "category": art_result.get("category"),
+            "creative_headline": art_result.get("creative_headline"),
             "image_prompt": image_prompt,
             "image_base64": image_b64,
             "image_mime": image_mime,
+            "media_type": media_type,
             "char_count": len(post_text),
             "model": self.model,
             "image_model": IMAGE_MODEL if image_b64 else None

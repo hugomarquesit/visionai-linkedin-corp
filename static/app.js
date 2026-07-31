@@ -676,7 +676,7 @@ async function generatePost() {
 
   const { ok, data } = await apiFetch('/api/gemini/generate-post', {
     method: 'POST',
-    body: JSON.stringify({ topic, format_type: format, tone }),
+    body: JSON.stringify({ topic, format_type: format, tone, media_type: currentMediaMode }),
   });
 
   setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post & Criativo Visual');
@@ -692,10 +692,10 @@ async function generatePost() {
       $('live-editor-box').classList.remove('hidden');
     }
     
-    // Inject Image or SVG Banner
-    updateMediaDisplay(data.image_base64, data.image_mime, 'image');
+    // Inject Image or Video
+    updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || currentMediaMode);
     
-    $('gen-chars').textContent = `${data.char_count} caracteres`;
+    $('gen-chars').textContent = `${data.char_count || data.content.length} caracteres`;
     $('gen-meta').classList.remove('hidden');
     $('gen-actions').classList.remove('hidden');
     showToast('Criativo gerado com sucesso!', 'success');
@@ -713,20 +713,26 @@ async function regenerateMediaFromText() {
 
   const btn = $('regenerate-media-btn');
   btn.disabled = true;
-  btn.textContent = '🔄 Re-gerando Mídia...';
+  btn.textContent = '🔄 Re-gerando mídia...';
 
-  const { ok, data } = await apiFetch('/api/gemini/regenerate-media', {
-    method: 'POST',
-    body: JSON.stringify({ revised_text: revisedText, media_type: currentMediaMode }),
-  });
+  try {
+    const { ok, data } = await apiFetch('/api/gemini/regenerate-media', {
+      method: 'POST',
+      body: JSON.stringify({ revised_text: revisedText, media_type: currentMediaMode }),
+    });
 
-  btn.disabled = false;
-  btn.textContent = '🔄 Re-gerar Mídia com Texto Revisado';
+    btn.disabled = false;
+    btn.textContent = '🔄 Re-gerar Mídia com Texto Revisado';
 
-  if (ok && data.image_base64) {
-    updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || 'image');
-    showToast('Mídia atualizada com base no texto revisado!', 'success');
-  } else {
+    if (ok && data.image_base64) {
+      updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || currentMediaMode);
+      showToast('Mídia re-gerada e sincronizada!', 'success');
+    } else {
+      showToast('Erro ao re-gerar mídia', 'error');
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '🔄 Re-gerar Mídia com Texto Revisado';
     showToast('Erro ao re-gerar mídia', 'error');
   }
 }
@@ -768,7 +774,7 @@ function sendToPostsTab() {
   if (!text) { showToast('Nenhum post gerado para enviar', 'error'); return; }
   if ($('post-text')) $('post-text').value = text;
   switchTab('posts');
-  showToast('Conteúdo enviado para Gestão de Posts', 'success');
+  showToast('Conteúdo e mídia salvos na Gestão de Posts', 'success');
 }
 
 async function publishGeneratedPostDirectly() {

@@ -102,6 +102,7 @@ class GeneratePostPayload(BaseModel):
     topic: str
     format_type: str = "standard"
     tone: str = "visionario"
+    media_type: Optional[str] = "image"
 
 class ReviewPostPayload(BaseModel):
     draft: str
@@ -358,7 +359,7 @@ async def delete_post_draft(draft_id: int, _: bool = Depends(require_auth)):
 
 @app.post("/api/gemini/generate-post")
 async def gemini_generate_post(payload: GeneratePostPayload, _: bool = Depends(require_auth)):
-    result = ai.generate_post(payload.topic, payload.format_type, payload.tone)
+    result = ai.generate_post(payload.topic, payload.format_type, payload.tone, media_type=payload.media_type or "image")
     
     # Save the generated post to the database
     db = SessionLocal()
