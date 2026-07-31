@@ -420,6 +420,159 @@ async def gemini_analyze_followers(payload: AnalyticsAIPayload, _: bool = Depend
     result = ai.analyze_followers(payload.analytics_data)
     return {"insights": result, "model": ai.model}
 
+# ── Novas Pydantic Models ───────────────────────────────────────────────────
+class GenerateCarouselPayload(BaseModel):
+    topic: str
+    slides_count: Optional[int] = 5
+
+class SchedulePostPayload(BaseModel):
+    topic: Optional[str] = ""
+    text: str
+    scheduled_at: str # YYYY-MM-DDTHH:MM:SS ou YYYY-MM-DD HH:MM
+    image_base64: Optional[str] = None
+    image_mime: Optional[str] = "image/jpeg"
+    media_type: Optional[str] = "image"
+
+# ── Background Scheduler Loop ────────────────────────────────────────────────
+def scheduled_posts_worker():
+    import time
+    from database import ScheduledPost
+    while True:
+        try:
+            db = SessionLocal()
+            now = datetime.utcnow()
+            pending = db.query(ScheduledPost).filter(
+                ScheduledPost.status == "pending",
+                ScheduledPost.scheduled_at <= now
+            ).all()
+            for post in pending:
+                print(f"Executando publicação agendada ID {post.id} ({post.topic})...")
+                try:
+                    if post.image_base64:
+                        if post.media_type == "video" or (post.image_mime and "video" in post.image_mime):
+                            res = li.create_org_post_with_video(post.post_text, post.image_base64, post.image_mime)
+                        else:
+                            res = li.create_org_post_with_image(post.post_text, post.image_base64, post.image_mime)
+                    else:
+                        res = li.create_org_post(post.post_text)
+                    
+                    if res.get("ok"):
+                        post.status = "published"
+                        post.published_urn = str(res.get("id", ""))
+                        print(f"Post agendado {post.id} publicado com sucesso!")
+                    else:
+                        post.status = "failed"
+                        post.error_message = str(res.get("error", "Erro na publicação"))
+                        print(f"Falha ao publicar post agendado {post.id}: {post.error_message}")
+                    db.commit()
+                except Exception as ex:
+                    post.status = "failed"
+                    post.error_message = str(ex)
+                    db.commit()
+            db.close()
+        except Exception as e:
+            print("Erro no worker de agendamento:", e)
+        time.sleep(30)
+
+threading.Thread(target=scheduled_posts_worker, daemon=True).start()
+
+# ── Gemini — Web Trends, Carousel & Document Parsing ────────────────────────
+@app.get("/api/gemini/web-trends")
+async def gemini_web_trends(query: Optional[str] = None, _: bool = Depends(require_auth)):
+    """Retorna tendências e notícias em tempo real sobre o setor VisionAI."""
+    trends = ai.fetch_web_trends(query)
+    return {"ok": True, **trends, "model": ai.model}
+
+@app.post("/api/gemini/generate-carousel")
+async def gemini_generate_carousel(payload: GenerateCarouselPayload, _: bool = Depends(require_auth)):
+    """Gera um carrossel em PDF multi-slide corporativo para o LinkedIn."""
+    res = ai.generate_carousel_pdf(payload.topic, payload.slides_count or 5)
+    return {"ok": True, **res, "model": ai.model}
+
+@app.post("/api/brand/upload-document")
+async def upload_document(file: UploadFile = File(...), _: bool = Depends(require_auth)):
+    """Lê um PDF/Documento corporativo e desmembra em 3 a 5 posts B2B."""
+    contents = await file.read()
+    doc_text = ""
+    if file.filename.lower().endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            import io
+            reader = PdfReader(io.BytesIO(contents))
+            for page in reader.pages:
+                doc_text += page.extract_text() + "\n"
+        except Exception as e:
+            print(f"Erro ao extrair PDF via pypdf: {e}")
+            doc_text = contents.decode("utf-8", errors="ignore")
+    else:
+        doc_text = contents.decode("utf-8", errors="ignore")
+
+    res = ai.parse_document_to_posts(doc_text)
+    return {"ok": True, "filename": file.filename, **res}
+
+# ── Agendamento de Posts ────────────────────────────────────────────────────
+@app.get("/api/posts/scheduled")
+async def get_scheduled_posts(_: bool = Depends(require_auth)):
+    from database import ScheduledPost
+    db = SessionLocal()
+    try:
+        posts = db.query(ScheduledPost).order_by(ScheduledPost.scheduled_at.asc()).all()
+        return [
+            {
+                "id": p.id,
+                "topic": p.topic,
+                "post_text": p.post_text,
+                "image_base64": p.image_base64,
+                "image_mime": p.image_mime,
+                "media_type": p.media_type,
+                "scheduled_at": p.scheduled_at.isoformat(),
+                "status": p.status,
+                "published_urn": p.published_urn,
+                "error_message": p.error_message,
+                "created_at": p.created_at.isoformat() if p.created_at else None
+            }
+            for p in posts
+        ]
+    finally:
+        db.close()
+
+@app.post("/api/posts/schedule")
+async def schedule_post(payload: SchedulePostPayload, _: bool = Depends(require_auth)):
+    from database import ScheduledPost
+    db = SessionLocal()
+    try:
+        clean_date_str = payload.scheduled_at.replace("Z", "").split(".")[0]
+        dt = datetime.fromisoformat(clean_date_str)
+        sp = ScheduledPost(
+            topic=payload.topic or "Post Agendado",
+            post_text=payload.text,
+            image_base64=payload.image_base64,
+            image_mime=payload.image_mime or "image/jpeg",
+            media_type=payload.media_type or "image",
+            scheduled_at=dt,
+            status="pending"
+        )
+        db.add(sp)
+        db.commit()
+        db.refresh(sp)
+        return {"ok": True, "id": sp.id, "scheduled_at": sp.scheduled_at.isoformat()}
+    finally:
+        db.close()
+
+@app.delete("/api/posts/scheduled/{post_id}")
+async def cancel_scheduled_post(post_id: int, _: bool = Depends(require_auth)):
+    from database import ScheduledPost
+    db = SessionLocal()
+    try:
+        sp = db.query(ScheduledPost).filter_by(id=post_id).first()
+        if not sp:
+            raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+        db.delete(sp)
+        db.commit()
+        return {"ok": True, "message": "Agendamento cancelado com sucesso"}
+    finally:
+        db.close()
+
 # ── Frontend SPA ────────────────────────────────────────────────────────────
 @app.get("/")
 @app.get("/dashboard")
@@ -428,6 +581,7 @@ async def gemini_analyze_followers(payload: AnalyticsAIPayload, _: bool = Depend
 @app.get("/followers")
 @app.get("/org")
 @app.get("/studio")
+@app.get("/calendar")
 @app.get("/profile")
 def serve_spa():
     return FileResponse(os.path.join(BASE_DIR, "static", "index.html"))

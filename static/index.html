@@ -72,6 +72,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Analytics
       </button>
+      <button class="nav-item" data-tab="calendar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Calendário
+      </button>
       <button class="nav-item" data-tab="followers">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Seguidores
@@ -266,6 +270,22 @@
           </div>
         </div>
 
+        <!-- RADAR DE TENDÊNCIAS DA WEB (LIVE WEB NEWS ENGINE) -->
+        <div class="auto-topics-container mb-4" style="border-left: 4px solid #9EFF00; background: rgba(15, 23, 42, 0.6);">
+          <div class="topics-header">
+            <div>
+              <h3 class="topics-title" style="color:#9EFF00;">📡 Radar de Tendências da Web (Notícias &amp; Inovações em Tempo Real)</h3>
+              <span class="topics-sub">Busca automaticamente novidades do setor de IA, Visão Computacional, Agro e VR para criar conteúdo fresco.</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-fetch-web-trends" onclick="loadWebTrends()">
+              🌐 Escanear Notícias da Web
+            </button>
+          </div>
+          <div id="web-trends-container" class="topics-chips mt-2">
+            <span class="chip-loading">Clique em 'Escanear Notícias da Web' para buscar tendências ao vivo...</span>
+          </div>
+        </div>
+
         <div class="two-col-layout">
           <!-- Form Config -->
           <div class="card">
@@ -274,6 +294,14 @@
             <div class="field-group">
               <label>Tema ou Objetivo do Post</label>
               <input type="text" id="gen-topic" class="input-field" placeholder="Ex: Visão Computacional como Sensor Estratégico na Borda" />
+            </div>
+
+            <div class="field-group">
+              <label>Perfil de Narrativa &amp; Tom de Voz</label>
+              <select id="gen-voice-mode" class="select-field" style="border-color: rgba(158,255,0,0.4);">
+                <option value="corporate">🏢 Institucional (Página Oficial VisionAI)</option>
+                <option value="founder">👤 Founder / Thought Leadership (Storytelling em 1ª pessoa)</option>
+              </select>
             </div>
             
             <div class="field-group">
@@ -289,7 +317,7 @@
             </div>
             
             <div class="field-group">
-              <label>Tom de Voz</label>
+              <label>Estilo do Tom</label>
               <select id="gen-tone" class="select-field">
                 <option value="visionario">Visionário &amp; Autoritativo</option>
                 <option value="tecnico">Técnico &amp; Focado em ROI</option>
@@ -303,6 +331,8 @@
               <div class="media-mode-tabs" id="media-mode-tabs">
                 <button type="button" class="media-tab-btn active" data-media-type="image">🖼️ Imagem AI</button>
                 <button type="button" class="media-tab-btn" data-media-type="video">🎥 Vídeo AI</button>
+                <button type="button" class="media-tab-btn" data-media-type="carousel">📄 PDF Carrossel</button>
+                <button type="button" class="media-tab-btn" data-media-type="doc">📑 Doc PDF Upload</button>
                 <button type="button" class="media-tab-btn" data-media-type="custom">📁 Upload Próprio</button>
               </div>
             </div>
@@ -313,6 +343,14 @@
               <div class="upload-icon">📁</div>
               <p>Arraste uma foto/vídeo ou <button type="button" id="trigger-file-btn" class="btn-text-link">clique aqui para escolher do computador</button></p>
               <span class="upload-hint">Suporta JPG, PNG, MP4, WebM (até 200MB)</span>
+            </div>
+
+            <!-- Internal PDF/Doc Upload Panel -->
+            <div id="doc-upload-box" class="upload-dropzone hidden" style="border-color:#0055FF;">
+              <input type="file" id="doc-file-input" accept=".pdf,.txt,.doc,.docx" style="display:none" />
+              <div class="upload-icon">📑</div>
+              <p>Suba um PDF corporativo da VisionAI para extrair 3 posts B2B: <button type="button" id="trigger-doc-file-btn" class="btn-text-link">Escolher PDF</button></p>
+              <span class="upload-hint">Extrai automaticamente apresentações, propostas e relatórios técnicos.</span>
             </div>
             
             <div class="btn-group-vertical mt-3">
@@ -557,6 +595,47 @@
         <h3 class="card-title">Analytics do Perfil (30 dias)</h3>
         <div id="profile-analytics-display" class="profile-analytics">
           <div class="empty-state"><div class="empty-icon">👤</div><p>A carregar dados...</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CALENDÁRIO EDITORIAL ── -->
+    <section id="tab-calendar" class="tab-section">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Calendário Editorial &amp; Agendamento 📅</h1>
+          <p class="page-sub">Agende postagens com data e hora para publicação automática na página VisionAI</p>
+        </div>
+        <button class="btn-primary" id="refresh-calendar-btn" onclick="loadScheduledPosts()">Actualizar</button>
+      </div>
+
+      <div class="two-col-layout mb-4">
+        <!-- Form de Agendamento -->
+        <div class="card">
+          <h3 class="card-title">Agendar Novo Post</h3>
+          <div class="field-group">
+            <label>Tema ou Identificador do Post</label>
+            <input type="text" id="sched-topic" class="input-field" placeholder="Ex: Artigo Edge AI sobre NR-12" />
+          </div>
+          <div class="field-group">
+            <label>Data e Horário de Publicação</label>
+            <input type="datetime-local" id="sched-datetime" class="input-field" style="border-color:#9EFF00;" />
+          </div>
+          <div class="field-group">
+            <label>Conteúdo do Post</label>
+            <textarea id="sched-text" class="textarea" rows="4" placeholder="Escreva ou cole o conteúdo do post a agendar..."></textarea>
+          </div>
+          <button class="btn-primary full-width mt-3" onclick="schedulePostFromCalendar()">
+            📅 Confirmar Agendamento Automático
+          </button>
+        </div>
+
+        <!-- Fila de Posts Agendados -->
+        <div class="card">
+          <h3 class="card-title">Posts Agendados (Fila de Publicação)</h3>
+          <div id="scheduled-posts-list">
+            <div class="empty-state"><p>Carregando fila de agendamentos...</p></div>
+          </div>
         </div>
       </div>
     </section>

@@ -977,22 +977,27 @@ async function init() {
   const pubDirectBtn = $('publish-direct-btn');
   if (pubDirectBtn) pubDirectBtn.addEventListener('click', publishGeneratedPostDirectly);
 
-  // Media Mode Tabs (Image / Video / Custom Upload)
+  // Media Mode Tabs (Image / Video / Carousel / Doc / Custom Upload)
   document.querySelectorAll('.media-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.media-tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentMediaMode = btn.dataset.mediaType || 'image';
-      const uploadBox = $('custom-upload-box');
+      const customUploadBox = $('custom-upload-box');
+      const docUploadBox = $('doc-upload-box');
+
+      if (customUploadBox) customUploadBox.classList.add('hidden');
+      if (docUploadBox) docUploadBox.classList.add('hidden');
+
       if (currentMediaMode === 'custom') {
-        if (uploadBox) uploadBox.classList.remove('hidden');
-      } else {
-        if (uploadBox) uploadBox.classList.add('hidden');
+        if (customUploadBox) customUploadBox.classList.remove('hidden');
+      } else if (currentMediaMode === 'doc') {
+        if (docUploadBox) docUploadBox.classList.remove('hidden');
       }
     });
   });
 
-  // Custom File Upload Trigger & Listener
+  // Custom File & Doc Upload Listeners
   const triggerFileBtn = $('trigger-file-btn');
   const customFileInput = $('custom-file-input');
   if (triggerFileBtn && customFileInput) {
@@ -1000,6 +1005,17 @@ async function init() {
     customFileInput.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) {
         uploadCustomMediaFile(e.target.files[0]);
+      }
+    });
+  }
+
+  const triggerDocFileBtn = $('trigger-doc-file-btn');
+  const docFileInput = $('doc-file-input');
+  if (triggerDocFileBtn && docFileInput) {
+    triggerDocFileBtn.addEventListener('click', () => docFileInput.click());
+    docFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        uploadDocumentFile(e.target.files[0]);
       }
     });
   }
@@ -1016,10 +1032,11 @@ async function init() {
   const regenMediaBtn = $('regenerate-media-btn');
   if (regenMediaBtn) regenMediaBtn.addEventListener('click', regenerateMediaFromText);
 
-  // Load auto topics & drafts on start if authed
+  // Load auto topics, web trends & drafts on start if authed
   if (authed) {
     loadAutoTopics();
     loadDrafts();
+    loadScheduledPosts();
   }
 
   // Studio — Review
@@ -1027,6 +1044,167 @@ async function init() {
 
   // Studio — Strategy
   $('generate-strategy-btn').addEventListener('click', generateStrategy);
+
+// ═══════════════════════════════════════════════════════ RADAR DE TENDÊNCIAS DA WEB & RECURSOS AVANÇADOS
+let cachedWebTrends = [];
+
+async function loadWebTrends(query = '') {
+  const container = $('web-trends-container');
+  const btn = $('btn-fetch-web-trends');
+  if (!container) return;
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Escaneando Web...';
+  }
+  container.innerHTML = '<span class="chip-loading">O Gemini 3.5 está varrendo as últimas notícias e artigos da internet...</span>';
+
+  try {
+    const url = query ? `/api/gemini/web-trends?query=${encodeURIComponent(query)}` : '/api/gemini/web-trends';
+    const { ok, data } = await apiFetch(url);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🌐 Escanear Notícias da Web';
+    }
+
+    if (ok && data.trends && Array.isArray(data.trends)) {
+      cachedWebTrends = data.trends;
+      container.innerHTML = data.trends.map((t, idx) => `
+        <div class="topic-chip-card" style="border-left:3px solid #9EFF00;">
+          <div class="topic-chip-header">
+            <span class="chip-badge" style="background:rgba(158,255,0,0.2);color:#9EFF00;">📡 ${escapeHtml(t.category || 'TENDÊNCIA')}</span>
+            <div class="chip-actions">
+              <button class="btn-chip-action btn-gen" onclick="generatePostFromTrend(${idx})">⚡ Gerar Post</button>
+            </div>
+          </div>
+          <div class="topic-chip-body"><strong>${escapeHtml(t.title)}</strong></div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:4px;">${escapeHtml(t.summary)}</div>
+        </div>
+      `).join('');
+      showToast('Tendências da web carregadas!', 'success');
+    } else {
+      container.innerHTML = '<div class="empty-state"><p>Nenhuma tendência encontrada. Tente novamente.</p></div>';
+    }
+  } catch (e) {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🌐 Escanear Notícias da Web';
+    }
+    container.innerHTML = '<div class="empty-state"><p>Erro de conexão ao buscar notícias.</p></div>';
+  }
+}
+
+function generatePostFromTrend(idx) {
+  const item = cachedWebTrends[idx];
+  if (!item) return;
+
+  const topicInput = $('gen-topic');
+  if (topicInput) topicInput.value = item.suggested_topic || item.title;
+
+  showToast(`Gerando post sobre tendência: ${item.title.substring(0, 30)}...`, 'info');
+  generatePost();
+}
+
+async function uploadDocumentFile(file) {
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+
+  showToast('Processando PDF/Documento corporativo...', 'info');
+
+  try {
+    const res = await fetch(API + '/api/brand/upload-document', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    const data = await res.json();
+    if (res.ok && data.generated_posts && data.generated_posts.length > 0) {
+      const firstPost = data.generated_posts[0];
+      if ($('gen-topic')) $('gen-topic').value = firstPost.topic || 'Documento Interno VisionAI';
+      if ($('gen-editable-text')) $('gen-editable-text').value = firstPost.content;
+      if ($('gen-text-content')) $('gen-text-content').textContent = firstPost.content;
+      if ($('live-editor-box')) $('live-editor-box').classList.remove('hidden');
+      if ($('gen-output-content')) $('gen-output-content').classList.remove('hidden');
+      if ($('gen-empty-state')) $('gen-empty-state').classList.add('hidden');
+      if ($('gen-actions')) $('gen-actions').classList.remove('hidden');
+      
+      showToast(`Documento extraído com sucesso! 3 posts gerados (${data.filename})`, 'success');
+    } else {
+      showToast('Erro ao processar documento', 'error');
+    }
+  } catch (e) {
+    showToast(`Erro de conexão no upload do PDF: ${e.message}`, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════ CALENDÁRIO & AGENDAMENTO
+async function loadScheduledPosts() {
+  const container = $('scheduled-posts-list');
+  if (!container) return;
+
+  const { ok, data } = await apiFetch('/api/posts/scheduled');
+  if (ok && Array.isArray(data) && data.length > 0) {
+    container.innerHTML = data.map(p => `
+      <div class="draft-card" style="border-left: 3px solid ${p.status === 'published' ? '#9EFF00' : p.status === 'failed' ? '#ef4444' : '#3b82f6'};">
+        <div class="draft-header">
+          <span class="draft-topic">📅 ${escapeHtml(p.topic)}</span>
+          <span class="draft-date" style="color:#9EFF00;font-weight:700;">${new Date(p.scheduled_at).toLocaleString('pt-BR')}</span>
+        </div>
+        <div class="draft-snippet">${escapeHtml(p.post_text ? p.post_text.substring(0, 120) + '...' : '')}</div>
+        <div class="draft-actions" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <span class="badge-status ${p.status}">${p.status.toUpperCase()}</span>
+          ${p.status === 'pending' ? `<button class="btn-mini danger" onclick="cancelScheduledPost(${p.id})">Cancelar Agendamento</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } else {
+    container.innerHTML = '<div class="empty-state"><p>Nenhum post agendado na fila.</p></div>';
+  }
+}
+
+async function schedulePostFromCalendar() {
+  const topic = $('sched-topic') ? $('sched-topic').value.trim() : '';
+  const dtVal = $('sched-datetime') ? $('sched-datetime').value : '';
+  const text  = $('sched-text') ? $('sched-text').value.trim() : '';
+
+  if (!dtVal || !text) {
+    showToast('Preencha a data/horário e o conteúdo do post', 'error');
+    return;
+  }
+
+  const payload = {
+    topic: topic || 'Post Agendado',
+    text: text,
+    scheduled_at: dtVal,
+    image_base64: currentGeneratedImageBase64,
+    image_mime: currentGeneratedImageMime,
+    media_type: currentGeneratedMediaType || 'image'
+  };
+
+  const { ok, data } = await apiFetch('/api/posts/schedule', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+  if (ok) {
+    showToast('Post agendado com sucesso!', 'success');
+    if ($('sched-topic')) $('sched-topic').value = '';
+    if ($('sched-text')) $('sched-text').value = '';
+    loadScheduledPosts();
+  } else {
+    showToast(`Erro ao agendar: ${data.detail || 'Falha'}`, 'error');
+  }
+}
+
+async function cancelScheduledPost(id) {
+  if (!confirm('Deseja cancelar este agendamento?')) return;
+  const { ok } = await apiFetch(`/api/posts/scheduled/${id}`, { method: 'DELETE' });
+  if (ok) {
+    showToast('Agendamento cancelado', 'success');
+    loadScheduledPosts();
+  }
+}
 
   // Studio — Hashtags
   $('generate-hashtags-btn').addEventListener('click', generateHashtags);

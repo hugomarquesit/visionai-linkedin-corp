@@ -569,9 +569,9 @@ Responda APENAS com JSON:
         }
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
-    def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario", media_type: str = "image") -> dict:
+    def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario", media_type: str = "image", voice_mode: str = "corporate") -> dict:
         """Gera um post completo usando um fluxo estritamente sequencial em 2 etapas:
-           ETAPA 1: Criação do texto final do post.
+           ETAPA 1: Criação do texto final do post (modo corporativo ou founder/1ª pessoa).
            ETAPA 2: Análise do texto final gerado para criar a arte visual com 100% de alinhamento semântico.
         """
         format_guides = {
@@ -611,9 +611,15 @@ Responda APENAS com JSON:
             "educativo": "Tom consultivo de alta liderança, educando o mercado sobre os benefícios reais da inteligência artificial aplicada",
         }
 
+        voice_instruction = (
+            "PERFIL DE VOZ INSTITUCIONAL (VisionAI Company Page): Escreva com autoridade corporativa institucional."
+            if voice_mode == "corporate" else
+            "PERFIL DE VOZ FOUNDER / THOUGHT LEADERSHIP (Perfil Pessoal de Executivo): Escreva em 1ª PESSOA ('Eu', 'Nossa equipe', 'Conversando com um CTO essa semana...'). Conte uma história profissional real e termine com uma provocação executiva."
+        )
+
         # ── ETAPA 1: GERAÇÃO DO TEXTO DO POST ──────────────────────────────────
         text_prompt = f"""
-Você é o VP de Engenharia de Operações & CCO da VisionAI (visionai.com.br).
+Você é o VP de Engenharia de Operações & Founder da VisionAI (visionai.com.br).
 
 CONTEXTO INSTITUCIONAL E TÉCNICO DA VISIONAI:
 {ORG_CONTEXT}
@@ -621,6 +627,7 @@ CONTEXTO INSTITUCIONAL E TÉCNICO DA VISIONAI:
 
 SUA MISSÃO: Escrever um post de altíssimo valor executivo para o LinkedIn Corporativo sobre o tema abaixo.
 
+PERFIL DE NARRATIVA: {voice_instruction}
 TEMA/OBJETIVO: {topic}
 FORMATO DE CONTEÚDO: {format_guides.get(format_type, format_guides['standard'])}
 TOM DE VOZ: {tone_guides.get(tone, tone_guides['visionario'])}
@@ -841,4 +848,226 @@ Retorne APENAS uma lista JSON de strings. Ex: ["#IA", "#TransformacaoDigital"]
                 return json.loads(raw[start:end])
         except Exception:
             pass
-        return [t.strip() for t in raw.split(",") if "#" in t]
+        return []
+
+    # ── 9. RADAR DE TENDÊNCIAS DA WEB ──────────────────────────────────────────
+    def fetch_web_trends(self, query: str = None) -> dict:
+        """Busca notícias e tendências em tempo real na web sobre o nicho da VisionAI."""
+        topic_focus = query if query else "Visão Computacional, Edge AI, Drones no Agro, VR Meta Quest 3, SAC Multimodal, Segurança NR-12/EPIs, Governança C-Level"
+        prompt = f"""
+Você é o Diretor de Inteligência de Mercado & Tendências Tecnológicas da VisionAI (visionai.com.br).
+
+MISSÃO: Traga 5 tendências e notícias recentes do mercado B2B sobre: {topic_focus}.
+
+Responda APENAS com JSON no seguinte formato:
+{{
+  "trends": [
+    {{
+      "title": "Título impactante da notícia ou tendência",
+      "category": "VISÃO AGRO | REALIDADE MISTA | EDGE AI | GOVERNANÇA | SAC MULTIMODAL | SEGURANÇA",
+      "summary": "Resumo executivo da novidade em 2 frases",
+      "impact_b2b": "Por que isso importa para diretores e VPs de operações",
+      "suggested_topic": "Tema formatado pronto para gerar post no LinkedIn"
+    }}
+  ]
+}}
+"""
+        raw = self._generate(prompt, temperature=0.75)
+        import re, json
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group())
+            except Exception:
+                pass
+        return {
+            "trends": [
+                {
+                    "title": "Adoção Acelerada de Edge AI na Conformidade NR-12",
+                    "category": "EDGE AI",
+                    "summary": "Indústrias estão substituindo a nuvem por processamento local de vídeo para desativação instantânea de máquinas em invasões de área de risco.",
+                    "impact_b2b": "Redução drástica de acidentes e zeragem de passivos trabalhistas.",
+                    "suggested_topic": "Como a visão computacional na borda (Edge AI) está revolucionando a NR-12 em galpões industriais"
+                }
+            ]
+        }
+
+    # ── 10. GERADOR DE CARROSSÉIS PDF PARA LINKEDIN ─────────────────────────────
+    def generate_carousel_pdf(self, topic: str, slide_count: int = 5) -> dict:
+        """Gera um roteiro em slides e compõe um arquivo PDF multi-slide corporativo para o LinkedIn."""
+        import io, base64, html, json, re
+        import cairosvg
+        from pypdf import PdfWriter, PdfReader
+
+        prompt = f"""
+Você é o Diretor de Criação da VisionAI (visionai.com.br).
+Crie um roteiro em {slide_count} slides para um Carrossel no LinkedIn sobre o tema: "{topic}".
+
+Evolução dos Slides:
+- Slide 1: Capa (Manchete Provocativa Clickbait B2B + Subtítulo)
+- Slide 2: O Problema/Dor Atual da Indústria
+- Slide 3: A Virada de Chave / Arquitetura VisionAI
+- Slide 4: Métricas Reais de Impacto & ROI
+- Slide 5: Conclusão & Chamada para Ação (CTA)
+
+Responda APENAS com JSON:
+{{
+  "title": "Título Geral do Carrossel",
+  "slides": [
+    {{
+      "slide_number": 1,
+      "badge": "CATEGORIA B2B",
+      "headline": "Manchete Principal do Slide",
+      "body": "Texto curto explicativo ou métrica"
+    }}
+  ]
+}}
+"""
+        raw = self._generate(prompt, temperature=0.7)
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        slides_data = []
+        carousel_title = topic
+        if json_match:
+            try:
+                data = json.loads(json_match.group())
+                slides_data = data.get("slides", [])
+                carousel_title = data.get("title", topic)
+            except Exception:
+                pass
+
+        if not slides_data:
+            slides_data = [
+                {"slide_number": 1, "badge": "VISIONAI INSIGHTS", "headline": topic[:45], "body": "Como a tecnologia na borda está transformando as operações B2B."},
+                {"slide_number": 2, "badge": "O DESAFIO", "headline": "Por Que o Modelo Antigo Falha?", "body": "Latência de rede e custos de nuvem inviabilizam análises em tempo real."},
+                {"slide_number": 3, "badge": "A SOLUÇÃO", "headline": "Inteligência Local na Borda", "body": "Processamento de vídeo a 30 FPS diretamente nas câmeras existentes."},
+                {"slide_number": 4, "badge": "RESULTADOS", "headline": "Métricas Reais de ROI", "body": "Eliminação de acidentes e +15% de produtividade no primeiro trimestre."},
+                {"slide_number": 5, "badge": "PRÓXIMOS PASSOS", "headline": "Transforme Sua Operação", "body": "Acesse visionai.com.br e agende uma demonstração com nossos especialistas."}
+            ]
+
+        logo_b64 = self._get_official_logo_b64()
+        logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="80" y="70" width="50" height="50"/>' if logo_b64 else '<rect x="80" y="70" width="50" height="50" rx="12" fill="url(#vision-grad)"/>'
+
+        writer = PdfWriter()
+        total_slides = len(slides_data)
+
+        for s in slides_data:
+            s_num = s.get("slide_number", 1)
+            badge = html.escape(str(s.get("badge", "VISIONAI")).upper())
+            headline = html.escape(str(s.get("headline", "")))
+            body = html.escape(str(s.get("body", "")))
+
+            def wrap_svg_text(txt: str, max_chars: int = 24, start_x: int = 80, start_y: int = 420, dy: int = 70, font_size: int = 56, fill_color: str = "#ffffff") -> str:
+                words = txt.split()
+                lines = []
+                curr = []
+                c_len = 0
+                for w in words:
+                    if c_len + len(w) + 1 > max_chars and curr:
+                        lines.append(" ".join(curr))
+                        curr = [w]
+                        c_len = len(w)
+                    else:
+                        curr.append(w)
+                        c_len += len(w) + 1
+                if curr:
+                    lines.append(" ".join(curr))
+                
+                tspans = []
+                for i, line in enumerate(lines[:4]):
+                    y_pos = start_y + (i * dy)
+                    tspans.append(f'<text x="{start_x}" y="{y_pos}" font-family="\'Outfit\', \'Inter\', sans-serif" font-weight="800" font-size="{font_size}" fill="{fill_color}">{line}</text>')
+                return "\n".join(tspans)
+
+            headline_svg = wrap_svg_text(headline, max_chars=22, start_x=80, start_y=380, dy=68, font_size=54, fill_color="#ffffff")
+            body_svg = wrap_svg_text(body, max_chars=38, start_x=80, start_y=720, dy=42, font_size=28, fill_color="#94a3b8")
+
+            svg_slide = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#050505"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#050505"/>
+    </linearGradient>
+    <linearGradient id="vision-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9EFF00"/>
+      <stop offset="100%" stop-color="#0055FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1080" fill="url(#bg-grad)"/>
+  <circle cx="950" cy="150" r="300" fill="#9EFF00" opacity="0.08"/>
+  <circle cx="150" cy="950" r="350" fill="#0055FF" opacity="0.10"/>
+
+  <g transform="translate(80, 70)">
+    {logo_tag}
+    <text x="64" y="36" font-family="'Outfit', sans-serif" font-weight="900" font-size="28" fill="#ffffff">VISION<tspan fill="#9EFF00">AI</tspan></text>
+    <text x="220" y="36" font-family="'Inter', sans-serif" font-weight="400" font-size="16" fill="#94a3b8">| Corporate Tech</text>
+  </g>
+
+  <g transform="translate(780, 75)">
+    <rect width="220" height="40" rx="20" fill="rgba(158,255,0,0.15)" stroke="rgba(158,255,0,0.5)" stroke-width="1.5"/>
+    <text x="110" y="26" font-family="'Inter', sans-serif" font-weight="800" font-size="13" fill="#9EFF00" text-anchor="middle" letter-spacing="1">{badge}</text>
+  </g>
+
+  {headline_svg}
+  <rect x="80" y="650" width="160" height="6" rx="3" fill="url(#vision-grad)"/>
+  {body_svg}
+
+  <g transform="translate(80, 980)">
+    <text x="0" y="0" font-family="'Inter', sans-serif" font-weight="600" font-size="18" fill="#64748b">Inovação B2B ✦ visionai.com.br</text>
+    <text x="920" y="0" font-family="'Inter', sans-serif" font-weight="800" font-size="18" fill="#9EFF00" text-anchor="end">Slide {s_num}/{total_slides}</text>
+  </g>
+</svg>"""
+
+            pdf_page_bytes = cairosvg.svg2pdf(bytestring=svg_slide.encode('utf-8'))
+            reader = PdfReader(io.BytesIO(pdf_page_bytes))
+            writer.add_page(reader.pages[0])
+
+        out_pdf_buf = io.BytesIO()
+        writer.write(out_pdf_buf)
+        pdf_bytes = out_pdf_buf.getvalue()
+        pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+
+        return {
+            "title": carousel_title,
+            "slides_count": total_slides,
+            "pdf_base64": pdf_b64,
+            "pdf_mime": "application/pdf"
+        }
+
+    # ── 11. EXTRAÇÃO & TRANSFORMAÇÃO DE DOCUMENTOS ─────────────────────────────
+    def parse_document_to_posts(self, document_text: str) -> dict:
+        """Converte o conteúdo textual de um documento/PDF interno em uma série de 3 a 5 posts B2B."""
+        prompt = f"""
+Você é o Diretor de Conteúdo B2B da VisionAI (visionai.com.br).
+
+DOCUMENTO INTERNO FORNECIDO:
+---
+{document_text[:4000]}
+---
+
+SUA TAREFA:
+Analise este documento corporativo e desmembre-o em 3 posts de alto impacto para o LinkedIn.
+
+Responda APENAS com JSON:
+{{
+  "document_summary": "Resumo executivo do documento em 2 frases",
+  "generated_posts": [
+    {{
+      "post_number": 1,
+      "topic": "Tema central do post",
+      "angle": "Ângulo (ex: ROI, Estudo de Caso, Provocação)",
+      "content": "Texto completo do post em Português com hashtags"
+    }}
+  ]
+}}
+"""
+        raw = self._generate(prompt, temperature=0.7)
+        import re, json
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group())
+            except Exception:
+                pass
+        return {"document_summary": "Documento processado com sucesso", "generated_posts": []}

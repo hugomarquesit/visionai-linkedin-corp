@@ -49,6 +49,21 @@ class PostDraft(Base):
     model = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class ScheduledPost(Base):
+    __tablename__ = "scheduled_posts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String)
+    post_text = Column(Text)
+    image_base64 = Column(Text)
+    image_mime = Column(String, default="image/jpeg")
+    media_type = Column(String, default="image") # "image", "video", "carousel"
+    scheduled_at = Column(DateTime, index=True)
+    status = Column(String, default="pending") # "pending", "published", "failed"
+    published_urn = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
