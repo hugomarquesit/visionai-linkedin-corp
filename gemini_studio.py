@@ -457,19 +457,23 @@ REGRAS:
 
         lines = [l.strip() for l in cleaned.split("\n") if l.strip()]
         
-        # 2. Filtra preâmbulos conversacionais ou prefixos de prompt nas primeiras linhas
+        # 2. Filtra preâmbulos conversacionais, sugestões de banner entre colchetes ou prefixos de prompt nas primeiras linhas
         meta_patterns = [
             r"^aqui está", r"^segue ", r"^com base ", r"^conforme ", r"^proposta de post",
-            r"^olá", r"^prezado", r"^\d+\.\s*title:", r"^title:", r"^título:", r"^post:", r"^assunto:", r"^prompt:"
+            r"^olá", r"^prezado", r"^\d+\.\s*title:", r"^title:", r"^título:", r"^post:", r"^assunto:", r"^prompt:",
+            r"^\[sugestão", r"^\[imagem", r"^\[banner", r"^\[foto", r"^\[note", r"^\[nota"
         ]
         
         while lines:
             first_line = lines[0].lower()
             is_meta = False
-            for pat in meta_patterns:
-                if re.search(pat, first_line):
-                    is_meta = True
-                    break
+            if lines[0].startswith("[") and lines[0].endswith("]"):
+                is_meta = True
+            else:
+                for pat in meta_patterns:
+                    if re.search(pat, first_line):
+                        is_meta = True
+                        break
             if is_meta:
                 lines.pop(0)
             else:
