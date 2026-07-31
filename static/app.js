@@ -1054,11 +1054,10 @@ async function init() {
     loadScheduledPosts();
   }
 
-  // Studio — Review
-  $('review-post-btn').addEventListener('click', reviewPost);
-
-  // Studio — Strategy
-  $('generate-strategy-btn').addEventListener('click', generateStrategy);
+  // Studio — Strategy & Hashtags
+  addEv('generate-strategy-btn', 'click', generateStrategy);
+  addEv('generate-hashtags-btn', 'click', generateHashtags);
+}
 
 // ═══════════════════════════════════════════════════════ RADAR DE TENDÊNCIAS DA WEB & RECURSOS AVANÇADOS
 let cachedWebTrends = [];
@@ -1306,10 +1305,6 @@ async function cancelScheduledPost(id) {
     showToast('Agendamento cancelado', 'success');
     loadScheduledPosts();
   }
-}
-
-  // Studio — Hashtags
-  addEv('generate-hashtags-btn', 'click', generateHashtags);
 }
 
 // Expose handlers to window scope for HTML onclick bindings
