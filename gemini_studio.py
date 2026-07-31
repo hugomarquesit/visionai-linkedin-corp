@@ -491,21 +491,29 @@ REGRAS:
     def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image") -> dict:
         """
         Recebe o texto editado pelo usuário e gera uma nova peça visual (imagem ou banner)
-        que representa fielmente a versão final revisada pelo usuário.
+        que representa fielmente a versão final revisada pelo usuário, com manchete estilo Clickbait B2B.
         """
-        clean_full_text, pt_headline = self._clean_post_content(revised_text)
+        clean_full_text, fallback_headline = self._clean_post_content(revised_text)
 
         prompt = f"""
-Você é o Diretor de Fotografia Corporativa Sênior da VisionAI (visionai.com.br).
+Você é o Diretor de Criação & Diretor de Fotografia Corporativa Sênior da VisionAI (visionai.com.br).
 
 TEXTO DO POST NO LINKEDIN:
 ---
 {clean_full_text[:2000]}
 ---
 
-SUA TAREFA:
-1. Identifique o TEMA CENTRAL EXATO do texto (Ex: Agronegócio/Drones, Treinamento VR/Meta Quest 3, Atendimento Multimodal/SAC, Câmeras Industriais/EPIs, Governança/C-Level).
-2. Crie um prompt de imagem em INGLÊS que descreva UMA FOTOGRAFIA CORPORATIVA 100% ADERENTE E FIEL a esse tema central específico.
+SUAS TAREFAS:
+1. **SELO DE CATEGORIA**: Identifique a linha de serviço em Português (Ex: VISÃO AGRO-INDUSTRIAL, REALIDADE MISTA & VR, IA MULTIMODAL & SAC, VISÃO COMPUTACIONAL, GOVERNANÇA CORPORATIVA).
+2. **MANCHETE CLICKBAIT B2B**: Crie uma manchete provocativa, magnética e de alta conversão em PORTUGUÊS (estilo Clickbait B2B Executivo, de 6 a 12 palavras) para estamparmos no Banner do Criativo Visual.
+   - NUNCA copie simplesmente a primeira frase do texto do post.
+   - A manchete deve gerar curiosidade extrema no leitor C-Level (CEOs, CTOs, VPs de Operações).
+   Exemplos de Manchetes Clickbait B2B:
+   - "O Erro Estratégico na Nuvem Que Custa Milhões às Indústrias"
+   - "Por Que o Treinamento Tradicional Falha em 90% dos Casos?"
+   - "A Verdade Sobre o Monitoramento de Safra Que Ninguém Te Conta"
+   - "O Erro Que Custava Vidas Agora Custa Zero Para Sua Operação"
+3. **PROMPT DE FOTOGRAFIA EM INGLÊS**: Crie um prompt de imagem em INGLÊS que descreva UMA FOTOGRAFIA CORPORATIVA REALISTA 100% ADERENTE E FIEL ao tema do texto.
 
 REGRAS RÍGIDAS DE ADERÊNCIA AO TEXTO E FOTOGRAFIA REALISTA:
 - EXTREMA ADERÊNCIA AO TEMA DO TEXTO:
@@ -520,27 +528,35 @@ REGRAS RÍGIDAS DE ADERÊNCIA AO TEXTO E FOTOGRAFIA REALISTA:
 - ADICIONE NO FINAL DO PROMPT: 'authentic realistic professional corporate photography, Hasselblad medium format camera, natural office or factory lighting, sharp focus, 8k resolution, NO sci-fi, NO text, NO letters, NO typography'.
 
 Responda APENAS com JSON:
-{{"category": "NOME_CURTO_DA_CATEGORIA_EM_PT", "image_prompt": "prompt de fotografia aderente ao texto em inglês"}}
+{{
+  "category": "NOME_CURTO_DA_CATEGORIA_EM_PT",
+  "clickbait_headline": "Manchete Provocativa Clickbait B2B em Português",
+  "image_prompt": "prompt de fotografia aderente ao texto em inglês"
+}}
 """
-        raw = self._generate(prompt, temperature=0.7)
+        raw = self._generate(prompt, temperature=0.75)
         import re
         json_match = re.search(r'\{.*\}', raw, re.DOTALL)
         image_prompt = ""
         category_name = "VISIONAI INSIGHTS"
+        clickbait_headline = ""
         if json_match:
             try:
                 data = json.loads(json_match.group())
                 image_prompt = data.get("image_prompt", "")
                 category_name = data.get("category", "VISIONAI INSIGHTS")
+                clickbait_headline = data.get("clickbait_headline", "").strip()
             except Exception:
                 pass
         
         if not image_prompt:
             image_prompt = f"Corporate tech photo representing: {clean_full_text[:100]}"
             
-        img_b64, mime = self._generate_image_base64(image_prompt, pt_title=pt_headline, category=category_name)
+        final_banner_title = clickbait_headline if (clickbait_headline and len(clickbait_headline) >= 10) else fallback_headline
+        img_b64, mime = self._generate_image_base64(image_prompt, pt_title=final_banner_title, category=category_name)
         return {
             "category": category_name,
+            "creative_headline": final_banner_title,
             "image_prompt": image_prompt,
             "image_base64": img_b64,
             "image_mime": mime,
