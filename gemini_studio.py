@@ -442,17 +442,65 @@ REGRAS:
         svg_b64 = self._generate_svg_banner(title=pt_title)
         return svg_b64, "image/svg+xml"
 
+    def _clean_post_content(self, text: str) -> tuple[str, str]:
+        """
+        Remove cercas markdown (```markdown), preâmbulos conversacionais da IA e rótulos de títulos (ex: '1. TITLE:').
+        Retorna (texto_limpo_completo, titulo_manchete_limpo).
+        """
+        import re
+        if not text:
+            return ("", "VisionAI Insights")
+        
+        # 1. Remove cercas de código ```markdown
+        cleaned = re.sub(r"^```(?:markdown|text|json)?\s*", "", text.strip(), flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned.strip())
+
+        lines = [l.strip() for l in cleaned.split("\n") if l.strip()]
+        
+        # 2. Filtra preâmbulos conversacionais ou prefixos de prompt nas primeiras linhas
+        meta_patterns = [
+            r"^aqui está", r"^segue ", r"^com base ", r"^conforme ", r"^proposta de post",
+            r"^olá", r"^prezado", r"^\d+\.\s*title:", r"^title:", r"^título:", r"^post:", r"^assunto:", r"^prompt:"
+        ]
+        
+        while lines:
+            first_line = lines[0].lower()
+            is_meta = False
+            for pat in meta_patterns:
+                if re.search(pat, first_line):
+                    is_meta = True
+                    break
+            if is_meta:
+                lines.pop(0)
+            else:
+                break
+                
+        clean_full_text = "\n\n".join(lines)
+        
+        # 3. Encontra a melhor manchete em português para a faixa do criativo
+        clean_headline = "VisionAI Insights"
+        for line in lines:
+            clean_l = re.sub(r"^[\#\*\d\.\-\s]+", "", line).strip()
+            clean_l = re.sub(r"^(?:hook|desafio|solução|insight|paradigm shift|pilar \d+):\s*", "", clean_l, flags=re.IGNORECASE).strip()
+            if len(clean_l) >= 12 and not clean_l.endswith(":"):
+                clean_headline = clean_l
+                break
+                
+        return (clean_full_text, clean_headline)
+
     def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image") -> dict:
         """
         Recebe o texto editado pelo usuário e gera uma nova peça visual (imagem ou banner)
         que representa fielmente a versão final revisada pelo usuário.
         """
+        clean_full_text, pt_headline = self._clean_post_content(revised_text)
+
         prompt = f"""
 Você é o Diretor de Fotografia Corporativa Sênior da VisionAI (visionai.com.br).
 
 TEXTO DO POST NO LINKEDIN:
 ---
-{revised_text[:2000]}
+{clean_full_text[:2000]}
 ---
 
 SUA TAREFA:
@@ -488,9 +536,8 @@ Responda APENAS com JSON:
                 pass
         
         if not image_prompt:
-            image_prompt = f"Corporate tech photo representing: {revised_text[:100]}"
+            image_prompt = f"Corporate tech photo representing: {clean_full_text[:100]}"
             
-        pt_headline = revised_text.strip().split("\n")[0]
         img_b64, mime = self._generate_image_base64(image_prompt, pt_title=pt_headline, category=category_name)
         return {
             "category": category_name,
@@ -565,11 +612,10 @@ PROIBIDO CLICHÊS DE IA & ESTILO ARTIFICIAL (REGRAS CRÍTICAS):
 - Inclua métricas e resultados concretos (+15% produtividade no agro, 95% precisão em atendimento, retenção 4x em VR, ciclo de vídeo de 3 semanas para 2 dias).
 - Termine com 3 a 5 hashtags corporativas estratégicas (ex: #VisaoComputacional #EdgeAI #InteligenciaArtificial #InovacaoCorporativa #VisionAI).
 
-FORMATO DE SAÍDA: Retorne APENAS o texto completo e formatado do post em português.
+FORMATO DE SAÍDA: Retorne APENAS o texto completo e formatado do post em português. Sem introdução conversacional, sem marcações markdown extra de abertura.
 """
-        post_text = self._generate(text_prompt, temperature=0.85).strip()
-        if post_text.startswith("```"):
-            post_text = "\n".join(post_text.split("\n")[1:]).rstrip("`").strip()
+        raw_post_text = self._generate(text_prompt, temperature=0.85).strip()
+        post_text, _ = self._clean_post_content(raw_post_text)
 
         # ── ETAPA 2: GERAÇÃO DA ARTE VISUAL BASEADA NO TEXTO CRIADO ──────────────
         # O prompt visual e a imagem são criados APÓS o texto existir, com 100% de alinhamento com o seu significado!
