@@ -945,9 +945,14 @@ async function init() {
     $('login-screen').classList.remove('hidden');
   }
 
-  // Login form
-  $('login-form').addEventListener('submit', doLogin);
-  $('logout-btn').addEventListener('click', doLogout);
+  const addEv = (id, event, fn) => {
+    const el = $(id);
+    if (el) el.addEventListener(event, fn);
+  };
+
+  // Login & Logout
+  addEv('login-form', 'submit', doLogin);
+  addEv('logout-btn', 'click', doLogout);
 
   // Nav
   document.querySelectorAll('.nav-item').forEach(btn => {
@@ -959,29 +964,27 @@ async function init() {
     btn.addEventListener('click', () => switchStudio(btn.dataset.studio));
   });
 
-  // Dashboard refresh
-  $('refresh-dashboard').addEventListener('click', loadDashboard);
-  $('refresh-analytics').addEventListener('click', loadAnalytics);
-  $('refresh-followers').addEventListener('click', loadFollowers);
-  $('refresh-org').addEventListener('click', loadOrg);
-  $('refresh-profile').addEventListener('click', loadProfile);
-
-  // Posts
-  $('publish-post-btn').addEventListener('click', publishPost);
-  $('open-studio-btn').addEventListener('click', () => switchTab('studio'));
-  const refreshDraftsBtn = $('refresh-drafts-btn');
-  if (refreshDraftsBtn) refreshDraftsBtn.addEventListener('click', loadDrafts);
+  // Dashboard & Refresh Buttons
+  addEv('refresh-dashboard', 'click', loadDashboard);
+  addEv('refresh-analytics', 'click', loadAnalytics);
+  addEv('refresh-followers', 'click', loadFollowers);
+  addEv('refresh-org', 'click', loadOrg);
+  addEv('refresh-profile', 'click', loadProfile);
+  addEv('publish-post-btn', 'click', publishPost);
+  addEv('open-studio-btn', 'click', () => switchTab('studio'));
+  addEv('refresh-drafts-btn', 'click', loadDrafts);
 
   // Studio — Generate & Auto
-  $('generate-post-btn').addEventListener('click', generatePost);
-  const auto1ClickBtn = $('auto-generate-1click-btn');
-  if (auto1ClickBtn) auto1ClickBtn.addEventListener('click', autoGenerate1Click);
-  $('copy-gen-btn').addEventListener('click', copyGeneratedPost);
-  $('send-to-posts-btn').addEventListener('click', sendToPostsTab);
-  const pubDirectBtn = $('publish-direct-btn');
-  if (pubDirectBtn) pubDirectBtn.addEventListener('click', publishGeneratedPostDirectly);
+  addEv('generate-post-btn', 'click', generatePost);
+  addEv('auto-generate-1click-btn', 'click', autoGenerate1Click);
+  addEv('copy-gen-btn', 'click', copyGeneratedPost);
+  addEv('send-to-posts-btn', 'click', sendToPostsTab);
+  addEv('publish-direct-btn', 'click', publishGeneratedPostDirectly);
+  addEv('review-post-btn', 'click', reviewPost);
+  addEv('generate-strategy-btn', 'click', generateStrategy);
+  addEv('generate-hashtags-btn', 'click', generateHashtags);
 
-  // Media Mode Tabs (Image / Video / Carousel / Doc / Custom Upload)
+  // Media Mode Tabs (Image / Video / Custom Upload)
   document.querySelectorAll('.media-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.media-tab-btn').forEach(b => b.classList.remove('active'));
@@ -1042,8 +1045,7 @@ async function init() {
       if ($('gen-chars')) $('gen-chars').textContent = `${val.length} caracteres`;
     });
   }
-  const regenMediaBtn = $('regenerate-media-btn');
-  if (regenMediaBtn) regenMediaBtn.addEventListener('click', regenerateMediaFromText);
+  addEv('regenerate-media-btn', 'click', regenerateMediaFromText);
 
   // Load auto topics, web trends & drafts on start if authed
   if (authed) {
