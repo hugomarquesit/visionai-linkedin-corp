@@ -1309,7 +1309,21 @@ async function cancelScheduledPost(id) {
 }
 
   // Studio — Hashtags
-  $('generate-hashtags-btn').addEventListener('click', generateHashtags);
+  addEv('generate-hashtags-btn', 'click', generateHashtags);
 }
+
+// Expose handlers to window scope for HTML onclick bindings
+window.loadWebTrends = loadWebTrends;
+window.generatePostFromTrend = generatePostFromTrend;
+window.generateCarouselPdfAction = generateCarouselPdfAction;
+window.sendCarouselToCalendar = sendCarouselToCalendar;
+window.uploadDocumentFile = uploadDocumentFile;
+window.useExtractedPost = useExtractedPost;
+window.loadScheduledPosts = loadScheduledPosts;
+window.schedulePostFromCalendar = schedulePostFromCalendar;
+window.cancelScheduledPost = cancelScheduledPost;
+window.filterTopicsByCategory = filterTopicsByCategory;
+window.selectAutoTopic = selectAutoTopic;
+window.autoGenerate1Click = autoGenerate1Click;
 
 document.addEventListener('DOMContentLoaded', init);
