@@ -383,6 +383,85 @@
         </div>
       </div>
 
+      <!-- 2. RADAR DE TENDÊNCIAS DA WEB PANEL -->
+      <div id="studio-web-trends" class="studio-panel">
+        <div class="card mb-4" style="border-left: 4px solid #9EFF00;">
+          <div class="topics-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <h3 class="topics-title" style="color:#9EFF00; font-size:18px; margin-bottom:4px;">📡 Radar de Tendências da Web (Notícias &amp; Mercado B2B)</h3>
+              <span class="topics-sub" style="color:#94a3b8; font-size:13px;">O Gemini 3.5 pesquisa automaticamente notícias em tempo real sobre Visão Computacional, Edge AI, Agro e VR para você criar postagens com alto engajamento.</span>
+            </div>
+            <button class="btn btn-primary" id="btn-fetch-web-trends-panel" onclick="loadWebTrends()">
+              🌐 Escanear Notícias Agora
+            </button>
+          </div>
+        </div>
+
+        <div id="web-trends-panel-container" class="grid-2col">
+          <div class="empty-state"><p>Clique em 'Escanear Notícias Agora' para carregar as tendências mais quentes da web.</p></div>
+        </div>
+      </div>
+
+      <!-- 3. GERADOR DE CARROSSÉIS PDF PANEL -->
+      <div id="studio-carousel" class="studio-panel">
+        <div class="two-col-layout">
+          <div class="card">
+            <h3 class="card-title">📊 Gerar Carrossel em PDF (Multi-Slide)</h3>
+            <p class="text-muted mb-3" style="color:#94a3b8; font-size:13px;">Crie um documento PDF infográfico de 4 a 6 slides para o LinkedIn com a marca VisionAI.</p>
+            
+            <div class="field-group mb-3">
+              <label>Tema ou Título do Carrossel</label>
+              <input type="text" id="carousel-topic" class="input-field" placeholder="Ex: 5 Passos para Implementar Visão Computacional na Borda" />
+            </div>
+
+            <div class="field-group mb-3">
+              <label>Quantidade de Slides</label>
+              <select id="carousel-slides-count" class="select-field">
+                <option value="4">4 Slides (Curto &amp; Direto)</option>
+                <option value="5" selected>5 Slides (Recomendado B2B)</option>
+                <option value="6">6 Slides (Completo com ROI)</option>
+              </select>
+            </div>
+
+            <button class="btn-ai full-width" id="btn-generate-carousel" onclick="generateCarouselPdfAction()">
+              📄 Gerar Carrossel em PDF
+            </button>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">Visualizador de PDF &amp; Exportação</h3>
+            <div id="carousel-preview-area" class="empty-state">
+              <div class="empty-icon">📄</div>
+              <p>O arquivo PDF gerado será exibido aqui para download e publicação no LinkedIn.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. EXTRAIR DE DOCUMENTO PDF PANEL -->
+      <div id="studio-doc-upload" class="studio-panel">
+        <div class="card mb-4">
+          <h3 class="card-title">📑 Extrair Posts a Partir de Documentos Internos</h3>
+          <p class="text-muted mb-3" style="color:#94a3b8; font-size:13px;">Suba uma proposta comercial, relatório técnico ou PDF da VisionAI para o Gemini transformar o conteúdo em 3 a 5 posts executivos.</p>
+
+          <div class="upload-dropzone" style="border-color:#0055FF; padding:40px; text-align:center;">
+            <input type="file" id="doc-panel-file-input" accept=".pdf,.txt,.doc,.docx" style="display:none" />
+            <div class="upload-icon" style="font-size:48px;">📑</div>
+            <p style="font-size:16px; font-weight:600; margin-top:8px;">
+              Clique aqui para escolher um documento PDF ou arraste seu arquivo
+            </p>
+            <button type="button" class="btn btn-primary mt-3" onclick="$('doc-panel-file-input').click()">
+              📁 Selecionar Arquivo do Computador
+            </button>
+            <span class="upload-hint mt-2 block" style="display:block; font-size:12px; color:#64748b;">Suporta PDF, TXT, DOCX (até 50MB)</span>
+          </div>
+        </div>
+
+        <div id="doc-extracted-posts-container" class="grid-2col">
+          <!-- Extracted posts will appear here -->
+        </div>
+      </div>
+
       <!-- Rever rascunho -->
       <div id="studio-review" class="studio-panel">
         <div class="two-col-layout">
