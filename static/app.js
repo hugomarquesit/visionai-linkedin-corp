@@ -930,51 +930,57 @@ function updateMediaDisplay(b64, mime, mediaType = 'image') {
 }
 
 async function generatePost() {
-  const topic  = $('gen-topic').value.trim();
-  const format = $('gen-format').value;
-  const tone   = $('gen-tone').value;
+  const topic  = $('gen-topic') ? $('gen-topic').value.trim() : '';
+  const format = $('gen-format') ? $('gen-format').value : 'standard';
+  const tone   = $('gen-tone') ? $('gen-tone').value : 'visionario';
+  const voice  = $('gen-voice-mode') ? $('gen-voice-mode').value : 'corporate';
 
   if (!topic) { showToast('Insira um tema para gerar o post', 'error'); return; }
 
   setLoading('gen-btn-text', 'gen-spinner', true, 'A gerar com Gemini (10-15s)...');
-  $('gen-actions').classList.add('hidden');
-  $('gen-meta').classList.add('hidden');
+  if ($('gen-actions')) $('gen-actions').classList.add('hidden');
+  if ($('gen-meta')) $('gen-meta').classList.add('hidden');
   if ($('live-editor-box')) $('live-editor-box').classList.add('hidden');
-  $('gen-empty-state').classList.remove('hidden');
-  $('gen-empty-state').innerHTML = '<div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini 3.5 está criando o seu texto corporativo e peça visual. Por favor, aguarde...</p>';
-  $('gen-output-content').classList.add('hidden');
-  $('gen-text-content').textContent = "";
-  $('gen-image-container').classList.add('hidden');
+  if ($('gen-output-content')) $('gen-output-content').classList.add('hidden');
+  if ($('gen-image-container')) $('gen-image-container').classList.add('hidden');
+  if ($('gen-text-content')) $('gen-text-content').textContent = "";
+
+  if ($('gen-empty-state')) {
+    $('gen-empty-state').classList.remove('hidden');
+    $('gen-empty-state').innerHTML = '<div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini 3.5 está criando o seu texto corporativo e peça visual. Por favor, aguarde...</p>';
+  }
 
   const { ok, data } = await apiFetch('/api/gemini/generate-post', {
     method: 'POST',
-    body: JSON.stringify({ topic, format_type: format, tone, media_type: currentMediaMode }),
+    body: JSON.stringify({ topic, format_type: format, tone, media_type: currentMediaMode, voice_mode: voice }),
   });
 
   setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post & Criativo Visual');
 
   if (ok && data.content) {
-    $('gen-empty-state').classList.add('hidden');
-    $('gen-output-content').classList.remove('hidden');
+    if ($('gen-empty-state')) $('gen-empty-state').classList.add('hidden');
+    if ($('gen-output-content')) $('gen-output-content').classList.remove('hidden');
     
     // Inject Text
-    $('gen-text-content').textContent = data.content;
+    if ($('gen-text-content')) $('gen-text-content').textContent = data.content;
     if ($('gen-editable-text')) {
       $('gen-editable-text').value = data.content;
-      $('live-editor-box').classList.remove('hidden');
+      if ($('live-editor-box')) $('live-editor-box').classList.remove('hidden');
     }
     
     // Inject Image or Video
     updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || currentMediaMode);
     
-    $('gen-chars').textContent = `${data.char_count || data.content.length} caracteres`;
-    $('gen-meta').classList.remove('hidden');
-    $('gen-actions').classList.remove('hidden');
+    if ($('gen-chars')) $('gen-chars').textContent = `${data.char_count || data.content.length} caracteres`;
+    if ($('gen-meta')) $('gen-meta').classList.remove('hidden');
+    if ($('gen-actions')) $('gen-actions').classList.remove('hidden');
     showToast('Criativo gerado com sucesso!', 'success');
-    loadDrafts();
+    if (typeof loadDrafts === 'function') loadDrafts();
   } else {
-    $('gen-empty-state').classList.remove('hidden');
-    $('gen-empty-state').innerHTML = '<div class="empty-icon">⚠️</div><p>Erro ao gerar post. Tente novamente.</p>';
+    if ($('gen-empty-state')) {
+      $('gen-empty-state').classList.remove('hidden');
+      $('gen-empty-state').innerHTML = '<div class="empty-icon">⚠️</div><p>Erro ao gerar post. Tente novamente.</p>';
+    }
     showToast('Erro ao gerar post', 'error');
   }
 }
