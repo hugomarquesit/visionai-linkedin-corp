@@ -337,47 +337,75 @@
           </div>
 
           <!-- Output & LinkedIn Live Feed Preview -->
+          <!-- Output & LinkedIn Live Feed Preview -->
           <div class="card">
-            <div class="card-title-row">
+            <div class="card-title-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
               <h3 class="card-title">Live Canvas &amp; Preview no Feed 📱</h3>
+              <span class="chip-badge" style="background:rgba(158,255,0,0.15); color:#9EFF00; padding:4px 10px; border-radius:12px; font-weight:700; font-size:12px;">VisionAI Feed Live</span>
             </div>
 
             <!-- LinkedIn Feed Post Card Mockup -->
-            <div id="linkedin-preview-card" class="linkedin-preview-card">
-              <div class="empty-state" id="gen-empty-state">
-                <div class="empty-icon">✦</div>
-                <div class="li-post-header">
-                  <div class="li-avatar">V</div>
+            <div id="linkedin-preview-card" class="linkedin-preview-card" style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:16px; margin-bottom:16px;">
+              
+              <!-- Initial Empty State -->
+              <div id="gen-empty-state" class="empty-state" style="text-align:center; padding:32px 16px;">
+                <div class="empty-icon" style="font-size:32px; color:#9EFF00; margin-bottom:12px;">✦</div>
+                <p style="color:#94a3b8; font-size:14px;">Insira o tema desejado no painel à esquerda e clique em <b>"Gerar Post &amp; Criativo Visual"</b> para ver a publicação completa aqui.</p>
+              </div>
+
+              <!-- Output Content (revealed when post is generated) -->
+              <div id="gen-output-content" class="linkedin-card-content hidden">
+                <div class="li-post-header" style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                  <div class="li-avatar" style="width:48px; height:48px; background:linear-gradient(135deg, #9EFF00, #00E5FF); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#000; font-weight:800; font-size:20px;">V</div>
                   <div class="li-meta">
-                    <div class="li-author">VisionAi | Inovação &amp; IA <span class="li-badge">✓ Org</span></div>
-                    <div class="li-sub">Consultoria de IA, Visão Computacional &amp; Edge • 1.420 seguidores</div>
-                    <div class="li-time">Agora • 🌐</div>
+                    <div class="li-author" style="color:#ffffff; font-weight:700; font-size:15px;">VisionAi | Inovação &amp; IA <span class="li-badge" style="color:#9EFF00; font-size:12px;">✓ Org</span></div>
+                    <div class="li-sub" style="color:#94a3b8; font-size:12px;">Consultoria de IA, Visão Computacional &amp; Edge • 1.420 seguidores</div>
+                    <div class="li-time" style="color:#64748b; font-size:11px;">Agora • 🌐</div>
                   </div>
                 </div>
 
                 <!-- Post Text Body -->
-                <div id="gen-text-content" class="li-post-body"></div>
+                <div id="gen-text-content" class="li-post-body" style="color:#e2e8f0; font-size:14px; line-height:1.6; white-space:pre-wrap; margin-bottom:16px;"></div>
 
                 <!-- Attached Media Image/Banner/Video -->
-                <div id="gen-image-container" class="li-post-media hidden">
-                  <img id="gen-image" src="" alt="Criativo visual gerado" class="hidden" />
-                  <video id="gen-video" controls class="hidden" style="width:100%;max-height:400px;background:#000;"></video>
-                  <div class="image-badge" id="media-type-badge">✨ Criativo Visual Gerado para a VisionAi</div>
+                <div id="gen-image-container" class="li-post-media hidden" style="position:relative; border-radius:8px; overflow:hidden; margin-bottom:16px; background:#020617; border:1px solid #334155;">
+                  <img id="gen-image" src="" alt="Criativo visual gerado" class="hidden" style="width:100%; max-height:480px; object-fit:cover; display:block;" />
+                  <video id="gen-video" controls class="hidden" style="width:100%; max-height:440px; background:#000; display:block;"></video>
+                  <div class="image-badge" id="media-type-badge" style="position:absolute; bottom:10px; right:10px; background:rgba(15,23,42,0.85); color:#9EFF00; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700; backdrop-filter:blur(4px); border:1px solid rgba(158,255,0,0.3);">✨ Criativo Visual Gerado para a VisionAi</div>
                 </div>
 
                 <!-- LinkedIn Post Reactions Bar -->
-                <div class="li-post-actions-bar">
-                  <button class="li-action-btn">👍 Gostei</button>
-                  <button class="li-action-btn">💬 Comentar</button>
-                  <button class="li-action-btn">🔄 Compartilhar</button>
-                  <button class="li-action-btn">✈️ Enviar</button>
+                <div class="li-post-actions-bar" style="display:flex; justify-content:space-around; border-top:1px solid #1e293b; padding-top:12px;">
+                  <button class="li-action-btn" style="background:none; border:none; color:#94a3b8; font-size:13px; cursor:pointer;">👍 Gostei</button>
+                  <button class="li-action-btn" style="background:none; border:none; color:#94a3b8; font-size:13px; cursor:pointer;">💬 Comentar</button>
+                  <button class="li-action-btn" style="background:none; border:none; color:#94a3b8; font-size:13px; cursor:pointer;">🔄 Compartilhar</button>
+                  <button class="li-action-btn" style="background:none; border:none; color:#94a3b8; font-size:13px; cursor:pointer;">✈️ Enviar</button>
                 </div>
               </div>
             </div>
 
-            <div id="gen-meta" class="gen-meta hidden">
+            <!-- Live Text Editor Box -->
+            <div id="live-editor-box" class="mt-3 hidden" style="background:#0f172a; padding:16px; border-radius:10px; border:1px solid #1e293b;">
+              <label style="font-weight:700; color:#9EFF00; font-size:13px; display:block; margin-bottom:6px;">✏️ Edição ao Vivo do Texto:</label>
+              <textarea id="gen-editable-text" class="textarea-field" rows="6" style="width:100%; background:#020617; color:#fff; border:1px solid #334155; border-radius:8px; padding:10px; font-size:14px;" placeholder="Edite o texto do post em tempo real..."></textarea>
+            </div>
+
+            <!-- Action Buttons: Publicar, Agendar, Re-gerar Mídia -->
+            <div id="gen-actions" class="btn-group mt-3 hidden" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+              <button class="btn btn-primary" id="btn-publish-now" onclick="publishGeneratedPost()" style="flex:1; min-width:200px; padding:12px; font-weight:700; font-size:14px; background:linear-gradient(135deg, #00E5FF, #0088FF); color:#fff; border:none; border-radius:8px; cursor:pointer;">
+                🚀 Publicar Agora no LinkedIn
+              </button>
+              <button class="btn btn-secondary" id="btn-schedule-post" onclick="openScheduleModal()" style="flex:1; min-width:180px; padding:12px; font-weight:700; font-size:14px; background:#1e293b; color:#9EFF00; border:1px solid #9EFF00; border-radius:8px; cursor:pointer;">
+                📅 Agendar Publicação
+              </button>
+              <button class="btn btn-outline" id="regenerate-media-btn" onclick="regenerateMediaFromText()" style="flex:1; min-width:200px; padding:12px; font-weight:600; font-size:13px; background:transparent; color:#94a3b8; border:1px solid #334155; border-radius:8px; cursor:pointer;">
+                🔄 Re-gerar Mídia
+              </button>
+            </div>
+
+            <div id="gen-meta" class="gen-meta hidden mt-2" style="display:flex; justify-content:space-between; color:#94a3b8; font-size:12px; margin-top:12px;">
               <span id="gen-chars">0 caracteres</span>
-              <span id="gen-model-tag" class="model-tag">gemini-3.5-flash</span>
+              <span id="gen-model-tag" class="model-tag" style="color:#9EFF00; font-weight:700;">gemini-flash-latest</span>
             </div>
           </div>
         </div>
@@ -677,6 +705,6 @@
 <!-- TOAST -->
 <div id="toast" class="toast hidden"></div>
 
-<script src="/static/app.js?v=375"></script>
+<script src="/static/app.js?v=376"></script>
 </body>
 </html>

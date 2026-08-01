@@ -911,6 +911,8 @@ function updateMediaDisplay(b64, mime, mediaType = 'image') {
   const videoEl = $('gen-video');
   const badgeEl = $('media-type-badge');
 
+  if (!container || !imgEl || !videoEl) return;
+
   if (!b64) {
     container.classList.add('hidden');
     imgEl.classList.add('hidden');
@@ -929,14 +931,20 @@ function updateMediaDisplay(b64, mime, mediaType = 'image') {
   if (isVideo) {
     imgEl.classList.add('hidden');
     videoEl.classList.remove('hidden');
-    videoEl.src = `data:${mime};base64,${b64}`;
+    videoEl.src = b64.startsWith('data:') ? b64 : `data:${mime || 'video/mp4'};base64,${b64}`;
     if (badgeEl) badgeEl.textContent = '🎬 Vídeo Criativo Gerado para a VisionAi';
   } else {
     videoEl.classList.add('hidden');
     imgEl.classList.remove('hidden');
-    const isSvg = b64.startsWith('<svg') || b64.includes('xml');
-    const actualMime = mime || (isSvg ? 'image/svg+xml' : 'image/jpeg');
-    imgEl.src = `data:${actualMime};base64,${b64}`;
+    
+    const cleanB64 = b64.trim();
+    const isSvg = cleanB64.startsWith('<svg') || cleanB64.includes('<?xml') || cleanB64.includes('<svg');
+    if (isSvg) {
+      imgEl.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(cleanB64)}`;
+    } else {
+      const actualMime = mime || 'image/jpeg';
+      imgEl.src = cleanB64.startsWith('data:') ? cleanB64 : `data:${actualMime};base64,${cleanB64}`;
+    }
     if (badgeEl) badgeEl.textContent = '✨ Criativo Visual Gerado para a VisionAi';
   }
 }
@@ -975,8 +983,13 @@ async function generatePost() {
     
     // Inject Text
     if ($('gen-text-content')) $('gen-text-content').textContent = data.content;
-    if ($('gen-editable-text')) {
-      $('gen-editable-text').value = data.content;
+    const editableText = $('gen-editable-text');
+    if (editableText) {
+      editableText.value = data.content;
+      editableText.oninput = () => {
+        if ($('gen-text-content')) $('gen-text-content').textContent = editableText.value;
+        if ($('gen-chars')) $('gen-chars').textContent = `${editableText.value.length} caracteres`;
+      };
       if ($('live-editor-box')) $('live-editor-box').classList.remove('hidden');
     }
     
@@ -996,6 +1009,76 @@ async function generatePost() {
     showToast('Erro ao gerar post', 'error');
   }
 }
+
+async function publishGeneratedPost() {
+  const editableText = $('gen-editable-text') ? $('gen-editable-text').value.trim() : '';
+  const textContent = $('gen-text-content') ? $('gen-text-content').textContent.trim() : '';
+  const text = editableText || textContent;
+
+  if (!text) {
+    showToast('Nenhum texto disponível para publicar.', 'error');
+    return;
+  }
+
+  const btn = $('btn-publish-now');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Publicando no LinkedIn...';
+  }
+
+  showToast('Enviando publicação para a página oficial da VisionAI no LinkedIn...', 'info');
+
+  const payload = {
+    text: text,
+    visibility: "PUBLIC",
+    draft: false,
+    image_base64: currentGeneratedImageBase64,
+    image_mime: currentGeneratedImageMime || "image/jpeg"
+  };
+
+  const { ok, data } = await apiFetch('/api/posts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '🚀 Publicar Agora no LinkedIn';
+  }
+
+  if (ok && data.ok !== false) {
+    showToast('🎉 Post publicado com sucesso no LinkedIn da VisionAI!', 'success');
+  } else {
+    showToast(`Erro ao publicar no LinkedIn: ${data.detail || data.message || 'Falha de conexão.'}`, 'error');
+  }
+}
+
+function openScheduleModal() {
+  const editableText = $('gen-editable-text') ? $('gen-editable-text').value.trim() : '';
+  const textContent = $('gen-text-content') ? $('gen-text-content').textContent.trim() : '';
+  const text = editableText || textContent;
+  const topic = $('gen-topic') ? $('gen-topic').value.trim() : '';
+
+  if (!text) {
+    showToast('Nenhum post gerado para agendar.', 'error');
+    return;
+  }
+
+  switchStudio('calendar');
+  if ($('sched-topic')) $('sched-topic').value = topic;
+  if ($('sched-text')) $('sched-text').value = text;
+  
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(10, 0, 0, 0);
+  const isoStr = tomorrow.toISOString().slice(0, 16);
+  if ($('sched-datetime')) $('sched-datetime').value = isoStr;
+
+  showToast('Defina a data/horário e confirme o agendamento!', 'info');
+}
+
+window.publishGeneratedPost = publishGeneratedPost;
+window.openScheduleModal = openScheduleModal;
 
 async function regenerateMediaFromText() {
   const revisedText = $('gen-editable-text').value.trim();
