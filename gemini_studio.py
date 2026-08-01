@@ -425,35 +425,29 @@ REGRAS:
             return img_b64, "image/jpeg"
 
     def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights", category: str = "VisionAi Insights") -> tuple[str, str]:
-        """Gera uma imagem realista pura e compõe a peça publicitária com branding VisionAI. Retorna (base64, mime_type)."""
+        """Gera uma imagem realista pura via Gemini Image Models e compõe a peça publicitária com branding VisionAI. Retorna (base64, mime_type)."""
         clean_prompt = prompt.replace("\n", " ").strip()
         negative_rules = ", NO sci-fi, NO futuristic fantasy, NO glowing cyber portals, NO text, NO written words, NO letters, NO signs, NO typography, authentic realistic professional corporate photography, 35mm lens, Sony Alpha camera, natural lighting, highly realistic 8k photo"
         full_prompt = clean_prompt + negative_rules if "NO text" not in clean_prompt else clean_prompt
 
-        # Tenta modelos ativos de imagem (Gemini 3.1 Flash Image & Imagen 4)
-        for model in ["gemini-3.1-flash-image", "imagen-4.0-fast-generate-001", "gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"]:
+        # Modelos ativos para geração nativa de imagem no SDK google-genai
+        image_models = ["gemini-2.5-flash-image", "gemini-3.1-flash-image", "gemini-3.1-flash-image-preview"]
+
+        for model in image_models:
             try:
-                if "imagen" in model:
-                    res = self.client.models.generate_images(
-                        model=model,
-                        prompt=full_prompt,
-                        config=types.GenerateImagesConfig(number_of_images=1, output_mime_type="image/jpeg")
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=full_prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        temperature=0.6,
                     )
-                    if res.generated_images:
-                        img_bytes = res.generated_images[0].image.image_bytes
-                        return self._composite_advertising_creative(img_bytes, pt_headline=pt_title, category=category)
-                else:
-                    response = self.client.models.generate_content(
-                        model=model,
-                        contents=full_prompt,
-                        config=types.GenerateContentConfig(
-                            response_modalities=["TEXT", "IMAGE"],
-                            temperature=0.6,
-                        )
-                    )
+                )
+                if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
                     for part in response.candidates[0].content.parts:
                         if part.inline_data and part.inline_data.data:
                             img_bytes = part.inline_data.data
+                            print(f"Foto corporativa gerada com sucesso via modelo {model} ({len(img_bytes)} bytes)!")
                             return self._composite_advertising_creative(img_bytes, pt_headline=pt_title, category=category)
             except Exception as e:
                 print(f"Modelo de imagem {model} falhou: {e}")
