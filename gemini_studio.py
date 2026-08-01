@@ -514,7 +514,6 @@ REGRAS:
                 break
                 
         clean_full_text = "\n\n".join(lines)
-        
         # 4. Encontra a melhor manchete em português para a faixa do criativo
         clean_headline = "VisionAI Insights"
         for line in lines:
@@ -542,28 +541,29 @@ TEXTO DO POST NO LINKEDIN:
 ---
 
 SUAS TAREFAS:
-1. **SELO DE CATEGORIA**: Identifique a linha de serviço em Português (Ex: VISÃO AGRO-INDUSTRIAL, REALIDADE MISTA & VR, IA MULTIMODAL & SAC, VISÃO COMPUTACIONAL, GOVERNANÇA CORPORATIVA).
-2. **MANCHETE CLICKBAIT B2B**: Crie uma manchete provocativa, magnética e de alta conversão em PORTUGUÊS (estilo Clickbait B2B Executivo, de 6 a 12 palavras) para estamparmos no Banner do Criativo Visual.
-   - NUNCA copie simplesmente a primeira frase do texto do post.
-   - A manchete deve gerar curiosidade extrema no leitor C-Level (CEOs, CTOs, VPs de Operações).
-   Exemplos de Manchetes Clickbait B2B:
-   - "O Erro Estratégico na Nuvem Que Custa Milhões às Indústrias"
-   - "Por Que o Treinamento Tradicional Falha em 90% dos Casos?"
-   - "A Verdade Sobre o Monitoramento de Safra Que Ninguém Te Conta"
-   - "O Erro Que Custava Vidas Agora Custa Zero Para Sua Operação"
-3. **PROMPT DE FOTOGRAFIA EM INGLÊS**: Crie um prompt de imagem em INGLÊS que descreva UMA FOTOGRAFIA CORPORATIVA REALISTA 100% ADERENTE E FIEL ao tema do texto.
+1. **SELO DE CATEGORIA**: Identifique a linha temática em Português (Ex: CONCEITOS & CIÊNCIA DA IA, VISÃO AGRO-INDUSTRIAL, REALIDADE MISTA & VR, IA MULTIMODAL & SAC, VISÃO COMPUTACIONAL, GOVERNANÇA CORPORATIVA, PAPERS & RESEARCH).
+2. **MANCHETE CLICKBAIT B2B**: Crie uma manchete provocativa, magnética e de alta conversão em PORTUGUÊS (estilo Clickbait B2B Executivo ou Científico, de 6 a 12 palavras) para estamparmos no Banner do Criativo Visual.
+   - A manchete deve sintetizar a essência do post e gerar curiosidade extrema no leitor C-Level e especialistas.
+3. **PROMPT DE FOTOGRAFIA EM INGLÊS**: Crie um prompt de imagem em INGLÊS que descreva UMA FOTOGRAFIA OU ILUSTRAÇÃO EDITORIAL CORPORATIVA REALISTA 100% ADERENTE E FIEL AO ASSUNTO ESPECÍFICO DO TEXTO.
 
-REGRAS RÍGIDAS DE ADERÊNCIA AO TEXTO E FOTOGRAFIA REALISTA:
-- EXTREMA ADERÊNCIA AO TEMA DO TEXTO:
-  * Se o texto for sobre AGRO/LAVOURA: foto de campo agrícola real de milho/soja com agrônomo e drone de monitoramento.
-  * Se o texto for sobre VR/META QUEST 3: foto de profissional em escritório usando headset VR Meta Quest 3 em treinamento de segurança.
-  * Se o texto for sobre ATENDIMENTO/SAC MULTIMODAL: foto de especialista de atendimento com headset em mesa corporativa moderna com monitores de dados.
-  * Se o texto for sobre FÁBRICA/EPIs: foto de galpão industrial com câmera dome CCTV no teto e operadores com capacetes/coletes.
-  * Se o texto for sobre GOVERNANÇA/C-LEVEL: foto de executivos em sala de reunião corporativa analisando painéis operacionais.
-- NUNCA USE CÂMERAS DE FÁBRICA SE O TEXTO FOR SOBRE AGRO, VR OU ATENDIMENTO!
-- PROIBIDO SCI-FI: NUNCA crie portais virtuais, raios laser ou néons brilhantes irreais. A imagem deve parecer uma fotografia real de reportagem da Forbes/Harvard Business Review.
-- SEM TEXTO EM PIXELS: NUNCA coloque palavras ou letras no prompt da imagem.
-- ADICIONE NO FINAL DO PROMPT: 'authentic realistic professional corporate photography, Hasselblad medium format camera, natural office or factory lighting, sharp focus, 8k resolution, NO sci-fi, NO text, NO letters, NO typography'.
+REGRAS RÍGIDAS DE ADERÊNCIA AO TEMA DO TEXTO:
+- SE O TEXTO FOR EDUCATIVO/CONCEITUAL (ex: 'O que é Computação Visual', 'Como funcionam Redes Neurais', 'Algoritmos'):
+  * Foto/Infográfico conceitual de estúdio editorial sobre Inteligência Artificial. Mesa de pesquisador com tablet exibindo esquemático 3D de visão computacional, nós de rede neural abstratos e elegantes sobre fundo escuro corporativo.
+- SE O TEXTO FOR SOBRE PAPERS/PESQUISAS ACADÊMICAS:
+  * Foto de escritório de P&D com quadros de vidro, gráficos de benchmarking de IA e artigos científicos digitais.
+- SE O TEXTO FOR SOBRE AGRO/LAVOURA:
+  * Foto de campo agrícola verde de milho/soja com agrônomo e drone autônomo de monitoramento multispectral.
+- SE O TEXTO FOR SOBRE VR/META QUEST 3:
+  * Foto de profissional executivo em escritório usando headset VR Meta Quest 3 em treinamento imersivo.
+- SE O TEXTO FOR SOBRE ATENDIMENTO/SAC MULTIMODAL:
+  * Foto de especialista de atendimento com headset em mesa corporativa moderna com visualizadores de ondas de áudio e dashboards.
+- SE O TEXTO FOR SOBRE FÁBRICA/EPIs/NR-12:
+  * Foto de galpão industrial automatizado com câmera inteligente e operadores com equipamentos de segurança.
+- SE O TEXTO FOR SOBRE GOVERNANÇA/C-LEVEL:
+  * Foto de executivos em sala de reunião corporativa analisando painéis estratégicos em telas de vidro.
+
+PROIBIDO: NUNCA crie imagens de fábrica se o post for conceitual, educativo, sobre agro, VR ou SAC!
+ADICIONE NO FINAL DO PROMPT: 'authentic realistic professional corporate photography, Hasselblad medium format camera, natural lighting, sharp focus, 8k resolution, NO sci-fi, NO text, NO letters, NO typography'.
 
 Responda APENAS com JSON:
 {{
@@ -602,99 +602,119 @@ Responda APENAS com JSON:
         }
 
     # ── 1. GERAÇÃO DE POSTS ────────────────────────────────────────────────────
-    def generate_post(self, topic: str, format_type: str = "standard", tone: str = "visionario", media_type: str = "image", voice_mode: str = "corporate") -> dict:
-        """Gera um post completo usando um fluxo estritamente sequencial em 2 etapas:
-           ETAPA 1: Criação do texto final do post (modo corporativo ou founder/1ª pessoa).
-           ETAPA 2: Análise do texto final gerado para criar a arte visual com 100% de alinhamento semântico.
-        """
+    def generate_post(
+        self,
+        topic: str,
+        format_type: str = "standard",
+        tone: str = "visionario",
+        media_type: str = "image",
+        voice_mode: str = "corporate",
+        content_objective: str = "corporativo_sales",
+        web_research: bool = False
+    ) -> dict:
+        """Gera um post completo com texto e mídia respeitando rigorosamente o objetivo (Educativo/Pesquisa vs Corporativo/Vendas)."""
+        
         format_guides = {
             "pulse_article": (
-                "Artigo Estratégico LinkedIn Pulse / Essay (350-500 palavras) — Estrutura de Liderança de Pensamento de Alto Nível C-Suite "
-                "(inspirado no estudo 'Computer Vision: Becoming the Next Strategic Sensor'):\n"
-                "1. TITLE: Título executivo provocativo\n"
-                "2. HOOK: Reenquadre a visão tradicional da tecnologia.\n"
-                "3. PARADIGM SHIFT: A transição para a inteligência operacional na borda (Edge AI).\n"
-                "4. 3 PILARES ESTRATÉGICOS da VisionAI.\n"
-                "5. ROI E IMPACTO OPERACIONAL (métricas reais).\n"
-                "6. EXECUTIVE ROADMAP & CALL TO ACTION."
+                "Artigo Estratégico LinkedIn Pulse / Essay Didático (400-600 palavras) — Estrutura completa de autoridade e liderança de pensamento:\n"
+                "1. TÍTULO EXECUTIVO MANCHETE: Título impactante\n"
+                "2. INTRODUÇÃO E HOOK: Contextualização histórica e definição clara da tecnologia/tema.\n"
+                "3. DESENVOLVIMENTO TÉCNICO / PILARES: Explicação aprofundada dos conceitos, algoritmos, arquiteturas ou artigos da área.\n"
+                "4. DADOS & IMPACTO NO MERCADO: Métricas reais, estudos de caso e benchmarks de mercado.\n"
+                "5. TENDÊNCIAS FUTURAS & CONCLUSÃO: Visão de futuro e fechamento de alto valor."
             ),
             "strategic_framework": (
-                "Framework Executivo & Manifesto (250-400 palavras) — Modelo conceitual proprietário da VisionAI para transformar a operação. "
-                "Passos claros de arquitetura Edge AI e Visão Computacional."
+                "Framework Executivo & Manifesto (250-400 palavras) — Modelo conceitual estruturado em passos práticos e arquitetura conceitual."
             ),
             "case": (
-                "Estudo de Caso Executivo (200-350 palavras) — Focado estritamente em ROI e Operações Reais da VisionAI. "
-                "Desafio, Solução Aplicada e Métricas de Impacto."
+                "Estudo de Caso & Análise de Resultados (200-350 palavras) — Focado em problemas reais, solução aplicada e métricas de impacto."
             ),
             "storytelling": (
-                "Storytelling Corporativo (200-300 palavras) — Narrativa envolvente sobre transformação de operações com IA da VisionAI."
+                "Storytelling Corporativo & Bastidores (200-300 palavras) — Narrativa envolvente sobre descobertas, aprendizados e conquistas."
             ),
             "insight": (
-                "Insight Provocativo C-Level (150-250 palavras) — Provocação executiva desafiando dogmas do mercado."
+                "Insight Provocativo C-Level (150-250 palavras) — Provocação conceitual de alto impacto desafiando dogmas do mercado."
             ),
             "standard": (
-                "Post B2B Padrão + Banner (150-250 palavras) — Post executivo direto ao ponto com gancho poderoso e CTA."
+                "Post B2B Padrão + Banner (150-250 palavras) — Conteúdo objetivo e direto ao ponto com gancho poderoso e fechamento claro."
             )
         }
 
         tone_guides = {
             "visionario": "Tom visionário e autoritativo — questione o status quo com pragmatismo executivo, provoque reflexão profunda no C-level",
-            "tecnico": "Tom analítico e arquitetural — cite processamento na borda (Edge AI), latência, segurança sem nuvem e ROI mensurável",
-            "inspirador": "Tom focado em transformação de negócios e impacto real na sociedade e nas operações humanas",
-            "educativo": "Tom consultivo de alta liderança, educando o mercado sobre os benefícios reais da inteligência artificial aplicada",
-            "provocativo": "Tom provocativo C-Level — desafie dogmas tradicionais da indústria e questione a inércia corporativa com urgência",
-            "direto": "Tom direto, objetivo e pragmático — direto ao ponto, sem rodeios, focado em ação e resultados imediatos",
-            "storytelling": "Tom narrativo de liderança — conte uma jornada corporativa real, lições aprendidas e conquistas de campo",
-            "persuasivo": "Tom publicitário e altamente persuasivo — focado em conversão B2B de alto valor, destacando diferenciais únicos da VisionAI"
+            "tecnico": "Tom analítico, arquitetural e científico — cite fundamentos de algoritmos, latência, métricas e ROI mensurável",
+            "inspirador": "Tom focado em transformação de negócios, avanço científico e impacto real na sociedade",
+            "educativo": "Tom consultivo e pedagógico de alta liderança, ensinando o mercado com profundidade e clareza conceitual",
+            "provocativo": "Tom provocativo C-Level — desafie dogmas tradicionais e questione a inércia corporativa com urgência",
+            "direto": "Tom direto, objetivo e pragmático — direto ao ponto, focado em ação e dados concretos",
+            "storytelling": "Tom narrativo de liderança — conte uma jornada profissional real, descobertas e lições aprendidas",
+            "persuasivo": "Tom publicitário e altamente persuasivo — focado em conversão B2B de alto valor e diferenciais tecnológicos"
         }
 
         voice_instruction = (
-            "PERFIL DE VOZ INSTITUCIONAL (VisionAI Company Page): Escreva com autoridade corporativa institucional."
+            "PERFIL DE VOZ INSTITUCIONAL: Escreva com autoridade corporativa institucional de referência no setor."
             if voice_mode == "corporate" else
-            "PERFIL DE VOZ FOUNDER / THOUGHT LEADERSHIP (Perfil Pessoal de Executivo): Escreva em 1ª PESSOA ('Eu', 'Nossa equipe', 'Conversando com um CTO essa semana...'). Conte uma história profissional real e termine com uma provocação executiva."
+            "PERFIL DE VOZ FOUNDER / THOUGHT LEADERSHIP: Escreva em 1ª PESSOA ('Eu', 'Nossa equipe de P&D', 'Analisando este artigo científico...'). Conte uma perspectiva profissional autêntica."
         )
+
+        # Configuração do Objetivo (Educativo/Papers vs Corporativo/Vendas)
+        if content_objective == "educativo_academic":
+            objective_directive = (
+                "MODO: CONTEÚDO EDUCATIVO, CIENTÍFICO & THOUGHT LEADERSHIP (PESQUISA & PAPERS Acadêmicos).\n"
+                "Sua missão é EDUCAR E ENSINAR O LEITOR de forma extremamente enriquecedora, didática e cientificamente embasada.\n"
+                "REGRAS RÍGIDAS DO MODO EDUCATIVO:\n"
+                "- Explique o conceito de forma neutra, completa e magistral (história, algoritmos, definições, aplicações).\n"
+                "- CITE pesquisas, papers acadêmicos, avanços recentes e benchmarks do mercado de IA.\n"
+                "- PROIBIDO forçar discursos de vendas comerciais da empresa ou citar câmeras de fábrica/NR-12 a menos que o tema seja especificamente sobre isso.\n"
+                "- Termine com uma pergunta instigante para debate intelectual nos comentários do LinkedIn."
+            )
+            org_context_block = ""
+        else:
+            objective_directive = (
+                "MODO: COMUNICAÇÃO CORPORATIVA, MARKETING B2B & SOLUÇÕES VISIONAI.\n"
+                "Sua missão é conectar o tema às soluções estratégicas, ROI e diferenciais competitivos da VisionAI (visionai.com.br)."
+            )
+            org_context_block = f"CONTEXTO INSTITUCIONAL DA VISIONAI:\n{ORG_CONTEXT}\n{self.scraped_context}\n"
 
         # ── ETAPA 1: GERAÇÃO DO TEXTO DO POST ──────────────────────────────────
         text_prompt = f"""
-Você é um Copywriter Executivo B2B Sênior e Diretor de Growth Marketing da VisionAI (visionai.com.br).
+Você é um especialista em Inteligência Artificial, Pesquisador de TI e Redator de Alto Nível para o LinkedIn.
 
-CONTEXTO INSTITUCIONAL E TÉCNICO DA VISIONAI:
-{ORG_CONTEXT}
-{self.scraped_context}
+{objective_directive}
 
-SUA MISSÃO: Escrever um post publicitário, humano e de altíssimo engajamento executivo para o LinkedIn Corporativo sobre o tema abaixo.
+{org_context_block}
 
 PERFIL DE NARRATIVA: {voice_instruction}
-TEMA/OBJETIVO: {topic}
+TEMA/TÍTULO SOLICITADO: {topic}
 FORMATO DE CONTEÚDO: {format_guides.get(format_type, format_guides['standard'])}
 TOM DE VOZ: {tone_guides.get(tone, tone_guides['visionario'])}
 
 DIRETRIZES DE COPYWRITING & FORMATAÇÃO (ESTRITAMENTE OBRIGATÓRIAS):
-1. **ZERO ASTERISCOS OU MARKDOWN**:
-   - PROIBIDO usar asteriscos (`**` ou `*`) para tentar colocar texto em negrito ou itálico. O LinkedIn NÃO aceita markdown e exibe os asteriscos brutos no feed.
-   - PROIBIDO usar cerquilhas (`#`, `##`, `###`) como títulos.
-   - Use emojis elegantes (como `✦`, `▸`, `⚡`, `💡`, `👉`, `📍`) no início de tópicos para destacar pontos cruciais de forma limpa.
+1. **RESPEITE O FORMATO E O OBJETIVO SOLICITADO**:
+   - Se o formato for 'pulse_article', crie um artigo completo com seções organizadas, introdução conceitual e aprofundamento.
+   - Se o modo for 'educativo_academic', NÃO insira pitches comerciais da empresa. Foque em entregar conhecimento puro e valioso.
 
-2. **COPYWRITING HUMANO E PUBLICITÁRIO (NADA ROBÓTICO OU ARTIFICIAL)**:
-   - PROIBIDO clichês robóticos de IA como: "No mundo de hoje", "Em constante evolução", "Na era da Inteligência Artificial", "Em um cenário dinâmico", "Em suma", "Desbloquear o potencial", "Revolucionar a forma", "Vamos juntos".
-   - Escreva com ritmo publicitário dinâmico, frases marcantes e autoridade corporativa real de quem lidera engenharia de IA e operações.
-   - **HOOK PODEROSO**: As primeiras 2 linhas DEVEM parar o scroll no feed do LinkedIn com uma afirmação provocativa, dado chocante ou provocação estratégica.
-   - Parágrafos curtos de no máximo 2 a 3 linhas para máxima legibilidade no celular.
+2. **ZERO ASTERISCOS OU MARKDOWN**:
+   - PROIBIDO usar asteriscos (`**` ou `*`) para negrito ou itálico (o LinkedIn exibe os asteriscos brutos no feed).
+   - PROIBIDO usar cerquilhas (`#`, `##`) como títulos.
+   - Use emojis elegantes (como `✦`, `▸`, `⚡`, `💡`, `👉`, `📍`) para destacar pontos e títulos.
 
-3. **MÉTRICAS E DORES OPERACIONAIS REAIS**:
-   - Cite números concretos e resultados reais (+15% produtividade no agro, 95% precisão em SAC, retenção 4x em VR, ciclo de vídeo de 3 semanas para 2 dias).
-   - Aborde problemas reais: latência de streaming RTSP, estouro de orçamento de nuvem, fiscalização 24/7 de EPIs sem humanos na sala de controle, passivo trabalhista NR-12.
-
-4. **FINALIZAÇÃO**:
-   - Termine com uma Call to Action (CTA) executiva provocativa e 4 a 6 hashtags corporativas estratégicas (ex: #VisaoComputacional #EdgeAI #InteligenciaArtificial #VisionAI).
+3. **ESTILO DE ESCRITA HUMANO E RICO**:
+   - PROIBIDO clichês robóticos de IA como: "No mundo de hoje", "Em constante evolução", "Na era da IA", "Em suma", "Vamos juntos".
+   - Parágrafos curtos (2 a 3 linhas) para excelente leitura no celular.
 
 FORMATO DE SAÍDA: Retorne APENAS o texto do post em português, pronto para ser publicado. Sem explicações adicionais e SEM NENHUM ASTERISCO.
 """
-        raw_post_text = self._generate(text_prompt, temperature=0.85).strip()
+        # Se a pesquisa na web estiver ativada ou for modo educativo, usa Google Search Grounding para trazer artigos e dados recentes!
+        if web_research or content_objective == "educativo_academic":
+            search_prompt = f"Pesquise na web artigos científicos, papers recentes, definições e notícias sobre: '{topic}'. {text_prompt}"
+            raw_post_text = self._generate_with_search(search_prompt, temperature=0.85).strip()
+        else:
+            raw_post_text = self._generate(text_prompt, temperature=0.85).strip()
+
         post_text, _ = self._clean_post_content(raw_post_text)
 
         # ── ETAPA 2: GERAÇÃO DA ARTE VISUAL BASEADA NO TEXTO CRIADO ──────────────
-        # O prompt visual e a imagem são criados APÓS o texto existir, com 100% de alinhamento com o seu significado!
         art_result = self.regenerate_media_from_revised_text(post_text, media_type=media_type)
         
         image_prompt = art_result.get("image_prompt", "")

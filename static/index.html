@@ -277,8 +277,23 @@
             <h3 class="card-title">Configurar Criativo</h3>
             
             <div class="field-group">
+              <label>Objetivo do Conteúdo</label>
+              <select id="gen-content-objective" class="select-field" style="border-color:#9EFF00; font-weight:700; background:rgba(15,23,42,0.9);">
+                <option value="corporativo_sales">🚀 Pitch Corporativo &amp; Conversão B2B (Soluções VisionAI)</option>
+                <option value="educativo_academic">🎓 Educativo &amp; Artigo Científico / Papers (Conhecimento Isento &amp; Pesquisa)</option>
+              </select>
+            </div>
+
+            <div class="field-group mb-3">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:#9EFF00; font-weight:600; background:rgba(158,255,0,0.1); padding:8px 12px; border-radius:8px; border:1px solid rgba(158,255,0,0.3);">
+                <input type="checkbox" id="gen-web-research" style="width:16px; height:16px; accent-color:#9EFF00;" />
+                <span>🌐 Pesquisar Artigos Científicos &amp; Papers na Web em Tempo Real (Google Search)</span>
+              </label>
+            </div>
+
+            <div class="field-group">
               <label>Tema ou Objetivo do Post</label>
-              <input type="text" id="gen-topic" class="input-field" placeholder="Ex: Visão Computacional como Sensor Estratégico na Borda" />
+              <input type="text" id="gen-topic" class="input-field" placeholder="Ex: O que é Computação Visual? Fundamentos e Aplicações" />
             </div>
 
             <div class="field-group">
@@ -727,6 +742,6 @@
 <!-- TOAST -->
 <div id="toast" class="toast hidden"></div>
 
-<script src="/static/app.js?v=383"></script>
+<script src="/static/app.js?v=384"></script>
 </body>
 </html>
