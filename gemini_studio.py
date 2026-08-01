@@ -937,6 +937,52 @@ Responda APENAS com JSON no seguinte formato:
                     print(f"Erro no parse de JSON do radar: {e}")
 
             # 3. Grava no banco de dados SQLite (evitando duplicatas pelo título)
+            if not parsed_trends:
+                parsed_trends = [
+                    {
+                        "title": "Edge AI na Conformidade NR-12: Processamento Local sem Nuvem",
+                        "category": "EDGE AI & SEGURANÇA",
+                        "summary": "Fábricas estão implantando análise local de câmeras para interrupção instantânea de máquinas ao detectar invasão de área de risco.",
+                        "impact_b2b": "Zeragem de passivos trabalhistas e interrupção imediata de acidentes graves em tempo real.",
+                        "suggested_topic": "Como a Visão Computacional na Borda (Edge AI) está revolucionando a segurança industrial e a NR-12"
+                    },
+                    {
+                        "title": "Visão Agro-Industrial: Monitoramento Preditivo em Lavouras",
+                        "category": "VISÃO AGRO",
+                        "summary": "Algoritmos de visão computacional em drones e câmeras de campo identificam pragas 14 dias antes da perda de safra.",
+                        "impact_b2b": "Aumento médio de +15% na produtividade e redução de 30% no uso de defensivos agrícolas.",
+                        "suggested_topic": "Inteligência Artificial no campo: identificando pragas e falhas de plantio antes que afetem a safra"
+                    },
+                    {
+                        "title": "Meta Quest 3 no Treinamento Corporativo de Alto Risco",
+                        "category": "REALIDADE MISTA & EDTECH",
+                        "summary": "Simuladores imersivos em VR multi-usuário elevam a retenção de aprendizado de 20% para 80% em treinamentos técnicos complexos.",
+                        "impact_b2b": "Redução drástica do custo de logística presencial e eliminação de acidentes em ambiente simulação.",
+                        "suggested_topic": "Por que grandes corporações estão adotando treinamentos em Realidade Mista (VR) para equipes de operação"
+                    },
+                    {
+                        "title": "SAC Multimodal com Memória de Contexto e Voz Humana",
+                        "category": "ATENDIMENTO MULTIMODAL",
+                        "summary": "Assistentes de voz inteligentes que analisam áudio, imagem e histórico do cliente em tempo real elevam a precisão a 95%.",
+                        "impact_b2b": "Redução drástica do tempo médio de atendimento (TMA) e retenção imediata de clientes B2B.",
+                        "suggested_topic": "O fim das URAs tradicionais: como a IA Multimodal de voz transforma a experiência do cliente corporativo"
+                    },
+                    {
+                        "title": "Governança C-Level & Radar Automático de Concorrência",
+                        "category": "GOVERNANÇA CORPORATIVA",
+                        "summary": "Painéis executivos movidos a IA varrem movimentos de mercado e relatórios estratégicos de concorrentes continuamente.",
+                        "impact_b2b": "Tomada de decisão estratégica baseada em dados frescos em vez de relatórios trimestrais desatualizados.",
+                        "suggested_topic": "Governança Inteligente: como VPs e C-Levels usam inteligência artificial para antecipar movimentos de mercado"
+                    },
+                    {
+                        "title": "Automação de Conteúdo Corporativo: Ciclo de 3 Semanas para 2 Dias",
+                        "category": "GERAÇÃO DE CONTEÚDO",
+                        "summary": "Corporações estão usando motores generativos para acelerar a criação de apresentações comerciais e mídia institucional.",
+                        "impact_b2b": "Gargalo de comunicação resolvido com retenção rigorosa da identidade de marca e agilidade de vendas.",
+                        "suggested_topic": "Do briefing ao lançamento em 48h: como a automação de mídia transforma o marketing B2B"
+                    }
+                ]
+
             for t in parsed_trends:
                 title = t.get("title", "").strip()
                 if not title:
@@ -954,7 +1000,7 @@ Responda APENAS com JSON no seguinte formato:
                     db.add(trend_obj)
             db.commit()
 
-            # 4. Retorna matérias não usadas
+            # 4. Retorna matérias não usadas gravadas no banco
             active_items = db.query(WebTrendItem).filter(WebTrendItem.used == False).order_by(WebTrendItem.created_at.desc()).limit(12).all()
             if active_items:
                 return {
@@ -976,65 +1022,7 @@ Responda APENAS com JSON no seguinte formato:
         finally:
             db.close()
 
-        # Fallback de segurança se falhar completamente a busca na web
-        return {
-            "trends": [
-                {
-                    "id": 1,
-                    "title": "Edge AI na Conformidade NR-12: Processamento Local sem Depender da Nuvem",
-                    "category": "EDGE AI & SEGURANÇA",
-                    "summary": "Fábricas estão implantando análise local de câmeras para interrupção instantânea de máquinas ao detectar invasão de área de risco.",
-                    "impact_b2b": "Zeragem de passivos trabalhistas e interrupção imediata de acidentes graves em tempo real.",
-                    "suggested_topic": "Como a Visão Computacional na Borda (Edge AI) está revolucionando a segurança industrial e a NR-12",
-                    "used": False
-                },
-                {
-                    "id": 2,
-                    "title": "Visão Agro-Industrial: Monitoramento Preditivo em Lavouras de Larga Escala",
-                    "category": "VISÃO AGRO",
-                    "summary": "Algoritmos de visão computacional em drones e câmeras de campo identificam pragas 14 dias antes da perda de safra.",
-                    "impact_b2b": "Aumento médio de +15% na produtividade e redução de 30% no uso de defensivos agrícolas.",
-                    "suggested_topic": "Inteligência Artificial no campo: identificando pragas e falhas de plantio antes que afetem o resultado da safra",
-                    "used": False
-                },
-                {
-                    "id": 3,
-                    "title": "Meta Quest 3 no Treinamento Corporativo de Alto Risco",
-                    "category": "REALIDADE MISTA & EDTECH",
-                    "summary": "Simuladores imersivos em VR multi-usuário elevam a retenção de aprendizado de 20% para 80% em treinamentos técnicos complexos.",
-                    "impact_b2b": "Redução drástica do custo de logística presencial e eliminação de acidentes em ambiente simulação.",
-                    "suggested_topic": "Por que grandes corporações estão adotando treinamentos em Realidade Mista (VR) para equipes de operação",
-                    "used": False
-                },
-                {
-                    "id": 4,
-                    "title": "SAC Multimodal com Memória de Contexto e Voz Humana",
-                    "category": "ATENDIMENTO MULTIMODAL",
-                    "summary": "Assistentes de voz inteligentes que analisam áudio, imagem e histórico do cliente em tempo real elevam a precisão a 95%.",
-                    "impact_b2b": "Redução drástica do tempo médio de atendimento (TMA) e retenção imediata de clientes B2B.",
-                    "suggested_topic": "O fim das URAs tradicionais: como a IA Multimodal de voz transforma a experiência do cliente corporativo",
-                    "used": False
-                },
-                {
-                    "id": 5,
-                    "title": "Governança C-Level & Radar Automático de Concorrência",
-                    "category": "GOVERNANÇA CORPORATIVA",
-                    "summary": "Painéis executivos movidos a IA varrem movimentos de mercado e relatórios estratégicos de concorrentes continuamente.",
-                    "impact_b2b": "Tomada de decisão estratégica baseada em dados frescos em vez de relatórios trimestrais desatualizados.",
-                    "suggested_topic": "Governança Inteligente: como VPs e C-Levels usam inteligência artificial para antecipar movimentos de mercado",
-                    "used": False
-                },
-                {
-                    "id": 6,
-                    "title": "Automação de Conteúdo Corporativo: Ciclo de Criação de 3 Semanas para 2 Dias",
-                    "category": "GERAÇÃO DE CONTEÚDO",
-                    "summary": "Corporações estão usando motores generativos para acelerar a criação de apresentações comerciais e mídia institucional.",
-                    "impact_b2b": "Gargalo de comunicação resolvido com retenção rigorosa da identidade de marca e agilidade de vendas.",
-                    "suggested_topic": "Do briefing ao lançamento em 48h: como a automação de mídia transforma o marketing B2B",
-                    "used": False
-                }
-            ]
-        }
+        return {"trends": []}
 
     def mark_trend_used(self, trend_id: int = None, topic: str = None) -> bool:
         """Marca uma tendência como usada (used = True) no banco de dados SQLite para ocultá-la de futuras listagens."""
@@ -1044,9 +1032,12 @@ Responda APENAS com JSON no seguinte formato:
             item = None
             if trend_id:
                 item = db.query(WebTrendItem).filter(WebTrendItem.id == trend_id).first()
-            elif topic:
-                snippet = topic[:30].strip()
-                item = db.query(WebTrendItem).filter((WebTrendItem.suggested_topic.ilike(f"%{snippet}%")) | (WebTrendItem.title.ilike(f"%{snippet}%"))).first()
+            if not item and topic:
+                snippet = topic.strip()[:20]
+                item = db.query(WebTrendItem).filter(
+                    (WebTrendItem.suggested_topic.ilike(f"%{snippet}%")) | 
+                    (WebTrendItem.title.ilike(f"%{snippet}%"))
+                ).first()
                 
             if item:
                 item.used = True
