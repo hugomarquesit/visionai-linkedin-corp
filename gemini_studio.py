@@ -7,8 +7,8 @@ from google import genai
 from google.genai import types
 from database import SessionLocal, ScrapedKnowledge
 
-TEXT_MODEL = "gemini-2.5-flash"
-IMAGE_MODEL = "imagen-3.0-generate-002"
+TEXT_MODEL = "models/gemini-flash-latest"
+IMAGE_MODEL = "models/gemini-flash-latest"
 
 ORG_CONTEXT = """
 Empresa: VisionAI — Enxergando o Futuro com Inteligência
@@ -41,7 +41,7 @@ class GeminiStudio:
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
         self.client = genai.Client(api_key=api_key)
         self.model = TEXT_MODEL
-        self.fallback_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"]
+        self.fallback_models = ["models/gemini-flash-latest", "models/gemini-pro-latest"]
         self.scraped_context = self._scrape_visionai_website()
 
     def _scrape_visionai_website(self) -> str:
