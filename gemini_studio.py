@@ -907,14 +907,14 @@ Retorne APENAS uma lista JSON de strings. Ex: ["#IA", "#TransformacaoDigital"]
         db = SessionLocal()
 
         try:
-            # 1. Se não for varredura forçada e houver pelo menos 6 itens não usados no banco, retorna uma amostragem ALEATÓRIA
+            # 1. Se não for varredura forçada e houver pelo menos 15 itens não usados no banco, retorna uma amostragem ALEATÓRIA
             if not force_refresh:
                 q = db.query(WebTrendItem).filter(WebTrendItem.used == False)
                 if query:
                     q = q.filter(WebTrendItem.title.ilike(f"%{query}%") | WebTrendItem.summary.ilike(f"%{query}%") | WebTrendItem.category.ilike(f"%{query}%"))
                 
                 cached_items = q.order_by(func.random()).limit(12).all()
-                if len(cached_items) >= 6:
+                if len(cached_items) >= 15:
                     return {
                         "trends": [
                             {
