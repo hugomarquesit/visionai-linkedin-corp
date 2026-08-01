@@ -642,6 +642,10 @@ Responda APENAS com JSON:
             "tecnico": "Tom analítico e arquitetural — cite processamento na borda (Edge AI), latência, segurança sem nuvem e ROI mensurável",
             "inspirador": "Tom focado em transformação de negócios e impacto real na sociedade e nas operações humanas",
             "educativo": "Tom consultivo de alta liderança, educando o mercado sobre os benefícios reais da inteligência artificial aplicada",
+            "provocativo": "Tom provocativo C-Level — desafie dogmas tradicionais da indústria e questione a inércia corporativa com urgência",
+            "direto": "Tom direto, objetivo e pragmático — direto ao ponto, sem rodeios, focado em ação e resultados imediatos",
+            "storytelling": "Tom narrativo de liderança — conte uma jornada corporativa real, lições aprendidas e conquistas de campo",
+            "persuasivo": "Tom publicitário e altamente persuasivo — focado em conversão B2B de alto valor, destacando diferenciais únicos da VisionAI"
         }
 
         voice_instruction = (

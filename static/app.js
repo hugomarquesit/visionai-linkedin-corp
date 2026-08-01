@@ -1007,46 +1007,55 @@ async function generatePost() {
 
   if ($('gen-empty-state')) {
     $('gen-empty-state').classList.remove('hidden');
-    $('gen-empty-state').innerHTML = '<div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini 3.5 está criando o seu texto corporativo e peça visual. Por favor, aguarde...</p>';
+    $('gen-empty-state').innerHTML = '<div class="empty-icon" style="animation:spin 1s linear infinite">✦</div><p>Gemini está criando o seu texto corporativo e peça visual. Por favor, aguarde...</p>';
   }
 
-  const { ok, data } = await apiFetch('/api/gemini/generate-post', {
-    method: 'POST',
-    body: JSON.stringify({ topic, format_type: format, tone, media_type: currentMediaMode, voice_mode: voice }),
-  });
+  try {
+    const { ok, data } = await apiFetch('/api/gemini/generate-post', {
+      method: 'POST',
+      body: JSON.stringify({ topic, format_type: format, tone, media_type: currentMediaMode, voice_mode: voice }),
+    });
 
-  setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post & Criativo Visual');
+    setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post & Criativo Visual');
 
-  if (ok && data.content) {
-    if ($('gen-empty-state')) $('gen-empty-state').classList.add('hidden');
-    if ($('gen-output-content')) $('gen-output-content').classList.remove('hidden');
-    
-    // Inject Text
-    if ($('gen-text-content')) $('gen-text-content').textContent = data.content;
-    const editableText = $('gen-editable-text');
-    if (editableText) {
-      editableText.value = data.content;
-      editableText.oninput = () => {
-        if ($('gen-text-content')) $('gen-text-content').textContent = editableText.value;
-        if ($('gen-chars')) $('gen-chars').textContent = `${editableText.value.length} caracteres`;
-      };
-      if ($('live-editor-box')) $('live-editor-box').classList.remove('hidden');
+    if (ok && data && data.content) {
+      if ($('gen-empty-state')) $('gen-empty-state').classList.add('hidden');
+      if ($('gen-output-content')) $('gen-output-content').classList.remove('hidden');
+      
+      // Inject Text
+      if ($('gen-text-content')) $('gen-text-content').textContent = data.content;
+      const editableText = $('gen-editable-text');
+      if (editableText) {
+        editableText.value = data.content;
+        editableText.oninput = () => {
+          if ($('gen-text-content')) $('gen-text-content').textContent = editableText.value;
+          if ($('gen-chars')) $('gen-chars').textContent = `${editableText.value.length} caracteres`;
+        };
+        if ($('live-editor-box')) $('live-editor-box').classList.remove('hidden');
+      }
+      
+      // Inject Image or Video
+      updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || currentMediaMode);
+      
+      if ($('gen-chars')) $('gen-chars').textContent = `${data.char_count || data.content.length} caracteres`;
+      if ($('gen-meta')) $('gen-meta').classList.remove('hidden');
+      if ($('gen-actions')) $('gen-actions').classList.remove('hidden');
+      showToast('Criativo gerado com sucesso!', 'success');
+      if (typeof loadDrafts === 'function') loadDrafts();
+    } else {
+      if ($('gen-empty-state')) {
+        $('gen-empty-state').classList.remove('hidden');
+        $('gen-empty-state').innerHTML = `<div class="empty-icon">⚠️</div><p>Erro ao gerar post: ${data && data.detail ? escapeHtml(data.detail) : 'Ocorreu uma falha no modelo Gemini. Tente novamente.'}</p>`;
+      }
+      showToast('Erro ao gerar post', 'error');
     }
-    
-    // Inject Image or Video
-    updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || currentMediaMode);
-    
-    if ($('gen-chars')) $('gen-chars').textContent = `${data.char_count || data.content.length} caracteres`;
-    if ($('gen-meta')) $('gen-meta').classList.remove('hidden');
-    if ($('gen-actions')) $('gen-actions').classList.remove('hidden');
-    showToast('Criativo gerado com sucesso!', 'success');
-    if (typeof loadDrafts === 'function') loadDrafts();
-  } else {
+  } catch (err) {
+    setLoading('gen-btn-text', 'gen-spinner', false, '✦ Gerar Post & Criativo Visual');
     if ($('gen-empty-state')) {
       $('gen-empty-state').classList.remove('hidden');
-      $('gen-empty-state').innerHTML = '<div class="empty-icon">⚠️</div><p>Erro ao gerar post. Tente novamente.</p>';
+      $('gen-empty-state').innerHTML = `<div class="empty-icon">⚠️</div><p>Erro de conexão ao gerar post: ${escapeHtml(err.message || 'Falha de rede')}. Tente novamente.</p>`;
     }
-    showToast('Erro ao gerar post', 'error');
+    showToast('Erro de conexão ao gerar post', 'error');
   }
 }
 
