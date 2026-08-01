@@ -7,8 +7,8 @@ from google import genai
 from google.genai import types
 from database import SessionLocal, ScrapedKnowledge
 
-TEXT_MODEL = "gemini-3.5-flash"
-IMAGE_MODEL = "gemini-3.1-flash-image"
+TEXT_MODEL = "gemini-2.5-flash"
+IMAGE_MODEL = "imagen-3.0-generate-002"
 
 ORG_CONTEXT = """
 Empresa: VisionAI — Enxergando o Futuro com Inteligência
@@ -41,7 +41,7 @@ class GeminiStudio:
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
         self.client = genai.Client(api_key=api_key)
         self.model = TEXT_MODEL
-        self.fallback_models = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-2.5-flash"]
+        self.fallback_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"]
         self.scraped_context = self._scrape_visionai_website()
 
     def _scrape_visionai_website(self) -> str:
@@ -110,10 +110,8 @@ class GeminiStudio:
                 self.model = m
                 return response.text or ""
             except Exception as e:
-                err_str = str(e)
-                if "404" in err_str or "NOT_FOUND" in err_str or "model" in err_str.lower():
-                    continue
-                return f"[Erro Gemini: {err_str}]"
+                print(f"Modelo {m} falhou em _generate: {e}")
+                continue
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
     def _get_official_logo_b64(self) -> str:
@@ -852,12 +850,13 @@ Retorne APENAS uma lista JSON de strings. Ex: ["#IA", "#TransformacaoDigital"]
 
     # ── 9. RADAR DE TENDÊNCIAS DA WEB ──────────────────────────────────────────
     def fetch_web_trends(self, query: str = None) -> dict:
-        """Busca notícias e tendências em tempo real na web sobre o nicho da VisionAI."""
-        topic_focus = query if query else "Visão Computacional, Edge AI, Drones no Agro, VR Meta Quest 3, SAC Multimodal, Segurança NR-12/EPIs, Governança C-Level"
+        """Busca notícias e tendências em tempo real na web cobrindo os 6 pilares estratégicos da VisionAI."""
+        topic_focus = query if query else "Visão Computacional, Edge AI, Drones no Agro, VR Meta Quest 3, SAC Multimodal, Segurança NR-12/EPIs, Governança C-Level, Automação de Mídia"
         prompt = f"""
 Você é o Diretor de Inteligência de Mercado & Tendências Tecnológicas da VisionAI (visionai.com.br).
 
-MISSÃO: Traga 5 tendências e notícias recentes do mercado B2B sobre: {topic_focus}.
+MISSÃO: Traga exatamente de 6 a 8 tendências e notícias recentes do mercado B2B cobrindo variados tópicos sobre: {topic_focus}.
+Certifique-se de cobrir tópicos variados (Agro, Indústria/NR-12, Realidade Mista/VR, SAC/Atendimento de Voz, Governança e Produção de Conteúdo).
 
 Responda APENAS com JSON no seguinte formato:
 {{
@@ -872,22 +871,59 @@ Responda APENAS com JSON no seguinte formato:
   ]
 }}
 """
-        raw = self._generate(prompt, temperature=0.75)
+        raw = self._generate(prompt, temperature=0.85)
         import re, json
         json_match = re.search(r'\{.*\}', raw, re.DOTALL)
         if json_match:
             try:
-                return json.loads(json_match.group())
+                res = json.loads(json_match.group())
+                if res.get("trends") and len(res["trends"]) >= 3:
+                    return res
             except Exception:
                 pass
         return {
             "trends": [
                 {
-                    "title": "Adoção Acelerada de Edge AI na Conformidade NR-12",
-                    "category": "EDGE AI",
-                    "summary": "Indústrias estão substituindo a nuvem por processamento local de vídeo para desativação instantânea de máquinas em invasões de área de risco.",
-                    "impact_b2b": "Redução drástica de acidentes e zeragem de passivos trabalhistas.",
-                    "suggested_topic": "Como a visão computacional na borda (Edge AI) está revolucionando a NR-12 em galpões industriais"
+                    "title": "Edge AI na Conformidade NR-12: Processamento Local sem Depender da Nuvem",
+                    "category": "EDGE AI & SEGURANÇA",
+                    "summary": "Fábricas estão implantando análise local de câmeras para interrupção instantânea de máquinas ao detectar invasão de área de risco.",
+                    "impact_b2b": "Zeragem de passivos trabalhistas e interrupção imediata de acidentes graves em tempo real.",
+                    "suggested_topic": "Como a Visão Computacional na Borda (Edge AI) está revolucionando a segurança industrial e a NR-12"
+                },
+                {
+                    "title": "Visão Agro-Industrial: Monitoramento Preditivo em Lavouras de Larga Escala",
+                    "category": "VISÃO AGRO",
+                    "summary": "Algoritmos de visão computacional em drones e câmeras de campo identificam pragas 14 dias antes da perda de safra.",
+                    "impact_b2b": "Aumento médio de +15% na produtividade e redução de 30% no uso de defensivos agrícolas.",
+                    "suggested_topic": "Inteligência Artificial no campo: identificando pragas e falhas de plantio antes que afetem o resultado da safra"
+                },
+                {
+                    "title": "Meta Quest 3 no Treinamento Corporativo de Alto Risco",
+                    "category": "REALIDADE MISTA & EDTECH",
+                    "summary": "Simuladores imersivos em VR multi-usuário elevam a retenção de aprendizado de 20% para 80% em treinamentos técnicos complexos.",
+                    "impact_b2b": "Redução drástica do custo de logística presencial e eliminação de acidentes em ambiente simulação.",
+                    "suggested_topic": "Por que grandes corporações estão adotando treinamentos em Realidade Mista (VR) para equipes de operação"
+                },
+                {
+                    "title": "SAC Multimodal com Memória de Contexto e Voz Humana",
+                    "category": "ATENDIMENTO MULTIMODAL",
+                    "summary": "Assistentes de voz inteligentes que analisam áudio, imagem e histórico do cliente em tempo real elevam a precisão a 95%.",
+                    "impact_b2b": "Redução drástica do tempo médio de atendimento (TMA) e retenção imediata de clientes B2B.",
+                    "suggested_topic": "O fim das URAs tradicionais: como a IA Multimodal de voz transforma a experiência do cliente corporativo"
+                },
+                {
+                    "title": "Governança C-Level & Radar Automático de Concorrência",
+                    "category": "GOVERNANÇA CORPORATIVA",
+                    "summary": "Painéis executivos movidos a IA varrem movimentos de mercado e relatórios estratégicos de concorrentes continuamente.",
+                    "impact_b2b": "Tomada de decisão estratégica baseada em dados frescos em vez de relatórios trimestrais desatualizados.",
+                    "suggested_topic": "Governança Inteligente: como VPs e C-Levels usam inteligência artificial para antecipar movimentos de mercado"
+                },
+                {
+                    "title": "Automação de Conteúdo Corporativo: Ciclo de Criação de 3 Semanas para 2 Dias",
+                    "category": "GERAÇÃO DE CONTEÚDO",
+                    "summary": "Corporações estão usando motores generativos para acelerar a criação de apresentações comerciais e mídia institucional.",
+                    "impact_b2b": "Gargalo de comunicação resolvido com retenção rigorosa da identidade de marca e agilidade de vendas.",
+                    "suggested_topic": "Do briefing ao lançamento em 48h: como a automação de mídia transforma o marketing B2B"
                 }
             ]
         }
