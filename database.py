@@ -64,6 +64,19 @@ class ScheduledPost(Base):
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class WebTrendItem(Base):
+    __tablename__ = "web_trend_items"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)
+    category = Column(String)
+    summary = Column(Text)
+    impact_b2b = Column(Text)
+    suggested_topic = Column(String)
+    source_url = Column(String, nullable=True)
+    used = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)

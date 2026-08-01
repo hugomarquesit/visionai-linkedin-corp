@@ -80,19 +80,22 @@ async function apiFetch(path, opts = {}) {
 let cachedWebTrends = [];
 let cachedExtractedPosts = [];
 
-async function loadWebTrends(query = '') {
+async function loadWebTrends(query = '', forceRefresh = false) {
   const container = $('web-trends-panel-container') || $('web-trends-container');
   const btn = $('btn-fetch-web-trends-panel') || $('btn-fetch-web-trends');
   if (!container) return;
 
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '⏳ Escaneando Web...';
+    btn.innerHTML = '⏳ Escaneando a Web em Tempo Real...';
   }
-  container.innerHTML = '<div class="empty-state"><p class="chip-loading">O Gemini 3.5 está varrendo as últimas notícias e artigos da internet...</p></div>';
+  container.innerHTML = '<div class="empty-state"><p class="chip-loading">✦ Gemini está varrendo a internet em busca de notícias B2B recentes com Google Search Grounding...</p></div>';
 
   try {
-    const url = query ? `/api/gemini/web-trends?query=${encodeURIComponent(query)}` : '/api/gemini/web-trends';
+    let url = '/api/gemini/web-trends?';
+    if (query) url += `query=${encodeURIComponent(query)}&`;
+    if (forceRefresh) url += `refresh=true&`;
+
     const { ok, data } = await apiFetch(url);
     if (btn) {
       btn.disabled = false;
@@ -102,7 +105,7 @@ async function loadWebTrends(query = '') {
     if (ok && data.trends && Array.isArray(data.trends)) {
       cachedWebTrends = data.trends;
       container.innerHTML = data.trends.map((t, idx) => `
-        <div class="card" style="border-left:4px solid #9EFF00; background: rgba(15, 23, 42, 0.85);">
+        <div class="card" id="trend-card-${idx}" style="border-left:4px solid #9EFF00; background: rgba(15, 23, 42, 0.85);">
           <div class="draft-header mb-2" style="display:flex; justify-content:space-between; align-items:center;">
             <span class="chip-badge" style="background:rgba(158,255,0,0.15); color:#9EFF00; padding:4px 10px; border-radius:12px; font-weight:700;">📡 ${escapeHtml(t.category || 'TENDÊNCIA')}</span>
             <button class="btn btn-primary btn-sm" onclick="generatePostFromTrend(${idx})">⚡ Gerar Post</button>
@@ -112,7 +115,7 @@ async function loadWebTrends(query = '') {
           <div style="font-size:12px; color:#9EFF00; font-weight:600;">💡 Impacto B2B: ${escapeHtml(t.impact_b2b || '')}</div>
         </div>
       `).join('');
-      showToast('Tendências da web carregadas!', 'success');
+      showToast(`${data.trends.length} notícias em tempo real carregadas!`, 'success');
     } else {
       container.innerHTML = '<div class="empty-state"><p>Nenhuma tendência encontrada. Tente novamente.</p></div>';
     }
@@ -125,9 +128,18 @@ async function loadWebTrends(query = '') {
   }
 }
 
-function generatePostFromTrend(idx) {
+async function generatePostFromTrend(idx) {
   const item = cachedWebTrends[idx];
   if (!item) return;
+
+  // Marca no banco SQLite como usado para não repetir
+  apiFetch('/api/gemini/web-trends/mark-used', {
+    method: 'POST',
+    body: JSON.stringify({ trend_id: item.id, topic: item.suggested_topic || item.title })
+  });
+
+  const card = $(`trend-card-${idx}`);
+  if (card) card.style.opacity = '0.4';
 
   switchStudio('generate');
   const topicInput = $('gen-topic');

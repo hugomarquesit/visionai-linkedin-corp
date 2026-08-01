@@ -114,6 +114,29 @@ class GeminiStudio:
                 continue
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
+    def _generate_with_search(self, prompt: str, temperature: float = 0.8) -> str:
+        """Gera conteúdo ativando Google Search Grounding para obter informações dinâmicas e atualizadas da internet."""
+        for m in self.fallback_models:
+            try:
+                response = self.client.models.generate_content(
+                    model=m,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=temperature,
+                        max_output_tokens=2048,
+                        tools=[{"google_search": {}}]
+                    ),
+                )
+                self.model = m
+                return response.text or ""
+            except Exception as e:
+                print(f"Geração com busca no modelo {m} falhou: {e}. Tentando sem grounding...")
+                try:
+                    return self._generate(prompt, temperature=temperature)
+                except Exception:
+                    continue
+        return self._generate(prompt, temperature=temperature)
+
     def _get_official_logo_b64(self) -> str:
         """Carrega e redimensiona a logomarca oficial do site visionai.com.br."""
         import os, io, base64
@@ -848,85 +871,193 @@ Retorne APENAS uma lista JSON de strings. Ex: ["#IA", "#TransformacaoDigital"]
             pass
         return []
 
-    # ── 9. RADAR DE TENDÊNCIAS DA WEB ──────────────────────────────────────────
-    def fetch_web_trends(self, query: str = None) -> dict:
-        """Busca notícias e tendências em tempo real na web cobrindo os 6 pilares estratégicos da VisionAI."""
-        topic_focus = query if query else "Visão Computacional, Edge AI, Drones no Agro, VR Meta Quest 3, SAC Multimodal, Segurança NR-12/EPIs, Governança C-Level, Automação de Mídia"
-        prompt = f"""
+    # ── 9. RADAR DE TENDÊNCIAS DA WEB (DINÂMICO + PERSISTÊNCIA EM DB + EXCLUSÃO DE USADOS) ───────
+    def fetch_web_trends(self, query: str = None, force_refresh: bool = False) -> dict:
+        """Busca notícias e tendências em tempo real na web cobrindo os 6 pilares estratégicos da VisionAI.
+           Salva no banco SQLite e oculta automaticamente matérias já marcadas como usadas (used = True).
+        """
+        from database import init_db, SessionLocal, WebTrendItem
+        init_db()
+        db = SessionLocal()
+
+        try:
+            # 1. Se não for varredura nova forçada, tenta servir do banco de dados itens ativos (used = False)
+            if not force_refresh:
+                q = db.query(WebTrendItem).filter(WebTrendItem.used == False)
+                if query:
+                    q = q.filter(WebTrendItem.title.ilike(f"%{query}%") | WebTrendItem.summary.ilike(f"%{query}%"))
+                
+                cached_items = q.order_by(WebTrendItem.created_at.desc()).limit(12).all()
+                if len(cached_items) >= 4:
+                    return {
+                        "trends": [
+                            {
+                                "id": item.id,
+                                "title": item.title,
+                                "category": item.category,
+                                "summary": item.summary,
+                                "impact_b2b": item.impact_b2b,
+                                "suggested_topic": item.suggested_topic,
+                                "used": item.used
+                            }
+                            for item in cached_items
+                        ]
+                    }
+
+            # 2. Varredura dinâmica em tempo real na internet via Gemini + Google Search Grounding
+            topic_focus = query if query else "Visão Computacional, Edge AI, Drones no Agro, VR Meta Quest 3, SAC Multimodal, Segurança NR-12/EPIs, Governança C-Level, Automação de Mídia"
+            prompt = f"""
 Você é o Diretor de Inteligência de Mercado & Tendências Tecnológicas da VisionAI (visionai.com.br).
 
-MISSÃO: Traga exatamente de 6 a 8 tendências e notícias recentes do mercado B2B cobrindo variados tópicos sobre: {topic_focus}.
+SUA MISSÃO: Realize uma busca em tempo real na internet e traga exatamente de 6 a 8 tendências e notícias B2B recentes e reais sobre: {topic_focus}.
 Certifique-se de cobrir tópicos variados (Agro, Indústria/NR-12, Realidade Mista/VR, SAC/Atendimento de Voz, Governança e Produção de Conteúdo).
 
 Responda APENAS com JSON no seguinte formato:
 {{
   "trends": [
     {{
-      "title": "Título impactante da notícia ou tendência",
+      "title": "Título impactante e específico da notícia/tendência",
       "category": "VISÃO AGRO | REALIDADE MISTA | EDGE AI | GOVERNANÇA | SAC MULTIMODAL | SEGURANÇA",
-      "summary": "Resumo executivo da novidade em 2 frases",
-      "impact_b2b": "Por que isso importa para diretores e VPs de operações",
-      "suggested_topic": "Tema formatado pronto para gerar post no LinkedIn"
+      "summary": "Resumo executivo de 2 frases trazendo dados concretos e novidades reais da internet",
+      "impact_b2b": "Por que isso importa para diretores e VPs de operações B2B",
+      "suggested_topic": "Tema formatado pronto para gerar post estratégico no LinkedIn"
     }}
   ]
 }}
 """
-        raw = self._generate(prompt, temperature=0.85)
-        import re, json
-        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
-        if json_match:
-            try:
-                res = json.loads(json_match.group())
-                if res.get("trends") and len(res["trends"]) >= 3:
-                    return res
-            except Exception:
-                pass
+            raw = self._generate_with_search(prompt, temperature=0.85)
+            import re, json
+            json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+            parsed_trends = []
+            if json_match:
+                try:
+                    res = json.loads(json_match.group())
+                    parsed_trends = res.get("trends", [])
+                except Exception as e:
+                    print(f"Erro no parse de JSON do radar: {e}")
+
+            # 3. Grava no banco de dados SQLite (evitando duplicatas pelo título)
+            for t in parsed_trends:
+                title = t.get("title", "").strip()
+                if not title:
+                    continue
+                exists = db.query(WebTrendItem).filter(WebTrendItem.title == title).first()
+                if not exists:
+                    trend_obj = WebTrendItem(
+                        title=title,
+                        category=t.get("category", "INOVAÇÃO B2B"),
+                        summary=t.get("summary", ""),
+                        impact_b2b=t.get("impact_b2b", ""),
+                        suggested_topic=t.get("suggested_topic", title),
+                        used=False
+                    )
+                    db.add(trend_obj)
+            db.commit()
+
+            # 4. Retorna matérias não usadas
+            active_items = db.query(WebTrendItem).filter(WebTrendItem.used == False).order_by(WebTrendItem.created_at.desc()).limit(12).all()
+            if active_items:
+                return {
+                    "trends": [
+                        {
+                            "id": item.id,
+                            "title": item.title,
+                            "category": item.category,
+                            "summary": item.summary,
+                            "impact_b2b": item.impact_b2b,
+                            "suggested_topic": item.suggested_topic,
+                            "used": item.used
+                        }
+                        for item in active_items
+                    ]
+                }
+        except Exception as e:
+            print(f"Erro em fetch_web_trends: {e}")
+        finally:
+            db.close()
+
+        # Fallback de segurança se falhar completamente a busca na web
         return {
             "trends": [
                 {
+                    "id": 1,
                     "title": "Edge AI na Conformidade NR-12: Processamento Local sem Depender da Nuvem",
                     "category": "EDGE AI & SEGURANÇA",
                     "summary": "Fábricas estão implantando análise local de câmeras para interrupção instantânea de máquinas ao detectar invasão de área de risco.",
                     "impact_b2b": "Zeragem de passivos trabalhistas e interrupção imediata de acidentes graves em tempo real.",
-                    "suggested_topic": "Como a Visão Computacional na Borda (Edge AI) está revolucionando a segurança industrial e a NR-12"
+                    "suggested_topic": "Como a Visão Computacional na Borda (Edge AI) está revolucionando a segurança industrial e a NR-12",
+                    "used": False
                 },
                 {
+                    "id": 2,
                     "title": "Visão Agro-Industrial: Monitoramento Preditivo em Lavouras de Larga Escala",
                     "category": "VISÃO AGRO",
                     "summary": "Algoritmos de visão computacional em drones e câmeras de campo identificam pragas 14 dias antes da perda de safra.",
                     "impact_b2b": "Aumento médio de +15% na produtividade e redução de 30% no uso de defensivos agrícolas.",
-                    "suggested_topic": "Inteligência Artificial no campo: identificando pragas e falhas de plantio antes que afetem o resultado da safra"
+                    "suggested_topic": "Inteligência Artificial no campo: identificando pragas e falhas de plantio antes que afetem o resultado da safra",
+                    "used": False
                 },
                 {
+                    "id": 3,
                     "title": "Meta Quest 3 no Treinamento Corporativo de Alto Risco",
                     "category": "REALIDADE MISTA & EDTECH",
                     "summary": "Simuladores imersivos em VR multi-usuário elevam a retenção de aprendizado de 20% para 80% em treinamentos técnicos complexos.",
                     "impact_b2b": "Redução drástica do custo de logística presencial e eliminação de acidentes em ambiente simulação.",
-                    "suggested_topic": "Por que grandes corporações estão adotando treinamentos em Realidade Mista (VR) para equipes de operação"
+                    "suggested_topic": "Por que grandes corporações estão adotando treinamentos em Realidade Mista (VR) para equipes de operação",
+                    "used": False
                 },
                 {
+                    "id": 4,
                     "title": "SAC Multimodal com Memória de Contexto e Voz Humana",
                     "category": "ATENDIMENTO MULTIMODAL",
                     "summary": "Assistentes de voz inteligentes que analisam áudio, imagem e histórico do cliente em tempo real elevam a precisão a 95%.",
                     "impact_b2b": "Redução drástica do tempo médio de atendimento (TMA) e retenção imediata de clientes B2B.",
-                    "suggested_topic": "O fim das URAs tradicionais: como a IA Multimodal de voz transforma a experiência do cliente corporativo"
+                    "suggested_topic": "O fim das URAs tradicionais: como a IA Multimodal de voz transforma a experiência do cliente corporativo",
+                    "used": False
                 },
                 {
+                    "id": 5,
                     "title": "Governança C-Level & Radar Automático de Concorrência",
                     "category": "GOVERNANÇA CORPORATIVA",
                     "summary": "Painéis executivos movidos a IA varrem movimentos de mercado e relatórios estratégicos de concorrentes continuamente.",
                     "impact_b2b": "Tomada de decisão estratégica baseada em dados frescos em vez de relatórios trimestrais desatualizados.",
-                    "suggested_topic": "Governança Inteligente: como VPs e C-Levels usam inteligência artificial para antecipar movimentos de mercado"
+                    "suggested_topic": "Governança Inteligente: como VPs e C-Levels usam inteligência artificial para antecipar movimentos de mercado",
+                    "used": False
                 },
                 {
+                    "id": 6,
                     "title": "Automação de Conteúdo Corporativo: Ciclo de Criação de 3 Semanas para 2 Dias",
                     "category": "GERAÇÃO DE CONTEÚDO",
                     "summary": "Corporações estão usando motores generativos para acelerar a criação de apresentações comerciais e mídia institucional.",
                     "impact_b2b": "Gargalo de comunicação resolvido com retenção rigorosa da identidade de marca e agilidade de vendas.",
-                    "suggested_topic": "Do briefing ao lançamento em 48h: como a automação de mídia transforma o marketing B2B"
+                    "suggested_topic": "Do briefing ao lançamento em 48h: como a automação de mídia transforma o marketing B2B",
+                    "used": False
                 }
             ]
         }
+
+    def mark_trend_used(self, trend_id: int = None, topic: str = None) -> bool:
+        """Marca uma tendência como usada (used = True) no banco de dados SQLite para ocultá-la de futuras listagens."""
+        from database import SessionLocal, WebTrendItem
+        db = SessionLocal()
+        try:
+            item = None
+            if trend_id:
+                item = db.query(WebTrendItem).filter(WebTrendItem.id == trend_id).first()
+            elif topic:
+                snippet = topic[:30].strip()
+                item = db.query(WebTrendItem).filter((WebTrendItem.suggested_topic.ilike(f"%{snippet}%")) | (WebTrendItem.title.ilike(f"%{snippet}%"))).first()
+                
+            if item:
+                item.used = True
+                db.commit()
+                print(f"Tendência ID {item.id} ('{item.title}') marcada como USADA (used=True).")
+                return True
+        except Exception as e:
+            print(f"Erro ao marcar tendência como usada: {e}")
+        finally:
+            db.close()
+        return False
 
     # ── 10. GERADOR DE CARROSSÉIS PDF PARA LINKEDIN ─────────────────────────────
     def generate_carousel_pdf(self, topic: str, slide_count: int = 5) -> dict:

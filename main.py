@@ -122,6 +122,10 @@ class AnalyzeSinglePostPayload(BaseModel):
     content: str
     metrics: Optional[dict] = None
 
+class MarkTrendUsedPayload(BaseModel):
+    trend_id: Optional[int] = None
+    topic: Optional[str] = None
+
 # ── Auth routes ─────────────────────────────────────────────────────────────
 @app.post("/api/auth/login")
 async def login(payload: LoginPayload, request: Request):
@@ -383,6 +387,9 @@ async def gemini_generate_post(payload: GeneratePostPayload, _: bool = Depends(r
         db.add(draft)
         db.commit()
         result["draft_id"] = draft.id
+        
+        # Marca a tendência correspondente como usada no banco de dados SQLite
+        ai.mark_trend_used(topic=payload.topic)
     except Exception as e:
         print("Erro ao salvar post no banco:", e)
     finally:
@@ -485,10 +492,16 @@ threading.Thread(target=scheduled_posts_worker, daemon=True).start()
 
 # ── Gemini — Web Trends, Carousel & Document Parsing ────────────────────────
 @app.get("/api/gemini/web-trends")
-async def gemini_web_trends(query: Optional[str] = None, _: bool = Depends(require_auth)):
-    """Retorna tendências e notícias em tempo real sobre o setor VisionAI."""
-    trends = ai.fetch_web_trends(query)
+async def gemini_web_trends(query: Optional[str] = None, refresh: bool = False, _: bool = Depends(require_auth)):
+    """Retorna tendências e notícias em tempo real sobre o setor VisionAI (salvas no banco SQLite)."""
+    trends = ai.fetch_web_trends(query, force_refresh=refresh)
     return {"ok": True, **trends, "model": ai.model}
+
+@app.post("/api/gemini/web-trends/mark-used")
+async def gemini_mark_trend_used(payload: MarkTrendUsedPayload, _: bool = Depends(require_auth)):
+    """Marca uma tendência como usada no banco SQLite para ocultá-la das listagens."""
+    marked = ai.mark_trend_used(payload.trend_id, payload.topic)
+    return {"ok": True, "marked": marked}
 
 @app.post("/api/gemini/generate-carousel")
 async def gemini_generate_carousel(payload: GenerateCarouselPayload, _: bool = Depends(require_auth)):
