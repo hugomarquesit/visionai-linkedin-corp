@@ -894,6 +894,44 @@ Retorne APENAS uma lista JSON de strings. Ex: ["#IA", "#TransformacaoDigital"]
             pass
         return []
 
+    def _parse_trends_json(self, raw_text: str) -> list:
+        """Extrai objetos de tendência de forma resiliente mesmo com falhas de sintaxe JSON do LLM."""
+        if not raw_text:
+            return []
+            
+        clean = raw_text.replace("```json", "").replace("```", "").strip()
+        
+        # Tentativa 1: json.loads com strict=False
+        start = clean.find("{")
+        end = clean.rfind("}") + 1
+        if start != -1 and end > start:
+            try:
+                res = json.loads(clean[start:end], strict=False)
+                if isinstance(res, dict) and "trends" in res and isinstance(res["trends"], list):
+                    return res["trends"]
+            except Exception as e:
+                print(f"json.loads com strict=False falhou: {e}")
+
+        # Tentativa 2: Parse via Regex dos campos individualmente
+        import re
+        title_m = re.findall(r'"title"\s*:\s*"([^"]+)"', clean)
+        cat_m = re.findall(r'"category"\s*:\s*"([^"]+)"', clean)
+        sum_m = re.findall(r'"summary"\s*:\s*"([^"]+)"', clean)
+        imp_m = re.findall(r'"impact_b2b"\s*:\s*"([^"]+)"', clean)
+        top_m = re.findall(r'"suggested_topic"\s*:\s*"([^"]+)"', clean)
+        
+        trends = []
+        for i in range(len(title_m)):
+            trends.append({
+                "title": title_m[i].strip(),
+                "category": cat_m[i].strip().upper() if i < len(cat_m) else "INOVAÇÃO B2B",
+                "summary": sum_m[i].strip() if i < len(sum_m) else title_m[i].strip(),
+                "impact_b2b": imp_m[i].strip() if i < len(imp_m) else "Impacto estratégico para operações B2B.",
+                "suggested_topic": top_m[i].strip() if i < len(top_m) else title_m[i].strip()
+            })
+            
+        return trends
+
     # ── 9. RADAR DE TENDÊNCIAS DA WEB (DINÂMICO + PERSISTÊNCIA EM DB + EXCLUSÃO DE USADOS) ───────
     def fetch_web_trends(self, query: str = None, force_refresh: bool = False) -> dict:
         """Busca notícias e tendências em tempo real na web cobrindo os pilares estratégicos da VisionAI.
@@ -907,15 +945,11 @@ Retorne APENAS uma lista JSON de strings. Ex: ["#IA", "#TransformacaoDigital"]
         db = SessionLocal()
 
         try:
-            # Limpa fallbacks antigos do banco que continham o padrão de timestamp antigo
-            db.query(WebTrendItem).filter(WebTrendItem.title.ilike("%(Varredura %")).delete(synchronize_session=False)
-            db.commit()
-
             # 1. Se não for varredura forçada e houver itens suficientes no banco, retorna uma amostragem ALEATÓRIA
             if not force_refresh and not query:
                 q = db.query(WebTrendItem).filter(WebTrendItem.used == False)
                 cached_items = q.order_by(func.random()).limit(12).all()
-                if len(cached_items) >= 8:
+                if len(cached_items) >= 12:
                     return {
                         "trends": [
                             {
@@ -974,30 +1008,14 @@ Responda APENAS com um objeto JSON válido (sem qualquer bloco de código markdo
 }}
 """
             raw = self._generate_with_search(prompt, temperature=0.95)
-            
-            # Limpa markdown fencing se presente
-            clean_raw = raw.replace("```json", "").replace("```", "").strip()
-            start = clean_raw.find("{")
-            end = clean_raw.rfind("}") + 1
-            
-            parsed_trends = []
-            if start != -1 and end > start:
-                try:
-                    res = json.loads(clean_raw[start:end])
-                    parsed_trends = res.get("trends", [])
-                except Exception as e:
-                    print(f"Erro no json.loads do radar: {e}")
+            parsed_trends = self._parse_trends_json(raw)
 
             # Fallback dinâmico via Gemini sem grounding se o parse da busca falhou
             if not parsed_trends:
                 try:
                     fallback_prompt = f"Gere 6 notícias B2B inéditas e variadas sobre {search_query_str}. Responda em JSON com a chave 'trends' contendo objetos com 'title', 'category', 'summary', 'impact_b2b', 'suggested_topic'."
                     raw_fb = self._generate(fallback_prompt, temperature=0.95)
-                    clean_fb = raw_fb.replace("```json", "").replace("```", "").strip()
-                    s_fb, e_fb = clean_fb.find("{"), clean_fb.rfind("}") + 1
-                    if s_fb != -1 and e_fb > s_fb:
-                        res_fb = json.loads(clean_fb[s_fb:e_fb])
-                        parsed_trends = res_fb.get("trends", [])
+                    parsed_trends = self._parse_trends_json(raw_fb)
                 except Exception as err_fb:
                     print(f"Erro no fallback dinâmico de tendências: {err_fb}")
 
