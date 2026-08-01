@@ -87,9 +87,9 @@ async function loadWebTrends(query = '', forceRefresh = false) {
 
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '⏳ Escaneando a Web em Tempo Real...';
+    btn.innerHTML = '⏳ Escaneando a Web...';
   }
-  container.innerHTML = '<div class="empty-state"><p class="chip-loading">✦ Gemini está varrendo a internet em busca de notícias B2B recentes com Google Search Grounding...</p></div>';
+  container.innerHTML = '<div class="empty-state"><p class="chip-loading">✦ Gemini está varrendo a internet via Google Search Grounding em busca de notícias B2B inéditas...</p></div>';
 
   try {
     let url = '/api/gemini/web-trends?';
@@ -99,34 +99,74 @@ async function loadWebTrends(query = '', forceRefresh = false) {
     const { ok, data } = await apiFetch(url);
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '🌐 Escanear Notícias Agora';
+      btn.innerHTML = '🌐 Varredura Nova na Web';
     }
 
     if (ok && data.trends && Array.isArray(data.trends)) {
       cachedWebTrends = data.trends;
-      container.innerHTML = data.trends.map((t, idx) => `
-        <div class="card" id="trend-card-${idx}" style="border-left:4px solid #9EFF00; background: rgba(15, 23, 42, 0.85);">
-          <div class="draft-header mb-2" style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="chip-badge" style="background:rgba(158,255,0,0.15); color:#9EFF00; padding:4px 10px; border-radius:12px; font-weight:700;">📡 ${escapeHtml(t.category || 'TENDÊNCIA')}</span>
-            <button class="btn btn-primary btn-sm" onclick="generatePostFromTrend(${idx})">⚡ Gerar Post</button>
-          </div>
-          <h4 style="color:#ffffff; font-size:16px; margin-bottom:8px;">${escapeHtml(t.title)}</h4>
-          <p style="font-size:13px; color:#94a3b8; margin-bottom:8px;">${escapeHtml(t.summary)}</p>
-          <div style="font-size:12px; color:#9EFF00; font-weight:600;">💡 Impacto B2B: ${escapeHtml(t.impact_b2b || '')}</div>
-        </div>
-      `).join('');
-      showToast(`${data.trends.length} notícias em tempo real carregadas!`, 'success');
+      renderTrendsList(data.trends);
+      showToast(`${data.trends.length} sugestões inéditas carregadas!`, 'success');
     } else {
-      container.innerHTML = '<div class="empty-state"><p>Nenhuma tendência encontrada. Tente novamente.</p></div>';
+      container.innerHTML = '<div class="empty-state"><p>Nenhuma tendência encontrada. Clique em "Varredura Nova na Web" para buscar na internet.</p></div>';
     }
   } catch (e) {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '🌐 Escanear Notícias Agora';
+      btn.innerHTML = '🌐 Varredura Nova na Web';
     }
     container.innerHTML = '<div class="empty-state"><p>Erro de conexão ao buscar notícias.</p></div>';
   }
 }
+
+function renderTrendsList(trends) {
+  const container = $('web-trends-panel-container') || $('web-trends-container');
+  if (!container) return;
+
+  if (!trends || trends.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>Nenhuma tendência encontrada para este filtro. Clique em "Varredura Nova na Web" para buscar na internet.</p></div>';
+    return;
+  }
+
+  container.innerHTML = trends.map((t, idx) => `
+    <div class="card" id="trend-card-${idx}" style="border-left:4px solid #9EFF00; background: rgba(15, 23, 42, 0.85); display:flex; flex-direction:column; justify-content:space-between;">
+      <div>
+        <div class="draft-header mb-2" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span class="chip-badge" style="background:rgba(158,255,0,0.15); color:#9EFF00; padding:4px 10px; border-radius:12px; font-weight:700; font-size:11px;">📡 ${escapeHtml(t.category || 'TENDÊNCIA')}</span>
+          <button class="btn btn-primary btn-sm" onclick="generatePostFromTrend(${idx})" style="padding:6px 12px; font-size:12px; font-weight:700;">⚡ Gerar Post</button>
+        </div>
+        <h4 style="color:#ffffff; font-size:15px; margin-bottom:8px; line-height:1.4;">${escapeHtml(t.title)}</h4>
+        <p style="font-size:13px; color:#94a3b8; margin-bottom:10px; line-height:1.5;">${escapeHtml(t.summary)}</p>
+      </div>
+      <div style="font-size:12px; color:#9EFF00; font-weight:600; background:rgba(2,6,23,0.6); padding:8px; border-radius:6px; border:1px solid rgba(158,255,0,0.2);">💡 Impacto B2B: ${escapeHtml(t.impact_b2b || '')}</div>
+    </div>
+  `).join('');
+}
+
+function filterWebTrends(query) {
+  if (!cachedWebTrends || !Array.isArray(cachedWebTrends)) return;
+  const q = query.toLowerCase().trim();
+  if (!q) { renderTrendsList(cachedWebTrends); return; }
+  
+  const filtered = cachedWebTrends.filter(t => 
+    t.title.toLowerCase().includes(q) || 
+    t.summary.toLowerCase().includes(q) || 
+    (t.category && t.category.toLowerCase().includes(q))
+  );
+  renderTrendsList(filtered);
+}
+
+function filterWebTrendsCategory(cat) {
+  if (!cachedWebTrends || !Array.isArray(cachedWebTrends)) return;
+  if (!cat) { renderTrendsList(cachedWebTrends); return; }
+  
+  const filtered = cachedWebTrends.filter(t => 
+    t.category && t.category.toUpperCase().includes(cat.toUpperCase())
+  );
+  renderTrendsList(filtered);
+}
+
+window.filterWebTrends = filterWebTrends;
+window.filterWebTrendsCategory = filterWebTrendsCategory;
 
 async function generatePostFromTrend(idx) {
   const item = cachedWebTrends[idx];

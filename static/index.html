@@ -414,19 +414,37 @@
       <!-- 2. RADAR DE TENDÊNCIAS DA WEB PANEL -->
       <div id="studio-web-trends" class="studio-panel">
         <div class="card mb-4" style="border-left: 4px solid #9EFF00;">
-          <div class="topics-header" style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
+          <div class="topics-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div style="flex:1; min-width:280px;">
               <h3 class="topics-title" style="color:#9EFF00; font-size:18px; margin-bottom:4px;">📡 Radar de Tendências da Web (Notícias &amp; Mercado B2B)</h3>
-              <span class="topics-sub" style="color:#94a3b8; font-size:13px;">O Gemini 3.5 pesquisa automaticamente notícias em tempo real sobre Visão Computacional, Edge AI, Agro e VR para você criar postagens com alto engajamento.</span>
+              <span class="topics-sub" style="color:#94a3b8; font-size:13px;">Varredura em tempo real via Google Search Grounding em busca de notícias reais, novidades de mercado e cases B2B inéditos.</span>
             </div>
-            <button class="btn btn-primary" id="btn-fetch-web-trends-panel" onclick="loadWebTrends('', true)">
-              🌐 Escanear Notícias Agora
-            </button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-outline" id="btn-randomize-trends" onclick="loadWebTrends('', false)" style="border:1px solid #334155; color:#9EFF00; font-size:13px; padding:8px 14px; border-radius:8px; background:transparent; cursor:pointer;">
+                🔀 Sortear Sugestões
+              </button>
+              <button class="btn btn-primary" id="btn-fetch-web-trends-panel" onclick="loadWebTrends('', true)" style="padding:8px 14px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">
+                🌐 Varredura Nova na Web
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Search & Category Filters -->
+          <div class="mt-3" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding-top:12px; border-top:1px solid #1e293b;">
+            <input type="text" id="trend-search-input" class="input-field" style="flex:1; min-width:220px; background:#020617; color:#fff; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:13px;" placeholder="🔍 Pesquisar qualquer tema (ex: Agro, NR-12, VR, SAC...)" onkeyup="filterWebTrends(this.value)" />
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="filterWebTrendsCategory('')" style="font-size:12px; padding:6px 12px;">Todas</button>
+              <button class="btn btn-outline btn-sm" onclick="filterWebTrendsCategory('AGRO')" style="font-size:12px; color:#9EFF00; border-color:rgba(158,255,0,0.3); padding:6px 12px;">🌾 Agro</button>
+              <button class="btn btn-outline btn-sm" onclick="filterWebTrendsCategory('SEGURANÇA')" style="font-size:12px; color:#00E5FF; border-color:rgba(0,229,255,0.3); padding:6px 12px;">🛡️ NR-12/Indústria</button>
+              <button class="btn btn-outline btn-sm" onclick="filterWebTrendsCategory('MISTA')" style="font-size:12px; color:#FF9900; border-color:rgba(255,153,0,0.3); padding:6px 12px;">🥽 VR/EdTech</button>
+              <button class="btn btn-outline btn-sm" onclick="filterWebTrendsCategory('EDGE')" style="font-size:12px; color:#A855F7; border-color:rgba(168,85,247,0.3); padding:6px 12px;">⚡ Edge AI</button>
+              <button class="btn btn-outline btn-sm" onclick="filterWebTrendsCategory('SAC')" style="font-size:12px; color:#EC4899; border-color:rgba(236,72,153,0.3); padding:6px 12px;">🎙️ SAC Voz</button>
+            </div>
           </div>
         </div>
 
         <div id="web-trends-panel-container" class="grid-2col">
-          <div class="empty-state"><p>Clique em 'Escanear Notícias Agora' para carregar as tendências mais quentes da web.</p></div>
+          <div class="empty-state"><p class="chip-loading">✦ Carregando notícias e tendências em tempo real...</p></div>
         </div>
       </div>
 
@@ -705,6 +723,6 @@
 <!-- TOAST -->
 <div id="toast" class="toast hidden"></div>
 
-<script src="/static/app.js?v=378"></script>
+<script src="/static/app.js?v=379"></script>
 </body>
 </html>

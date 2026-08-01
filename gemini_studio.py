@@ -897,21 +897,24 @@ Retorne APENAS uma lista JSON de strings. Ex: ["#IA", "#TransformacaoDigital"]
     # ── 9. RADAR DE TENDÊNCIAS DA WEB (DINÂMICO + PERSISTÊNCIA EM DB + EXCLUSÃO DE USADOS) ───────
     def fetch_web_trends(self, query: str = None, force_refresh: bool = False) -> dict:
         """Busca notícias e tendências em tempo real na web cobrindo os 6 pilares estratégicos da VisionAI.
-           Salva no banco SQLite e oculta automaticamente matérias já marcadas como usadas (used = True).
+           Salva no banco SQLite, ordena de forma aleatória a cada requisição e oculta automaticamente matérias usadas (used = True).
         """
         from database import init_db, SessionLocal, WebTrendItem
+        from sqlalchemy.sql.expression import func
+        import random, time, re, json
+
         init_db()
         db = SessionLocal()
 
         try:
-            # 1. Se não for varredura nova forçada, tenta servir do banco de dados itens ativos (used = False)
+            # 1. Se não for varredura forçada e houver pelo menos 6 itens não usados no banco, retorna uma amostragem ALEATÓRIA
             if not force_refresh:
                 q = db.query(WebTrendItem).filter(WebTrendItem.used == False)
                 if query:
-                    q = q.filter(WebTrendItem.title.ilike(f"%{query}%") | WebTrendItem.summary.ilike(f"%{query}%"))
+                    q = q.filter(WebTrendItem.title.ilike(f"%{query}%") | WebTrendItem.summary.ilike(f"%{query}%") | WebTrendItem.category.ilike(f"%{query}%"))
                 
-                cached_items = q.order_by(WebTrendItem.created_at.desc()).limit(12).all()
-                if len(cached_items) >= 4:
+                cached_items = q.order_by(func.random()).limit(12).all()
+                if len(cached_items) >= 6:
                     return {
                         "trends": [
                             {
@@ -928,28 +931,46 @@ Retorne APENAS uma lista JSON de strings. Ex: ["#IA", "#TransformacaoDigital"]
                     }
 
             # 2. Varredura dinâmica em tempo real na internet via Gemini + Google Search Grounding
-            topic_focus = query if query else "Visão Computacional, Edge AI, Drones no Agro, VR Meta Quest 3, SAC Multimodal, Segurança NR-12/EPIs, Governança C-Level, Automação de Mídia"
-            prompt = f"""
-Você é o Diretor de Inteligência de Mercado & Tendências Tecnológicas da VisionAI (visionai.com.br).
+            sectors = [
+                "Visão Computacional e Inspeção de Qualidade em Fábricas com Edge AI",
+                "Drones com Visão Preditiva e Sensores em Agrobusiness de Larga Escala",
+                "Realidade Mista, Meta Quest 3 e Treinamento Imersivo em EdTech Corporativa",
+                "SAC Multimodal com IA de Voz Humanizada e Atendimento ao Cliente",
+                "Governança C-Level, Inteligência de Mercado e Radar de Concorrência",
+                "Automação Generativa de Mídia, Marketing B2B e Geração de Conteúdo",
+                "Robótica Industrial, Câmeras Inteligentes e Prevenção de Acidentes NR-12",
+                "Processamento Local em Borda (Edge Computing) sem Dependência da Nuvem"
+            ]
+            
+            chosen_sectors = random.sample(sectors, min(4, len(sectors)))
+            if query:
+                chosen_sectors.insert(0, query)
+                
+            search_query_str = " e ".join(chosen_sectors)
+            timestamp_seed = int(time.time())
 
-SUA MISSÃO: Realize uma busca em tempo real na internet e traga exatamente de 6 a 8 tendências e notícias B2B recentes e reais sobre: {topic_focus}.
-Certifique-se de cobrir tópicos variados (Agro, Indústria/NR-12, Realidade Mista/VR, SAC/Atendimento de Voz, Governança e Produção de Conteúdo).
+            prompt = f"""
+Você é o Diretor de Inteligência de Mercado & Tendências Tecnológicas B2B da VisionAI (visionai.com.br).
+
+SUA MISSÃO: Realize uma busca em tempo real na internet (Google Search) e traga exatamente de 8 a 12 tendências e notícias B2B RECENTES, REAIS E INÉDITAS sobre:
+{search_query_str} (Seed de busca: {timestamp_seed}).
+
+Traga notícias ricas e diversificadas cobrindo Agro, Indústria/NR-12, VR/Realidade Mista, Atendimento de Voz, Edge AI e Governança.
 
 Responda APENAS com JSON no seguinte formato:
 {{
   "trends": [
     {{
-      "title": "Título impactante e específico da notícia/tendência",
-      "category": "VISÃO AGRO | REALIDADE MISTA | EDGE AI | GOVERNANÇA | SAC MULTIMODAL | SEGURANÇA",
-      "summary": "Resumo executivo de 2 frases trazendo dados concretos e novidades reais da internet",
-      "impact_b2b": "Por que isso importa para diretores e VPs de operações B2B",
-      "suggested_topic": "Tema formatado pronto para gerar post estratégico no LinkedIn"
+      "title": "Título impactante e específico da notícia/tendência real da internet",
+      "category": "VISÃO AGRO | REALIDADE MISTA | EDGE AI | GOVERNANÇA | SAC MULTIMODAL | SEGURANÇA | ROBÓTICA",
+      "summary": "Resumo executivo de 2 a 3 frases com dados concretos da matéria",
+      "impact_b2b": "Por que isso importa para diretores e VPs B2B",
+      "suggested_topic": "Tema estratégico pronto para gerar post no LinkedIn"
     }}
   ]
 }}
 """
-            raw = self._generate_with_search(prompt, temperature=0.85)
-            import re, json
+            raw = self._generate_with_search(prompt, temperature=0.95)
             json_match = re.search(r'\{.*\}', raw, re.DOTALL)
             parsed_trends = []
             if json_match:
@@ -963,42 +984,42 @@ Responda APENAS com JSON no seguinte formato:
             if not parsed_trends:
                 parsed_trends = [
                     {
-                        "title": "Edge AI na Conformidade NR-12: Processamento Local sem Nuvem",
+                        "title": f"Edge AI na Conformidade NR-12 (Varredura {timestamp_seed})",
                         "category": "EDGE AI & SEGURANÇA",
                         "summary": "Fábricas estão implantando análise local de câmeras para interrupção instantânea de máquinas ao detectar invasão de área de risco.",
                         "impact_b2b": "Zeragem de passivos trabalhistas e interrupção imediata de acidentes graves em tempo real.",
                         "suggested_topic": "Como a Visão Computacional na Borda (Edge AI) está revolucionando a segurança industrial e a NR-12"
                     },
                     {
-                        "title": "Visão Agro-Industrial: Monitoramento Preditivo em Lavouras",
+                        "title": f"Visão Agro-Industrial Preditiva em Lavouras ({timestamp_seed})",
                         "category": "VISÃO AGRO",
                         "summary": "Algoritmos de visão computacional em drones e câmeras de campo identificam pragas 14 dias antes da perda de safra.",
                         "impact_b2b": "Aumento médio de +15% na produtividade e redução de 30% no uso de defensivos agrícolas.",
                         "suggested_topic": "Inteligência Artificial no campo: identificando pragas e falhas de plantio antes que afetem a safra"
                     },
                     {
-                        "title": "Meta Quest 3 no Treinamento Corporativo de Alto Risco",
+                        "title": f"Meta Quest 3 no Treinamento Corporativo de Alto Risco ({timestamp_seed})",
                         "category": "REALIDADE MISTA & EDTECH",
                         "summary": "Simuladores imersivos em VR multi-usuário elevam a retenção de aprendizado de 20% para 80% em treinamentos técnicos complexos.",
                         "impact_b2b": "Redução drástica do custo de logística presencial e eliminação de acidentes em ambiente simulação.",
                         "suggested_topic": "Por que grandes corporações estão adotando treinamentos em Realidade Mista (VR) para equipes de operação"
                     },
                     {
-                        "title": "SAC Multimodal com Memória de Contexto e Voz Humana",
+                        "title": f"SAC Multimodal com Memória de Contexto e Voz Humana ({timestamp_seed})",
                         "category": "ATENDIMENTO MULTIMODAL",
                         "summary": "Assistentes de voz inteligentes que analisam áudio, imagem e histórico do cliente em tempo real elevam a precisão a 95%.",
                         "impact_b2b": "Redução drástica do tempo médio de atendimento (TMA) e retenção imediata de clientes B2B.",
                         "suggested_topic": "O fim das URAs tradicionais: como a IA Multimodal de voz transforma a experiência do cliente corporativo"
                     },
                     {
-                        "title": "Governança C-Level & Radar Automático de Concorrência",
+                        "title": f"Governança C-Level & Radar Automático de Concorrência ({timestamp_seed})",
                         "category": "GOVERNANÇA CORPORATIVA",
                         "summary": "Painéis executivos movidos a IA varrem movimentos de mercado e relatórios estratégicos de concorrentes continuamente.",
                         "impact_b2b": "Tomada de decisão estratégica baseada em dados frescos em vez de relatórios trimestrais desatualizados.",
                         "suggested_topic": "Governança Inteligente: como VPs e C-Levels usam inteligência artificial para antecipar movimentos de mercado"
                     },
                     {
-                        "title": "Automação de Conteúdo Corporativo: Ciclo de 3 Semanas para 2 Dias",
+                        "title": f"Automação de Mídia Corporativa de Alto Impacto ({timestamp_seed})",
                         "category": "GERAÇÃO DE CONTEÚDO",
                         "summary": "Corporações estão usando motores generativos para acelerar a criação de apresentações comerciais e mídia institucional.",
                         "impact_b2b": "Gargalo de comunicação resolvido com retenção rigorosa da identidade de marca e agilidade de vendas.",
@@ -1023,8 +1044,12 @@ Responda APENAS com JSON no seguinte formato:
                     db.add(trend_obj)
             db.commit()
 
-            # 4. Retorna matérias não usadas gravadas no banco
-            active_items = db.query(WebTrendItem).filter(WebTrendItem.used == False).order_by(WebTrendItem.created_at.desc()).limit(12).all()
+            # 4. Retorna uma amostragem aleatória dos itens não usados gravados no banco
+            q_active = db.query(WebTrendItem).filter(WebTrendItem.used == False)
+            if query:
+                q_active = q_active.filter(WebTrendItem.title.ilike(f"%{query}%") | WebTrendItem.summary.ilike(f"%{query}%") | WebTrendItem.category.ilike(f"%{query}%"))
+
+            active_items = q_active.order_by(func.random()).limit(12).all()
             if active_items:
                 return {
                     "trends": [
