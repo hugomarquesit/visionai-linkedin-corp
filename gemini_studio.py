@@ -466,7 +466,8 @@ REGRAS:
 
     def _clean_post_content(self, text: str) -> tuple[str, str]:
         """
-        Remove cercas markdown (```markdown), preâmbulos conversacionais da IA e rótulos de títulos (ex: '1. TITLE:').
+        Remove cercas markdown (```markdown), preâmbulos conversacionais da IA, rótulos de títulos (ex: '1. TITLE:')
+        e limpa asteriscos markdown (**bold**, *italic*, # Header) incompatíveis com a publicação nativa do LinkedIn.
         Retorna (texto_limpo_completo, titulo_manchete_limpo).
         """
         import re
@@ -477,9 +478,20 @@ REGRAS:
         cleaned = re.sub(r"^```(?:markdown|text|json)?\s*", "", text.strip(), flags=re.IGNORECASE)
         cleaned = re.sub(r"\s*```$", "", cleaned.strip())
 
+        # 2. Limpeza rigorosa de marcações Markdown incompatíveis com LinkedIn (asteriscos **, *, hashes #)
+        # Converte negritos markdown **texto** -> texto (remove os asteriscos brutos)
+        cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", cleaned)
+        # Converte itálicos ou asteriscos avulsos *texto* -> texto
+        cleaned = re.sub(r"\*(.*?)\*", r"\1", cleaned)
+        # Converte títulos markdown (# Título -> Título)
+        cleaned = re.sub(r"^[#]+\s*(.+)$", r"\1", cleaned, flags=re.MULTILINE)
+        # Substitui tópicos marcados com asterisco/trífen no início da linha por emojis elegantes
+        cleaned = re.sub(r"^\*\s+", "▸ ", cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r"^\-\s+", "▸ ", cleaned, flags=re.MULTILINE)
+
         lines = [l.strip() for l in cleaned.split("\n") if l.strip()]
         
-        # 2. Filtra preâmbulos conversacionais, sugestões de banner entre colchetes ou prefixos de prompt nas primeiras linhas
+        # 3. Filtra preâmbulos conversacionais, sugestões de banner entre colchetes ou prefixos de prompt nas primeiras linhas
         meta_patterns = [
             r"^aqui está", r"^segue ", r"^com base ", r"^conforme ", r"^proposta de post",
             r"^olá", r"^prezado", r"^\d+\.\s*title:", r"^title:", r"^título:", r"^post:", r"^assunto:", r"^prompt:",
@@ -503,7 +515,7 @@ REGRAS:
                 
         clean_full_text = "\n\n".join(lines)
         
-        # 3. Encontra a melhor manchete em português para a faixa do criativo
+        # 4. Encontra a melhor manchete em português para a faixa do criativo
         clean_headline = "VisionAI Insights"
         for line in lines:
             clean_l = re.sub(r"^[\#\*\d\.\-\s]+", "", line).strip()
@@ -640,28 +652,39 @@ Responda APENAS com JSON:
 
         # ── ETAPA 1: GERAÇÃO DO TEXTO DO POST ──────────────────────────────────
         text_prompt = f"""
-Você é o VP de Engenharia de Operações & Founder da VisionAI (visionai.com.br).
+Você é um Copywriter Executivo B2B Sênior e Diretor de Growth Marketing da VisionAI (visionai.com.br).
 
 CONTEXTO INSTITUCIONAL E TÉCNICO DA VISIONAI:
 {ORG_CONTEXT}
 {self.scraped_context}
 
-SUA MISSÃO: Escrever um post de altíssimo valor executivo para o LinkedIn Corporativo sobre o tema abaixo.
+SUA MISSÃO: Escrever um post publicitário, humano e de altíssimo engajamento executivo para o LinkedIn Corporativo sobre o tema abaixo.
 
 PERFIL DE NARRATIVA: {voice_instruction}
 TEMA/OBJETIVO: {topic}
 FORMATO DE CONTEÚDO: {format_guides.get(format_type, format_guides['standard'])}
 TOM DE VOZ: {tone_guides.get(tone, tone_guides['visionario'])}
 
-PROIBIDO CLICHÊS DE IA & ESTILO ARTIFICIAL (REGRAS CRÍTICAS):
-- PROIBIDO usar introduções genéricas ou clichês como: "No mundo de hoje", "Em um cenário dinâmico/competitivo", "Na era da Inteligência Artificial", "Em constante evolução", "Em suma", "Vamos juntos", "Desbloquear o potencial", "Revolucionar a forma", "Impulsionar o futuro".
-- PROIBIDO parecer um folheto publicitário raso. Escreva como um CTO ou VP de Operações real falando pragmaticamente de engenharia e negócios com diretores executivos (C-Level).
-- Aborde DORES OPERACIONAIS REAIS: latência de streaming RTSP, estouro de orçamento de banda/nuvem, processamento Edge AI a 30 FPS nas câmeras que a fábrica já possui, fiscalização 24/7 de EPIs sem humanos na sala de controle, passivo trabalhista, retenção 4x maior em VR, LGPD.
-- Parágrafos curtos, subtítulos com emojis elegantes e frases diretas.
-- Inclua métricas e resultados concretos (+15% produtividade no agro, 95% precisão em atendimento, retenção 4x em VR, ciclo de vídeo de 3 semanas para 2 dias).
-- Termine com 3 a 5 hashtags corporativas estratégicas (ex: #VisaoComputacional #EdgeAI #InteligenciaArtificial #InovacaoCorporativa #VisionAI).
+DIRETRIZES DE COPYWRITING & FORMATAÇÃO (ESTRITAMENTE OBRIGATÓRIAS):
+1. **ZERO ASTERISCOS OU MARKDOWN**:
+   - PROIBIDO usar asteriscos (`**` ou `*`) para tentar colocar texto em negrito ou itálico. O LinkedIn NÃO aceita markdown e exibe os asteriscos brutos no feed.
+   - PROIBIDO usar cerquilhas (`#`, `##`, `###`) como títulos.
+   - Use emojis elegantes (como `✦`, `▸`, `⚡`, `💡`, `👉`, `📍`) no início de tópicos para destacar pontos cruciais de forma limpa.
 
-FORMATO DE SAÍDA: Retorne APENAS o texto completo e formatado do post em português. Sem introdução conversacional, sem marcações markdown extra de abertura.
+2. **COPYWRITING HUMANO E PUBLICITÁRIO (NADA ROBÓTICO OU ARTIFICIAL)**:
+   - PROIBIDO clichês robóticos de IA como: "No mundo de hoje", "Em constante evolução", "Na era da Inteligência Artificial", "Em um cenário dinâmico", "Em suma", "Desbloquear o potencial", "Revolucionar a forma", "Vamos juntos".
+   - Escreva com ritmo publicitário dinâmico, frases marcantes e autoridade corporativa real de quem lidera engenharia de IA e operações.
+   - **HOOK PODEROSO**: As primeiras 2 linhas DEVEM parar o scroll no feed do LinkedIn com uma afirmação provocativa, dado chocante ou provocação estratégica.
+   - Parágrafos curtos de no máximo 2 a 3 linhas para máxima legibilidade no celular.
+
+3. **MÉTRICAS E DORES OPERACIONAIS REAIS**:
+   - Cite números concretos e resultados reais (+15% produtividade no agro, 95% precisão em SAC, retenção 4x em VR, ciclo de vídeo de 3 semanas para 2 dias).
+   - Aborde problemas reais: latência de streaming RTSP, estouro de orçamento de nuvem, fiscalização 24/7 de EPIs sem humanos na sala de controle, passivo trabalhista NR-12.
+
+4. **FINALIZAÇÃO**:
+   - Termine com uma Call to Action (CTA) executiva provocativa e 4 a 6 hashtags corporativas estratégicas (ex: #VisaoComputacional #EdgeAI #InteligenciaArtificial #VisionAI).
+
+FORMATO DE SAÍDA: Retorne APENAS o texto do post em português, pronto para ser publicado. Sem explicações adicionais e SEM NENHUM ASTERISCO.
 """
         raw_post_text = self._generate(text_prompt, temperature=0.85).strip()
         post_text, _ = self._clean_post_content(raw_post_text)
@@ -1225,7 +1248,12 @@ Responda APENAS com JSON:
         json_match = re.search(r'\{.*\}', raw, re.DOTALL)
         if json_match:
             try:
-                return json.loads(json_match.group())
-            except Exception:
-                pass
+                res = json.loads(json_match.group())
+                for post in res.get("generated_posts", []):
+                    if post.get("content"):
+                        clean_text, _ = self._clean_post_content(post["content"])
+                        post["content"] = clean_text
+                return res
+            except Exception as e:
+                print(f"Erro no parse_document_to_posts: {e}")
         return {"document_summary": "Documento processado com sucesso", "generated_posts": []}
