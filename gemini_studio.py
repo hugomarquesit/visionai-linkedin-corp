@@ -443,9 +443,9 @@ REGRAS:
             return img_b64, "image/jpeg"
 
     def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights", category: str = "VisionAi Insights", overlay_style: str = "photo_pure") -> tuple[str, str]:
-        """Gera uma imagem realista pura via Gemini Image Models e compõe a peça publicitária de acordo com o overlay_style escolhido."""
+        """Gera uma imagem realista ou artística pura via Gemini Image Models e compõe de acordo com o overlay_style escolhido."""
         clean_prompt = prompt.replace("\n", " ").strip()
-        negative_rules = ", NO sci-fi, NO futuristic fantasy, NO glowing cyber portals, NO text, NO written words, NO letters, NO signs, NO typography, authentic realistic professional corporate photography, 35mm lens, Sony Alpha camera, natural lighting, highly realistic 8k photo"
+        negative_rules = ", NO text, NO written words, NO letters, NO signs, NO typography, 8k resolution, highly detailed, masterwork"
         full_prompt = clean_prompt + negative_rules if "NO text" not in clean_prompt else clean_prompt
 
         # Modelos ativos para geração nativa de imagem no SDK google-genai
@@ -458,14 +458,14 @@ REGRAS:
                     contents=full_prompt,
                     config=types.GenerateContentConfig(
                         response_modalities=["IMAGE"],
-                        temperature=0.6,
+                        temperature=0.7,
                     )
                 )
                 if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
                     for part in response.candidates[0].content.parts:
                         if part.inline_data and part.inline_data.data:
                             img_bytes = part.inline_data.data
-                            print(f"Foto gerada com sucesso via modelo {model} ({len(img_bytes)} bytes)!")
+                            print(f"Arte visual gerada com sucesso via modelo {model} ({len(img_bytes)} bytes)!")
                             return self._composite_advertising_creative(img_bytes, pt_headline=pt_title, category=category, overlay_style=overlay_style)
             except Exception as e:
                 print(f"Modelo de imagem {model} falhou: {e}")
@@ -537,15 +537,26 @@ REGRAS:
                 
         return (clean_full_text, clean_headline)
 
-    def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image", overlay_style: str = "photo_pure") -> dict:
+    def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image", overlay_style: str = "photo_pure", art_style: str = "auto") -> dict:
         """
-        Recebe o texto editado pelo usuário e gera uma nova peça visual (imagem ou banner)
-        que representa fielmente a versão final revisada pelo usuário, com manchete estilo Clickbait B2B.
+        Recebe o texto editado pelo usuário e gera uma nova peça visual com total liberdade artística,
+        sem engessamento ou predeterminação de cenários corporativos fixos.
         """
         clean_full_text, fallback_headline = self._clean_post_content(revised_text)
 
+        art_style_directives = {
+            "auto": "Escolha LIVREMENTE o estilo mais impactante (Fotografia Editorial, Render 3D Abstrato, Ilustração Minimalista de Revista ou Frame Cinematográfico) que melhor combine com o assunto.",
+            "photo": "Fotografia Editorial de Altíssima Definição (Capa de revista tipo Forbes/Wired/National Geographic), iluminação natural marcante, foco nítido.",
+            "render_3d": "Render 3D Conceitual e Abstrato (Estilo Cinema4D/Octane Render), com geometrias elegantes, dados em 3D, luzes volumétricas e texturas modernas.",
+            "illustration": "Ilustração Minimalista Contemporânea de Revista (Estilo New Yorker/Tech Review), vetores limpos, paleta elegante e conceito marcante.",
+            "cinematic": "Frame Cinematográfico de Filme/Documentário (Widescreen 16:9), composição dramática, iluminação de cena de alto contraste.",
+            "infographic": "Diagrama e Infográfico Didático Limpo, mostrando conceitos visuais, arquitetura de dados ou conexões de forma moderna."
+        }
+
+        selected_art_directive = art_style_directives.get(art_style, art_style_directives["auto"])
+
         prompt = f"""
-Você é o Diretor de Criação & Diretor de Fotografia Corporativa Sênior da VisionAI (visionai.com.br).
+Você é um Diretor de Arte Internacional, Fotógrafo Editorial de Capas de Revista (Forbes, Wired, Harvard Business Review) e Artista 3D.
 
 TEXTO DO POST NO LINKEDIN:
 ---
@@ -553,38 +564,28 @@ TEXTO DO POST NO LINKEDIN:
 ---
 
 SUAS TAREFAS:
-1. **SELO DE CATEGORIA**: Identifique a linha temática em Português (Ex: CONCEITOS & CIÊNCIA DA IA, VISÃO AGRO-INDUSTRIAL, REALIDADE MISTA & VR, IA MULTIMODAL & SAC, VISÃO COMPUTACIONAL, GOVERNANÇA CORPORATIVA, PAPERS & RESEARCH).
-2. **MANCHETE CLICKBAIT B2B**: Crie uma manchete provocativa, magnética e de alta conversão em PORTUGUÊS (estilo Clickbait B2B Executivo ou Científico, de 6 a 12 palavras) para estamparmos no Banner do Criativo Visual.
-   - A manchete deve sintetizar a essência do post e gerar curiosidade extrema no leitor C-Level e especialistas.
-3. **PROMPT DE FOTOGRAFIA EM INGLÊS**: Crie um prompt de imagem em INGLÊS que descreva UMA FOTOGRAFIA OU ILUSTRAÇÃO EDITORIAL CORPORATIVA REALISTA 100% ADERENTE E FIEL AO ASSUNTO ESPECÍFICO DO TEXTO.
+1. **SELO DE CATEGORIA**: Identifique a linha temática em Português (Ex: CONCEITOS & CIÊNCIA DA IA, VISÃO AGRO-INDUSTRIAL, REALIDADE MISTA & VR, IA MULTIMODAL & SAC, VISÃO COMPUTACIONAL, GOVERNANÇA CORPORATIVA, PAPERS & RESEARCH, INOVAÇÃO & FUTURO).
+2. **MANCHETE CLICKBAIT B2B**: Crie uma manchete provocativa, magnética e de alta conversão em PORTUGUÊS (de 6 a 12 palavras).
+3. **PROMPT DE IMAGEM HIPER-CRIATIVO EM INGLÊS**: Crie um prompt de imagem em INGLÊS 100% FIEL E ADERENTE AO CONTEÚDO ESPECÍFICO DO TEXTO.
 
-REGRAS RÍGIDAS DE ADERÊNCIA AO TEMA DO TEXTO:
-- SE O TEXTO FOR EDUCATIVO/CONCEITUAL (ex: 'O que é Computação Visual', 'Como funcionam Redes Neurais', 'Algoritmos'):
-  * Foto/Infográfico conceitual de estúdio editorial sobre Inteligência Artificial. Mesa de pesquisador com tablet exibindo esquemático 3D de visão computacional, nós de rede neural abstratos e elegantes sobre fundo escuro corporativo.
-- SE O TEXTO FOR SOBRE PAPERS/PESQUISAS ACADÊMICAS:
-  * Foto de escritório de P&D com quadros de vidro, gráficos de benchmarking de IA e artigos científicos digitais.
-- SE O TEXTO FOR SOBRE AGRO/LAVOURA:
-  * Foto de campo agrícola verde de milho/soja com agrônomo e drone autônomo de monitoramento multispectral.
-- SE O TEXTO FOR SOBRE VR/META QUEST 3:
-  * Foto de profissional executivo em escritório usando headset VR Meta Quest 3 em treinamento imersivo.
-- SE O TEXTO FOR SOBRE ATENDIMENTO/SAC MULTIMODAL:
-  * Foto de especialista de atendimento com headset em mesa corporativa moderna com visualizadores de ondas de áudio e dashboards.
-- SE O TEXTO FOR SOBRE FÁBRICA/EPIs/NR-12:
-  * Foto de galpão industrial automatizado com câmera inteligente e operadores com equipamentos de segurança.
-- SE O TEXTO FOR SOBRE GOVERNANÇA/C-LEVEL:
-  * Foto de executivos em sala de reunião corporativa analisando painéis estratégicos em telas de vidro.
-
-PROIBIDO: NUNCA crie imagens de fábrica se o post for conceitual, educativo, sobre agro, VR ou SAC!
-ADICIONE NO FINAL DO PROMPT: 'authentic realistic professional corporate photography, Hasselblad medium format camera, natural lighting, sharp focus, 8k resolution, NO sci-fi, NO text, NO letters, NO typography'.
+DIRETRIZES DE LIBERDADE E CRIATIVIDADE VISUAL (SEM NENHUM ENGESSAMENTO):
+- **DIRETRIZ ARTÍSTICA SELECIONADA**: {selected_art_directive}
+- **SEJA TOTALMENTE ADAPTÁVEL AO TEMA**:
+  * Se o post for sobre algoritmos, matemática ou redes neurais: crie arte 3D abstrata, nós de dados brilhantes, física computacional ou escultura digital.
+  * Se o post for sobre medicina ou biologia: crie laboratórios modernos de P&D, estruturas moleculares em 3D ou médicos analisando diagnósticos holísticos.
+  * Se o post for sobre agro ou sustentabilidade: crie lavouras deslumbrantes ao pôr do sol, biotecnologia em estufas de vidro ou drones de precisão no campo.
+  * Se o post for sobre liderança, cultura ou pessoas: crie retratos fotojornalísticos autênticos ou momentos reais de colaboração humana.
+- **PROIBIDO**: NÃO crie imagens repetitivas de "mesa de escritório corporativa com tablet e pessoas de terno" a menos que o post seja especificamente sobre reuniões corporativas!
+- ADICIONE NO FINAL DO PROMPT: 'masterpiece, highly detailed, 8k resolution, crisp focus, NO text, NO written words, NO letters, NO typography, NO logos'.
 
 Responda APENAS com JSON:
 {{
   "category": "NOME_CURTO_DA_CATEGORIA_EM_PT",
-  "clickbait_headline": "Manchete Provocativa Clickbait B2B em Português",
-  "image_prompt": "prompt de fotografia aderente ao texto em inglês"
+  "clickbait_headline": "Manchete Provocativa em Português",
+  "image_prompt": "prompt de imagem hiper-criativo em inglês"
 }}
 """
-        raw = self._generate(prompt, temperature=0.75)
+        raw = self._generate(prompt, temperature=0.85)
         import re
         json_match = re.search(r'\{.*\}', raw, re.DOTALL)
         image_prompt = ""
@@ -600,7 +601,7 @@ Responda APENAS com JSON:
                 pass
         
         if not image_prompt:
-            image_prompt = f"Corporate tech photo representing: {clean_full_text[:100]}"
+            image_prompt = f"Creative visual concept representing: {clean_full_text[:100]}"
             
         final_banner_title = clickbait_headline if (clickbait_headline and len(clickbait_headline) >= 10) else fallback_headline
         img_b64, mime = self._generate_image_base64(image_prompt, pt_title=final_banner_title, category=category_name, overlay_style=overlay_style)
@@ -623,9 +624,10 @@ Responda APENAS com JSON:
         voice_mode: str = "corporate",
         content_objective: str = "corporativo_sales",
         web_research: bool = False,
-        overlay_style: str = "photo_pure"
+        overlay_style: str = "photo_pure",
+        art_style: str = "auto"
     ) -> dict:
-        """Gera um post completo com texto e mídia respeitando rigorosamente o objetivo (Educativo/Pesquisa vs Corporativo/Vendas)."""
+        """Gera um post completo com texto e mídia respeitando rigorosamente o objetivo (Educativo/Pesquisa vs Corporativo/Vendas) e a liberdade artística."""
         
         format_guides = {
             "pulse_article": (
@@ -728,7 +730,7 @@ FORMATO DE SAÍDA: Retorne APENAS o texto do post em português, pronto para ser
         post_text, _ = self._clean_post_content(raw_post_text)
 
         # ── ETAPA 2: GERAÇÃO DA ARTE VISUAL BASEADA NO TEXTO CRIADO ──────────────
-        art_result = self.regenerate_media_from_revised_text(post_text, media_type=media_type, overlay_style=overlay_style)
+        art_result = self.regenerate_media_from_revised_text(post_text, media_type=media_type, overlay_style=overlay_style, art_style=art_style)
         
         image_prompt = art_result.get("image_prompt", "")
         image_b64 = art_result.get("image_base64", "")
