@@ -275,26 +275,24 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
         if query and query.strip():
             try:
                 grounding_prompt = f"""
-Pesquise na internet papers acadêmicos, artigos científicos e pesquisas RECENTES (2025/2026) no HuggingFace Papers, ArXiv ou IEEE sobre o tema específico: '{query}'.
+Pesquise na internet papers acadêmicos, artigos científicos e pesquisas RECENTES (2024 a 2026) no ArXiv ou HuggingFace sobre o tema específico: '{query}'.
 
-SUA MISSÃO: Retorne de 5 a 8 papers acadêmicos reais que deem MATCH PERFEITO com o tema '{query}'.
-Todas as respostas devem estar EXCLUSIVAMENTE em PORTUGUÊS DO BRASIL (PT-BR).
+SUA MISSÃO: Retorne de 4 a 5 papers acadêmicos reais que deem MATCH PERFEITO com o tema '{query}'.
 
 Responda APENAS com um array JSON no formato (sem qualquer bloco de código markdown ```json):
 [
   {{
-    "paper_id": "ID do ArXiv ou HuggingFace",
-    "title": "Título explicativo e Didático em Português do Brasil",
-    "summary": "Explicação didática de 2 a 3 frases em Português do Brasil de por que este paper deu match com o tema '{query}'",
-    "pdf_preview_ptbr": "PRÉVIA COMPLETA DO PDF (PT-BR): 3 a 5 parágrafos detalhados em Português do Brasil com o problema resolvido, a metodologia, algoritmos, dados experimentais, ROI e aplicação prática.",
-    "authors": "Nomes dos pesquisadores/autores",
-    "paper_url": "https://huggingface.co/papers/XXXX.XXXXX ou https://arxiv.org/abs/XXXX.XXXXX",
-    "published_at": "2026",
+    "paper_id": "ID do ArXiv (ex: 2502.16950)",
+    "title": "Original Title of the paper",
+    "summary": "Original abstract overview",
+    "authors": "Main authors",
+    "paper_url": "https://arxiv.org/abs/XXXX.XXXXX ou https://huggingface.co/papers/XXXX.XXXXX",
+    "published_at": "2025",
     "source": "ArXiv / HuggingFace Papers"
   }}
 ]
 """
-                raw = self._generate_with_search(grounding_prompt, temperature=0.3)
+                raw = self._generate_with_search(grounding_prompt, temperature=0.2)
                 clean = raw.replace("```json", "").replace("```", "").strip()
                 start = clean.find("[")
                 end = clean.rfind("]") + 1
@@ -302,11 +300,13 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
                     grounded_papers = json.loads(clean[start:end], strict=False)
                     for p in grounded_papers:
                         if isinstance(p, dict) and p.get("title"):
-                            if not p.get("pdf_preview_ptbr"):
-                                p["pdf_preview_ptbr"] = p.get("summary", "")
                             papers.append(p)
             except Exception as e:
                 print(f"Grounding Papers por tema '{query}' falhou: {e}")
+
+            if papers:
+                papers = self._translate_papers_to_ptbr(papers)
+
             return {"ok": True, "count": len(papers), "papers": papers}
 
         # 2. Caso contrário (sem busca específica), traz os daily papers do HuggingFace
