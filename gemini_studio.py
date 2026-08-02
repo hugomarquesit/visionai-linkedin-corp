@@ -186,9 +186,10 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         clean = re.sub(r'\[\d+\]', '', clean)
         clean = re.sub(r',(?=\s*[\}\]])', '', clean)
         
-        match = re.search(r'\[\s*\{.*\}\s*\]', clean, re.DOTALL)
-        if match:
-            json_str = match.group(0)
+        start = clean.find("[")
+        end = clean.rfind("]") + 1
+        if start != -1 and end > start:
+            json_str = clean[start:end]
             try:
                 return json.loads(json_str, strict=False)
             except Exception:
