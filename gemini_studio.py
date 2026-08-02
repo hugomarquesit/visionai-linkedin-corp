@@ -1278,32 +1278,85 @@ Responda APENAS com um objeto JSON válido (sem qualquer bloco de código markdo
         return False
 
     # ── 10. GERADOR DE CARROSSÉIS PDF PARA LINKEDIN ─────────────────────────────
-    def generate_carousel_pdf(self, topic: str, slide_count: int = 5) -> dict:
-        """Gera um roteiro em slides e compõe um arquivo PDF multi-slide corporativo para o LinkedIn."""
+    def generate_carousel_pdf(
+        self,
+        topic: str,
+        slide_count: int = 5,
+        tone: str = "provocativo",
+        content_objective: str = "lideranca_pensamento",
+        art_style: str = "tech_modern",
+        overlay_style: str = "cyberpunk_neon",
+        target_audience: str = "",
+        web_research: bool = False,
+        source_url: str = ""
+    ) -> dict:
+        """Gera um roteiro em slides e compõe um arquivo PDF multi-slide corporativo obedecendo ao tom, objetivo, marca e regras do criativo."""
         import io, base64, html, json, re
         import cairosvg
         from pypdf import PdfWriter, PdfReader
 
+        dna = self._get_dynamic_brand_dna()
+        brand_name = dna.get("company_name", "VisionAI")
+        website_url = dna.get("website_url", "https://visionai.com.br")
+        company_industry = dna.get("industry", "Inteligência Artificial & Computação de Borda")
+        default_target = dna.get("target_audience", "C-Levels, Diretores de TI, Heads de Operações")
+        effective_audience = target_audience.strip() if target_audience else default_target
+
+        tone_instructions = {
+            "provocativo": "Use manchetes provocativas e desafiadoras que questionem o status quo e provoquem ação imediata.",
+            "executivo": "Use tom estritamente executivo B2B, focado em ROI, eficiência financeira, métricas corporativas e governança.",
+            "tecnico": "Use terminologia técnica precisa, arquitetura de sistemas, benchmarks reais e detalhes operacionais de engenharia.",
+            "educativo": "Use tom didático e explicativo passo a passo, desmistificando conceitos complexos e ensinando boas práticas.",
+            "urgente": "Use tom de alerta e urgência máxima, destacando riscos iminentes de segurança, perda de mercado e não conformidade."
+        }.get(tone, f"Use um tom de voz {tone}.")
+
+        objective_instructions = {
+            "lideranca_pensamento": "Posicione a empresa como líder absoluta e autoridade técnica no setor.",
+            "educativo_academic": "Baseie a explicação em dados empíricos, pesquisas, papers e evidências científicas.",
+            "case_sucesso": "Estruture o carrossel em formato de Estudo de Caso (Desafio → Solução → Resultados Medidos).",
+            "vendas_diretas": "Conduza cada slide para um forte Call to Action de demonstração comercial."
+        }.get(content_objective, f"Foque no objetivo de {content_objective}.")
+
+        research_context = ""
+        if web_research or source_url:
+            query = f"{topic} {source_url}".strip()
+            web_data = self.fetch_web_trends(query=query)
+            if web_data and web_data.get("trends"):
+                t_list = web_data["trends"][:2]
+                research_context = "\nCONTEÚDO E PESQUISA EM TEMPO REAL:\n" + "\n".join([f"- {t.get('title')}: {t.get('summary')}" for t in t_list])
+
         prompt = f"""
-Você é o Diretor de Criação da VisionAI (visionai.com.br).
-Crie um roteiro em {slide_count} slides para um Carrossel no LinkedIn sobre o tema: "{topic}".
+Você é o Diretor de Criação Executivo da empresa {brand_name} ({website_url}).
+Setor da Empresa: {company_industry}
+Serviços: {dna.get('core_services', '')}
+
+TAREFA: Crie um roteiro em {slide_count} slides para um Carrossel Infográfico Corporativo no LinkedIn.
+TEMA PRINCIPAL: "{topic}"
+PÚBLICO-ALVO: {effective_audience}
+
+DIRETRIZES DE ESTILO E CONTEÚDO:
+- TOM DE VOZ: {tone.upper()} ({tone_instructions})
+- OBJETIVO DO CONTEÚDO: {content_objective.upper()} ({objective_instructions})
+- ESTILO ARTÍSTICO DO CRIATIVO: {art_style.upper()}
+- MOLDURA INSTITUCIONAL: {overlay_style.upper()}
+{research_context}
 
 Evolução dos Slides:
-- Slide 1: Capa (Manchete Provocativa Clickbait B2B + Subtítulo)
-- Slide 2: O Problema/Dor Atual da Indústria
-- Slide 3: A Virada de Chave / Arquitetura VisionAI
-- Slide 4: Métricas Reais de Impacto & ROI
-- Slide 5: Conclusão & Chamada para Ação (CTA)
+- Slide 1: Capa (Manchete Provocativa/Executiva de Alto Impacto + Subtítulo)
+- Slide 2: O Problema / A Dor Específica do Público {effective_audience}
+- Slide 3: A Virada de Chave / Solução Tecnológica
+- Slide 4: Métricas Reais de Impacto & ROI Medido
+- Slide {slide_count}: Conclusão & Chamada para Ação (CTA para {website_url})
 
-Responda APENAS com JSON:
+Responda APENAS com JSON no formato:
 {{
   "title": "Título Geral do Carrossel",
   "slides": [
     {{
       "slide_number": 1,
-      "badge": "CATEGORIA B2B",
+      "badge": "CATEGORIA OU BADGE",
       "headline": "Manchete Principal do Slide",
-      "body": "Texto curto explicativo ou métrica"
+      "body": "Texto explicativo direto e impactante"
     }}
   ]
 }}
@@ -1322,22 +1375,64 @@ Responda APENAS com JSON:
 
         if not slides_data:
             slides_data = [
-                {"slide_number": 1, "badge": "VISIONAI INSIGHTS", "headline": topic[:45], "body": "Como a tecnologia na borda está transformando as operações B2B."},
-                {"slide_number": 2, "badge": "O DESAFIO", "headline": "Por Que o Modelo Antigo Falha?", "body": "Latência de rede e custos de nuvem inviabilizam análises em tempo real."},
-                {"slide_number": 3, "badge": "A SOLUÇÃO", "headline": "Inteligência Local na Borda", "body": "Processamento de vídeo a 30 FPS diretamente nas câmeras existentes."},
-                {"slide_number": 4, "badge": "RESULTADOS", "headline": "Métricas Reais de ROI", "body": "Eliminação de acidentes e +15% de produtividade no primeiro trimestre."},
-                {"slide_number": 5, "badge": "PRÓXIMOS PASSOS", "headline": "Transforme Sua Operação", "body": "Acesse visionai.com.br e agende uma demonstração com nossos especialistas."}
+                {"slide_number": 1, "badge": f"{brand_name.upper()} INSIGHTS", "headline": topic[:45], "body": f"Como a tecnologia avançada está transformando operações em {company_industry}."},
+                {"slide_number": 2, "badge": "O DESAFIO", "headline": "Por Que a Abordagem Tradicional Falha?", "body": "Altos custos operacionais, latência e falta de visibilidade em tempo real."},
+                {"slide_number": 3, "badge": "A SOLUÇÃO", "headline": "Arquitetura Inteligente", "body": f"Automação e análise preditiva desenvolvida especificamente para {effective_audience}."},
+                {"slide_number": 4, "badge": "RESULTADOS", "headline": "Métricas Reais de ROI", "body": "Redução drástica de falhas e ganho imediato de eficiência operacional."},
+                {"slide_number": 5, "badge": "PRÓXIMOS PASSOS", "headline": "Transforme Sua Operação", "body": f"Acesse {website_url} e fale com nossos especialistas."}
             ]
 
         logo_b64 = self._get_official_logo_b64()
         logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="80" y="70" width="50" height="50"/>' if logo_b64 else '<rect x="80" y="70" width="50" height="50" rx="12" fill="url(#vision-grad)"/>'
+
+        # Definição de Cores e Estilo Visual baseados em overlay_style e art_style
+        if overlay_style == "cyberpunk_neon":
+            bg_color_1 = "#050505"
+            bg_color_2 = "#0f172a"
+            accent_color = "#9EFF00"
+            secondary_accent = "#00E5FF"
+            badge_bg = "rgba(158,255,0,0.15)"
+            badge_border = "rgba(158,255,0,0.5)"
+            badge_text = "#9EFF00"
+        elif overlay_style == "minimalist":
+            bg_color_1 = "#0f172a"
+            bg_color_2 = "#1e293b"
+            accent_color = "#00E5FF"
+            secondary_accent = "#ffffff"
+            badge_bg = "rgba(255,255,255,0.1)"
+            badge_border = "rgba(255,255,255,0.3)"
+            badge_text = "#ffffff"
+        elif overlay_style == "glassmorphism":
+            bg_color_1 = "#0b1329"
+            bg_color_2 = "#172554"
+            accent_color = "#38BDF8"
+            secondary_accent = "#818CF8"
+            badge_bg = "rgba(56,189,248,0.15)"
+            badge_border = "rgba(56,189,248,0.4)"
+            badge_text = "#38BDF8"
+        elif overlay_style == "executive_frame":
+            bg_color_1 = "#0B192C"
+            bg_color_2 = "#1E3E62"
+            accent_color = "#F59E0B"
+            secondary_accent = "#00E5FF"
+            badge_bg = "rgba(245,158,11,0.15)"
+            badge_border = "rgba(245,158,11,0.5)"
+            badge_text = "#F59E0B"
+        else:
+            bg_color_1 = "#050505"
+            bg_color_2 = "#0f172a"
+            accent_color = "#9EFF00"
+            secondary_accent = "#00E5FF"
+            badge_bg = "rgba(158,255,0,0.15)"
+            badge_border = "rgba(158,255,0,0.5)"
+            badge_text = "#9EFF00"
 
         writer = PdfWriter()
         total_slides = len(slides_data)
 
         for s in slides_data:
             s_num = s.get("slide_number", 1)
-            badge = html.escape(str(s.get("badge", "VISIONAI")).upper())
+            badge = html.escape(str(s.get("badge", brand_name)).upper())
             headline = html.escape(str(s.get("headline", "")))
             body = html.escape(str(s.get("body", "")))
 
@@ -1369,29 +1464,29 @@ Responda APENAS com JSON:
             svg_slide = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
   <defs>
     <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#050505"/>
-      <stop offset="50%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#050505"/>
+      <stop offset="0%" stop-color="{bg_color_1}"/>
+      <stop offset="50%" stop-color="{bg_color_2}"/>
+      <stop offset="100%" stop-color="{bg_color_1}"/>
     </linearGradient>
     <linearGradient id="vision-grad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#9EFF00"/>
-      <stop offset="100%" stop-color="#0055FF"/>
+      <stop offset="0%" stop-color="{accent_color}"/>
+      <stop offset="100%" stop-color="{secondary_accent}"/>
     </linearGradient>
   </defs>
 
   <rect width="1080" height="1080" fill="url(#bg-grad)"/>
-  <circle cx="950" cy="150" r="300" fill="#9EFF00" opacity="0.08"/>
-  <circle cx="150" cy="950" r="350" fill="#0055FF" opacity="0.10"/>
+  <circle cx="950" cy="150" r="300" fill="{accent_color}" opacity="0.08"/>
+  <circle cx="150" cy="950" r="350" fill="{secondary_accent}" opacity="0.10"/>
 
   <g transform="translate(80, 70)">
     {logo_tag}
-    <text x="64" y="36" font-family="'Outfit', sans-serif" font-weight="900" font-size="28" fill="#ffffff">VISION<tspan fill="#9EFF00">AI</tspan></text>
-    <text x="220" y="36" font-family="'Inter', sans-serif" font-weight="400" font-size="16" fill="#94a3b8">| Corporate Tech</text>
+    <text x="64" y="36" font-family="'Outfit', sans-serif" font-weight="900" font-size="28" fill="#ffffff">{html.escape(brand_name.upper())}</text>
+    <text x="260" y="36" font-family="'Inter', sans-serif" font-weight="400" font-size="16" fill="#94a3b8">| {html.escape(tone.capitalize())} B2B</text>
   </g>
 
-  <g transform="translate(780, 75)">
-    <rect width="220" height="40" rx="20" fill="rgba(158,255,0,0.15)" stroke="rgba(158,255,0,0.5)" stroke-width="1.5"/>
-    <text x="110" y="26" font-family="'Inter', sans-serif" font-weight="800" font-size="13" fill="#9EFF00" text-anchor="middle" letter-spacing="1">{badge}</text>
+  <g transform="translate(740, 75)">
+    <rect width="260" height="42" rx="21" fill="{badge_bg}" stroke="{badge_border}" stroke-width="1.5"/>
+    <text x="130" y="27" font-family="'Inter', sans-serif" font-weight="800" font-size="13" fill="{badge_text}" text-anchor="middle" letter-spacing="1">{badge}</text>
   </g>
 
   {headline_svg}
@@ -1399,8 +1494,8 @@ Responda APENAS com JSON:
   {body_svg}
 
   <g transform="translate(80, 980)">
-    <text x="0" y="0" font-family="'Inter', sans-serif" font-weight="600" font-size="18" fill="#64748b">Inovação B2B ✦ visionai.com.br</text>
-    <text x="920" y="0" font-family="'Inter', sans-serif" font-weight="800" font-size="18" fill="#9EFF00" text-anchor="end">Slide {s_num}/{total_slides}</text>
+    <text x="0" y="0" font-family="'Inter', sans-serif" font-weight="600" font-size="18" fill="#64748b">✦ {html.escape(website_url.replace('https://','').replace('http://',''))}</text>
+    <text x="920" y="0" font-family="'Inter', sans-serif" font-weight="800" font-size="18" fill="{accent_color}" text-anchor="end">Slide {s_num}/{total_slides}</text>
   </g>
 </svg>"""
 

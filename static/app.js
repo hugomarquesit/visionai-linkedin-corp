@@ -229,8 +229,15 @@ let currentCarouselPdfB64 = null;
 let currentCarouselTitle = null;
 
 async function generateCarouselPdfAction() {
-  const topic = $('carousel-topic') ? $('carousel-topic').value.trim() : '';
+  const topic = $('carousel-topic') && $('carousel-topic').value.trim() ? $('carousel-topic').value.trim() : ($('gen-topic') ? $('gen-topic').value.trim() : '');
   const count = $('carousel-slides-count') ? parseInt($('carousel-slides-count').value) : 5;
+  const tone = $('gen-tone') ? $('gen-tone').value : 'provocativo';
+  const objective = $('gen-content-objective') ? $('gen-content-objective').value : 'lideranca_pensamento';
+  const artStyle = $('gen-art-style') ? $('gen-art-style').value : 'tech_modern';
+  const overlayStyle = $('gen-overlay-style') ? $('gen-overlay-style').value : 'cyberpunk_neon';
+  const targetAudience = $('gen-target-audience') ? $('gen-target-audience').value.trim() : '';
+  const webResearch = $('gen-web-research') ? $('gen-web-research').checked : false;
+
   const previewArea = $('carousel-preview-area');
   const btn = $('btn-generate-carousel');
   const publishNowBtn = $('btn-publish-carousel-now');
@@ -242,13 +249,22 @@ async function generateCarouselPdfAction() {
 
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '⏳ Criando slides e compondo PDF...';
+    btn.innerHTML = '⏳ Criando slides com tom, estilo e regras da marca...';
   }
 
   try {
     const { ok, data } = await apiFetch('/api/gemini/generate-carousel', {
       method: 'POST',
-      body: JSON.stringify({ topic: topic, slides_count: count })
+      body: JSON.stringify({
+        topic: topic,
+        slides_count: count,
+        tone: tone,
+        content_objective: objective,
+        art_style: artStyle,
+        overlay_style: overlayStyle,
+        target_audience: targetAudience,
+        web_research: webResearch
+      })
     });
 
     if (btn) {

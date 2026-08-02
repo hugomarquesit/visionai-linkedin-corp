@@ -505,6 +505,13 @@ async def gemini_analyze_followers(payload: AnalyticsAIPayload, _: bool = Depend
 class GenerateCarouselPayload(BaseModel):
     topic: str
     slides_count: Optional[int] = 5
+    tone: Optional[str] = "provocativo"
+    content_objective: Optional[str] = "lideranca_pensamento"
+    art_style: Optional[str] = "tech_modern"
+    overlay_style: Optional[str] = "cyberpunk_neon"
+    target_audience: Optional[str] = ""
+    web_research: Optional[bool] = False
+    source_url: Optional[str] = ""
 
 class PublishCarouselPayload(BaseModel):
     pdf_base64: str
@@ -585,8 +592,18 @@ async def gemini_mark_trend_used(payload: MarkTrendUsedPayload, _: bool = Depend
 
 @app.post("/api/gemini/generate-carousel")
 async def gemini_generate_carousel(payload: GenerateCarouselPayload, _: bool = Depends(require_auth)):
-    """Gera um carrossel em PDF multi-slide corporativo para o LinkedIn."""
-    res = ai.generate_carousel_pdf(payload.topic, payload.slides_count or 5)
+    """Gera um carrossel em PDF multi-slide corporativo para o LinkedIn respeitando todas as regras de tom, estilo e marca."""
+    res = ai.generate_carousel_pdf(
+        topic=payload.topic,
+        slide_count=payload.slides_count or 5,
+        tone=payload.tone or "provocativo",
+        content_objective=payload.content_objective or "lideranca_pensamento",
+        art_style=payload.art_style or "tech_modern",
+        overlay_style=payload.overlay_style or "cyberpunk_neon",
+        target_audience=payload.target_audience or "",
+        web_research=payload.web_research or False,
+        source_url=payload.source_url or ""
+    )
     return {"ok": True, **res, "model": ai.model}
 
 @app.post("/api/posts/publish-carousel")
