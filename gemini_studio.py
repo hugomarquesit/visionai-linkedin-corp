@@ -180,7 +180,7 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         return ""
 
     def _translate_papers_to_ptbr(self, raw_papers: list) -> list:
-        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR) em lotes rápidos de 3 itens."""
+        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR) em lotes por índice."""
         import re, json
         if not raw_papers:
             return []
@@ -201,12 +201,17 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
             
             prompt = f"""
 Você é um Tradutor Técnico e Especialista em IA para o mercado corporativo brasileiro.
-SUA MISSÃO: Traduza e adapte a lista de {len(chunk)} papers acadêmicos abaixo para PORTUGUÊS DO BRASIL (PT-BR).
+SUA MISSÃO: Traduza, adapte e crie uma prévia técnica didática em PORTUGUÊS DO BRASIL (PT-BR) para a lista de {len(chunk)} papers acadêmicos abaixo.
 
-REGRAS RÍGIDAS DE TRADUÇÃO:
+REGRAS RÍGIDAS DE TRADUÇÃO & CONTEÚDO:
 1. **title**: Crie um título magnético, claro, didático e de alta autoridade técnico-executiva em PORTUGUÊS DO BRASIL.
-2. **summary**: Crie um resumo executivo didático e plausível de 2 a 3 frases em PORTUGUÊS DO BRASIL explicando o problema resolvido e a inovação.
-3. **Mantenha o campo `index` exato (0, 1, 2, ...)** de cada item.
+2. **summary**: Crie uma explicação didática de 2 a 3 frases em PORTUGUÊS DO BRASIL sobre o conteúdo do artigo e a relevância prática.
+3. **pdf_preview_ptbr**: Crie uma PRÉVIA ESTRUTURADA COMPLETA DO CONTEÚDO DO PDF em PORTUGUÊS DO BRASIL (3 a 4 parágrafos ricos em PT-BR) detalhando:
+   - O problema científico/técnico resolvido pelo estudo.
+   - A inovação de arquitetura/algoritmo proposta pelos autores.
+   - Resultados empíricos, métricas e benchmarks medidos.
+   - A aplicação prática e ROI para empresas B2B e tecnologia.
+4. **Mantenha o campo `index` exato (0, 1, 2, ...)** de cada item.
 
 PAPERS PARA TRADUZIR:
 {json.dumps(prompt_papers, ensure_ascii=False, indent=2)}
@@ -216,7 +221,8 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
   {{
     "index": 0,
     "title": "Título explicativo em Português do Brasil",
-    "summary": "Resumo executivo didático em Português do Brasil"
+    "summary": "Explicação didática do conteúdo em Português do Brasil",
+    "pdf_preview_ptbr": "Prévia estruturada completa do PDF em Português do Brasil (parágrafos ricos com conceitos, métricas e aplicação B2B)"
   }}
 ]
 """
@@ -241,6 +247,7 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
                                 merged = dict(orig)
                                 merged["title"] = item_t.get("title", orig.get("title"))
                                 merged["summary"] = item_t.get("summary", orig.get("summary"))
+                                merged["pdf_preview_ptbr"] = item_t.get("pdf_preview_ptbr", item_t.get("summary", ""))
                                 all_translated.append(merged)
                             else:
                                 all_translated.append(orig)
@@ -306,14 +313,15 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
                 grounding_prompt = f"""
 Pesquise na internet papers acadêmicos, artigos científicos e pesquisas RECENTES (2025/2026) no HuggingFace Papers ou ArXiv sobre o tema: '{query or 'Artificial Intelligence Research'}'.
 
-SUA MISSÃO: Retorne de 5 a 8 papers acadêmicos reais com títulos e resumos explicativos EXCLUSIVAMENTE em PORTUGUÊS DO BRASIL (PT-BR).
+SUA MISSÃO: Retorne de 5 a 8 papers acadêmicos reais que deem MATCH PERFEITO com o tema '{query}'. Todas as respostas devem estar EXCLUSIVAMENTE em PORTUGUÊS DO BRASIL (PT-BR).
 
 Responda APENAS com um array JSON no formato (sem qualquer bloco de código markdown ```json):
 [
   {{
     "paper_id": "ID do ArXiv ou HuggingFace",
     "title": "Título explicativo e Didático em Português do Brasil",
-    "summary": "Resumo executivo plausível e enriquecedor de 2 a 3 frases em Português do Brasil",
+    "summary": "Explicação didática de 2 a 3 frases em Português do Brasil de por que deu match com a busca",
+    "pdf_preview_ptbr": "Prévia completa e estruturada do PDF em Português do Brasil (parágrafos ricos detalhando o problema, metodologia, métricas e aplicação B2B)",
     "authors": "Nomes dos pesquisadores/autores",
     "paper_url": "https://huggingface.co/papers/XXXX.XXXXX ou https://arxiv.org/abs/XXXX.XXXXX",
     "published_at": "2026",
@@ -329,6 +337,8 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
                     grounded_papers = json.loads(clean[start:end], strict=False)
                     for p in grounded_papers:
                         if isinstance(p, dict) and p.get("title"):
+                            if not p.get("pdf_preview_ptbr"):
+                                p["pdf_preview_ptbr"] = p.get("summary", "")
                             papers.append(p)
             except Exception as e:
                 print(f"Fallback Grounding Papers falhou: {e}")

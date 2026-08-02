@@ -123,7 +123,7 @@ function renderTrendsList(trends) {
   if (!container) return;
 
   if (!trends || trends.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p>Nenhuma tendência encontrada para este filtro. Clique em "Varredura Nova na Web" para buscar na internet.</p></div>';
+    container.innerHTML = '<div class="empty-state"><p>Nenhuma tendência ou paper encontrado para este filtro. Digite um tema e clique em "Buscar Papers &amp; Match".</p></div>';
     return;
   }
 
@@ -131,23 +131,42 @@ function renderTrendsList(trends) {
     <div class="card" id="trend-card-${idx}" style="border-left:4px solid #9EFF00; background: rgba(15, 23, 42, 0.85); display:flex; flex-direction:column; justify-content:space-between;">
       <div>
         <div class="draft-header mb-2" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <span class="chip-badge" style="background:rgba(158,255,0,0.15); color:#9EFF00; padding:4px 10px; border-radius:12px; font-weight:700; font-size:11px;">📡 ${escapeHtml(t.category || 'TENDÊNCIA')}</span>
+          <span class="chip-badge" style="background:rgba(158,255,0,0.15); color:#9EFF00; padding:4px 10px; border-radius:12px; font-weight:700; font-size:11px;">📡 ${escapeHtml(t.category || 'TENDÊNCIA / PAPER')}</span>
           <button class="btn btn-primary btn-sm" onclick="generatePostFromTrend(${idx})" style="padding:6px 12px; font-size:12px; font-weight:700;">⚡ Gerar Post</button>
         </div>
         <h4 style="color:#ffffff; font-size:15px; margin-bottom:8px; line-height:1.4;">${escapeHtml(t.title)}</h4>
         <p style="font-size:13px; color:#94a3b8; margin-bottom:10px; line-height:1.5;">${escapeHtml(t.summary)}</p>
-        ${t.source_url ? `<div style="margin-bottom:8px;"><a href="${escapeHtml(t.source_url)}" target="_blank" style="color:#00E5FF; text-decoration:underline; font-size:12px; font-weight:600;">🔗 Ver Paper / Fonte Original no HuggingFace / ArXiv</a></div>` : ''}
+        
+        ${t.pdf_preview_ptbr ? `
+          <details style="background:#020617; border:1px solid #334155; border-radius:8px; padding:10px 14px; margin-bottom:10px; font-size:13px; color:#cbd5e1;">
+            <summary style="font-weight:700; color:#9EFF00; cursor:pointer; outline:none;">📄 Ver Prévia Completa do PDF / Conteúdo Extraído (PT-BR)</summary>
+            <div style="margin-top:10px; line-height:1.6; white-space:pre-wrap; border-top:1px solid #1e293b; padding-top:10px;">${escapeHtml(t.pdf_preview_ptbr)}</div>
+          </details>
+        ` : ''}
+
+        ${t.source_url ? `<div style="margin-bottom:8px;"><a href="${escapeHtml(t.source_url)}" target="_blank" style="color:#00E5FF; text-decoration:underline; font-size:12px; font-weight:600;">🔗 Ver Paper / Fonte Original no HuggingFace / ArXiv ↗</a></div>` : ''}
       </div>
       <div style="font-size:12px; color:#9EFF00; font-weight:600; background:rgba(2,6,23,0.6); padding:8px; border-radius:6px; border:1px solid rgba(158,255,0,0.2);">💡 Impacto B2B: ${escapeHtml(t.impact_b2b || '')}</div>
     </div>
   `).join('');
 }
 
+async function searchPapersMatchAction() {
+  const input = $('trend-search-input');
+  const query = input ? input.value.trim() : '';
+  if (!query) {
+    showToast('Digite um tema para relacionar papers acadêmicos', 'warning');
+    return;
+  }
+  showToast(`Buscando papers e realizando match técnico para: "${query}"...`, 'info');
+  loadHuggingFacePapersAction(query);
+}
+
 async function loadHuggingFacePapersAction(query = '') {
   const container = $('web-trends-panel-container') || $('web-trends-container');
   if (!container) return;
 
-  container.innerHTML = '<div class="empty-state"><p class="chip-loading">✦ Buscando Trending Papers no HuggingFace e ArXiv em tempo real...</p></div>';
+  container.innerHTML = '<div class="empty-state"><p class="chip-loading">✦ Buscando Papers no HuggingFace / ArXiv e gerando prévia do PDF em PT-BR...</p></div>';
 
   try {
     const url = `/api/gemini/trending-papers${query ? '?query=' + encodeURIComponent(query) : ''}`;
@@ -156,19 +175,20 @@ async function loadHuggingFacePapersAction(query = '') {
       cachedWebTrends = data.papers.map(p => ({
         id: p.paper_id,
         title: p.title,
-        category: 'PAPER CIENTÍFICO (HUGGINGFACE)',
+        category: 'MATCH DE PAPER IA (HUGGINGFACE/ARXIV)',
         summary: p.summary,
+        pdf_preview_ptbr: p.pdf_preview_ptbr || p.summary,
         impact_b2b: `Autores: ${p.authors} | Publicado: ${p.published_at || '2026'}`,
         suggested_topic: `Estudo de Caso & Análise do Paper: ${p.title}`,
         source_url: p.paper_url
       }));
       renderTrendsList(cachedWebTrends);
-      showToast(`${data.papers.length} Trending Papers do HuggingFace carregados!`, 'success');
+      showToast(`${data.papers.length} Papers com prévia de PDF em PT-BR carregados!`, 'success');
     } else {
-      container.innerHTML = '<div class="empty-state"><p>Nenhum paper encontrado para o filtro. Tente outra palavra-chave.</p></div>';
+      container.innerHTML = '<div class="empty-state"><p>Nenhum paper encontrado para este tema. Tente outra palavra-chave.</p></div>';
     }
   } catch (e) {
-    container.innerHTML = '<div class="empty-state"><p>Erro de conexão ao buscar Trending Papers do HuggingFace.</p></div>';
+    container.innerHTML = '<div class="empty-state"><p>Erro de conexão ao buscar Papers do HuggingFace.</p></div>';
   }
 }
 
@@ -198,6 +218,7 @@ function filterWebTrendsCategory(cat) {
 window.filterWebTrends = filterWebTrends;
 window.filterWebTrendsCategory = filterWebTrendsCategory;
 window.loadHuggingFacePapersAction = loadHuggingFacePapersAction;
+window.searchPapersMatchAction = searchPapersMatchAction;
 
 async function generatePostFromTrend(idx) {
   const item = cachedWebTrends[idx];
@@ -208,6 +229,12 @@ async function generatePostFromTrend(idx) {
   if (item.source_url) {
     if ($('gen-content-objective')) $('gen-content-objective').value = 'educativo_academic';
     if ($('gen-web-research')) $('gen-web-research').checked = true;
+  }
+
+  // Exibe a prévia completa do PDF em PT-BR no Canvas do Gerador
+  if (item.pdf_preview_ptbr && $('paper-pdf-preview-box') && $('paper-pdf-preview-content')) {
+    $('paper-pdf-preview-content').innerText = `📑 Título: ${item.title}\n\n📄 PRÉVIA EXTRAÍDA DO PDF (PT-BR):\n${item.pdf_preview_ptbr}\n\n🔗 Fonte: ${item.source_url || ''}`;
+    $('paper-pdf-preview-box').classList.remove('hidden');
   }
 
   // Marca no banco SQLite como usado para não repetir
