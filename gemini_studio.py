@@ -309,56 +309,91 @@ REGRAS:
 
         return topics_list
 
-    def _composite_advertising_creative(self, raw_img_bytes: bytes, pt_headline: str, category: str = "VisionAi Insights") -> tuple[str, str]:
+    def _composite_advertising_creative(self, raw_img_bytes: bytes, pt_headline: str, category: str = "VisionAi Insights", overlay_style: str = "photo_pure") -> tuple[str, str]:
         """
-        Combina a foto realista gerada por IA com a Moldura Publicitária oficial da VisionAI
-        usando a logomarca do site (logo.png) e paleta de cores corporativa (#9EFF00 / #0055FF).
+        Combina a foto realista gerada por IA de acordo com o estilo visual escolhido pelo usuário:
+        - photo_pure: Foto 100% pura sem molduras nem overlays (Zero interferência de logo ou marca)
+        - editorial_magazine: Foto editorial estilo Forbes/HBR com badge minimalista
+        - ad_banner: Banner publicitário completo com marca VisionAI e rodapé
         """
+        import base64
+        if overlay_style == "photo_pure":
+            img_b64 = base64.b64encode(raw_img_bytes).decode('utf-8')
+            print("Foto editorial pura 100% sem moldura nem logo gerada com sucesso!")
+            return img_b64, "image/jpeg"
+
         import io, html
         from PIL import Image
         import cairosvg
 
         try:
-            # 1. Carrega e redimensiona a foto de fundo para 1200x630
             bg = Image.open(io.BytesIO(raw_img_bytes)).convert("RGB")
             bg = bg.resize((1200, 630), Image.Resampling.LANCZOS)
-
-            # 2. Carrega a logo oficial
             logo_b64 = self._get_official_logo_b64()
-            logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="80" y="55" width="44" height="44"/>' if logo_b64 else '<rect x="80" y="55" width="44" height="44" rx="10" fill="url(#vision-grad)"/>'
-
-            # 3. Formata manchete em PT-BR para o SVG overlay usando tspan nativo
-            def wrap_text_to_tspans(text: str, max_chars: int = 42, start_x: int = 80, dy: int = 48) -> str:
-                words = text.strip().replace('#', '').replace('*', '').split()
-                lines = []
-                current_line = []
-                current_len = 0
-                for word in words:
-                    if current_len + len(word) + 1 > max_chars and current_line:
-                        lines.append(" ".join(current_line))
-                        current_line = [word]
-                        current_len = len(word)
-                    else:
-                        current_line.append(word)
-                        current_len += len(word) + 1
-                if current_line:
-                    lines.append(" ".join(current_line))
-                
-                lines = lines[:4]
-                tspans = []
-                for i, l in enumerate(lines):
-                    d = 0 if i == 0 else dy
-                    escaped_line = html.escape(l)
-                    tspans.append(f'<tspan x="{start_x}" dy="{d}">{escaped_line}</tspan>')
-                return "\n".join(tspans)
 
             first_line = pt_headline.strip().split("\n")[0]
             clean_first_line = first_line.replace("#", "").replace("**", "").strip()
-            headline_tspans = wrap_text_to_tspans(clean_first_line)
             clean_category = html.escape(category.upper())
 
-            # 4. Moldura gráfica oficial com a paleta do site (#9EFF00)
-            svg_overlay = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+            if overlay_style == "editorial_magazine":
+                # Estilo Revista Editorial Minimalista (Forbes / Harvard Business Review)
+                logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="55" y="45" width="28" height="28"/>' if logo_b64 else ''
+                svg_overlay = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bottom-shadow" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="rgba(0,0,0,0.80)"/>
+      <stop offset="45%" stop-color="rgba(0,0,0,0.30)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.0)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Gradiente suave inferior apenas no rodapé -->
+  <rect y="280" width="1200" height="350" fill="url(#bottom-shadow)"/>
+
+  <!-- Badge Minimalista no Topo Esquerdo -->
+  <g transform="translate(50, 40)">
+    <rect width="180" height="36" rx="8" fill="rgba(15, 23, 42, 0.85)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    {logo_tag}
+    <text x="{48 if logo_b64 else 16}" y="23" font-family="'Inter', sans-serif" font-weight="700" font-size="11" fill="#ffffff" letter-spacing="1">VISIONAI EDITORIAL</text>
+  </g>
+
+  <!-- Badge de Categoria no Topo Direito -->
+  <g transform="translate(940, 40)">
+    <rect width="200" height="36" rx="8" fill="rgba(15, 23, 42, 0.85)" stroke="rgba(158, 255, 0, 0.5)" stroke-width="1"/>
+    <text x="100" y="23" font-family="'Inter', sans-serif" font-weight="700" font-size="11" fill="#9EFF00" text-anchor="middle" letter-spacing="1">{clean_category}</text>
+  </g>
+
+  <!-- Manchete Minimalista -->
+  <text x="50" y="550" font-family="'Outfit', 'Inter', sans-serif" font-size="34" fill="#ffffff" font-weight="800">
+    {html.escape(clean_first_line[:65])}
+  </text>
+</svg>"""
+            else:
+                # Banner Publicitário Oficial VisionAI (ad_banner)
+                logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="80" y="55" width="44" height="44"/>' if logo_b64 else '<rect x="80" y="55" width="44" height="44" rx="10" fill="url(#vision-grad)"/>'
+                
+                def wrap_text_to_tspans(text: str, max_chars: int = 42, start_x: int = 80, dy: int = 48) -> str:
+                    words = text.strip().replace('#', '').replace('*', '').split()
+                    lines, current_line, current_len = [], [], 0
+                    for word in words:
+                        if current_len + len(word) + 1 > max_chars and current_line:
+                            lines.append(" ".join(current_line))
+                            current_line = [word]
+                            current_len = len(word)
+                        else:
+                            current_line.append(word)
+                            current_len += len(word) + 1
+                    if current_line:
+                        lines.append(" ".join(current_line))
+                    tspans = []
+                    for i, l in enumerate(lines[:4]):
+                        d = 0 if i == 0 else dy
+                        tspans.append(f'<tspan x="{start_x}" dy="{d}">{html.escape(l)}</tspan>')
+                    return "\n".join(tspans)
+
+                headline_tspans = wrap_text_to_tspans(clean_first_line)
+
+                svg_overlay = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <linearGradient id="vision-grad" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#9EFF00"/>
@@ -371,44 +406,28 @@ REGRAS:
     </linearGradient>
   </defs>
 
-  <!-- Gradiente de escurecimento escuro (#050505) -->
   <rect width="1200" height="630" fill="url(#shadow)"/>
 
-  <!-- Telemetria HUD Visão Computacional em Verde Neon (#9EFF00) -->
-  <g opacity="0.7">
-    <path d="M 950 140 L 980 140 M 950 140 L 950 170" stroke="#9EFF00" stroke-width="2" fill="none"/>
-    <path d="M 1080 140 L 1050 140 M 1080 140 L 1080 170" stroke="#9EFF00" stroke-width="2" fill="none"/>
-    <path d="M 950 240 L 980 240 M 950 240 L 950 210" stroke="#9EFF00" stroke-width="2" fill="none"/>
-    <path d="M 1080 240 L 1050 240 M 1080 240 L 1080 210" stroke="#9EFF00" stroke-width="2" fill="none"/>
-    <rect x="950" y="122" width="130" height="16" fill="rgba(158, 255, 0, 0.2)" rx="2"/>
-    <text x="955" y="134" font-family="'Inter', monospace" font-size="10" fill="#9EFF00" font-weight="bold">AI DETECT: 99.8%</text>
-  </g>
-
-  <!-- Cabeçalho: Logo Oficial PNG + Marca VISION AI (#9EFF00) -->
   <g transform="translate(80, 55)">
     {logo_tag}
     <text x="54" y="32" font-family="'Outfit', 'Inter', sans-serif" font-weight="900" font-size="26" fill="#ffffff" letter-spacing="-0.5">VISION<tspan fill="#9EFF00">AI</tspan></text>
     <text x="205" y="32" font-family="'Inter', sans-serif" font-weight="400" font-size="14" fill="#94a3b8">| Corporate Tech</text>
   </g>
 
-  <!-- Selo de Categoria Oficial em Verde Neon (#9EFF00) -->
   <g transform="translate(920, 58)">
     <rect width="200" height="36" rx="18" fill="rgba(158, 255, 0, 0.12)" stroke="rgba(158, 255, 0, 0.45)" stroke-width="1.5"/>
     <text x="100" y="23" font-family="'Inter', sans-serif" font-weight="800" font-size="12" fill="#9EFF00" text-anchor="middle" letter-spacing="1">{clean_category}</text>
   </g>
 
-  <!-- Título Principal do Criativo em PT-BR -->
   <text x="80" y="220" font-family="'Outfit', 'Inter', sans-serif" font-size="38" fill="#ffffff" font-weight="800">
     {headline_tspans}
   </text>
 
-  <!-- Rodapé Publicitário Oficial (#9EFF00 / #0055FF) -->
   <rect x="80" y="535" width="140" height="4" rx="2" fill="url(#vision-grad)"/>
   <text x="80" y="575" font-family="'Inter', sans-serif" font-weight="500" font-size="14" fill="#94a3b8">Inovação, Inteligência Artificial &amp; Computação na Borda</text>
   <text x="1120" y="575" font-family="'Inter', sans-serif" font-weight="800" font-size="15" fill="#9EFF00" text-anchor="end">visionai.com.br ✦</text>
 </svg>"""
 
-            # 5. Renderiza moldura e faz composição alfa sobre a foto
             overlay_png = cairosvg.svg2png(bytestring=svg_overlay.encode('utf-8'))
             overlay_img = Image.open(io.BytesIO(overlay_png)).convert('RGBA')
 
@@ -417,15 +436,14 @@ REGRAS:
             composite.convert('RGB').save(out, format='JPEG', quality=95)
             
             img_b64 = base64.b64encode(out.getvalue()).decode('utf-8')
-            print("Peça publicitária corporativa oficial (foto + branding do site VisionAI) criada com sucesso!")
             return img_b64, "image/jpeg"
         except Exception as e:
             print(f"Erro ao compor peça publicitária: {e} — usando foto original")
             img_b64 = base64.b64encode(raw_img_bytes).decode('utf-8')
             return img_b64, "image/jpeg"
 
-    def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights", category: str = "VisionAi Insights") -> tuple[str, str]:
-        """Gera uma imagem realista pura via Gemini Image Models e compõe a peça publicitária com branding VisionAI. Retorna (base64, mime_type)."""
+    def _generate_image_base64(self, prompt: str, pt_title: str = "VisionAI Insights", category: str = "VisionAi Insights", overlay_style: str = "photo_pure") -> tuple[str, str]:
+        """Gera uma imagem realista pura via Gemini Image Models e compõe a peça publicitária de acordo com o overlay_style escolhido."""
         clean_prompt = prompt.replace("\n", " ").strip()
         negative_rules = ", NO sci-fi, NO futuristic fantasy, NO glowing cyber portals, NO text, NO written words, NO letters, NO signs, NO typography, authentic realistic professional corporate photography, 35mm lens, Sony Alpha camera, natural lighting, highly realistic 8k photo"
         full_prompt = clean_prompt + negative_rules if "NO text" not in clean_prompt else clean_prompt
@@ -447,8 +465,8 @@ REGRAS:
                     for part in response.candidates[0].content.parts:
                         if part.inline_data and part.inline_data.data:
                             img_bytes = part.inline_data.data
-                            print(f"Foto corporativa gerada com sucesso via modelo {model} ({len(img_bytes)} bytes)!")
-                            return self._composite_advertising_creative(img_bytes, pt_headline=pt_title, category=category)
+                            print(f"Foto gerada com sucesso via modelo {model} ({len(img_bytes)} bytes)!")
+                            return self._composite_advertising_creative(img_bytes, pt_headline=pt_title, category=category, overlay_style=overlay_style)
             except Exception as e:
                 print(f"Modelo de imagem {model} falhou: {e}")
                 continue
@@ -519,7 +537,7 @@ REGRAS:
                 
         return (clean_full_text, clean_headline)
 
-    def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image") -> dict:
+    def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image", overlay_style: str = "photo_pure") -> dict:
         """
         Recebe o texto editado pelo usuário e gera uma nova peça visual (imagem ou banner)
         que representa fielmente a versão final revisada pelo usuário, com manchete estilo Clickbait B2B.
@@ -585,7 +603,7 @@ Responda APENAS com JSON:
             image_prompt = f"Corporate tech photo representing: {clean_full_text[:100]}"
             
         final_banner_title = clickbait_headline if (clickbait_headline and len(clickbait_headline) >= 10) else fallback_headline
-        img_b64, mime = self._generate_image_base64(image_prompt, pt_title=final_banner_title, category=category_name)
+        img_b64, mime = self._generate_image_base64(image_prompt, pt_title=final_banner_title, category=category_name, overlay_style=overlay_style)
         return {
             "category": category_name,
             "creative_headline": final_banner_title,
@@ -604,7 +622,8 @@ Responda APENAS com JSON:
         media_type: str = "image",
         voice_mode: str = "corporate",
         content_objective: str = "corporativo_sales",
-        web_research: bool = False
+        web_research: bool = False,
+        overlay_style: str = "photo_pure"
     ) -> dict:
         """Gera um post completo com texto e mídia respeitando rigorosamente o objetivo (Educativo/Pesquisa vs Corporativo/Vendas)."""
         
@@ -709,7 +728,7 @@ FORMATO DE SAÍDA: Retorne APENAS o texto do post em português, pronto para ser
         post_text, _ = self._clean_post_content(raw_post_text)
 
         # ── ETAPA 2: GERAÇÃO DA ARTE VISUAL BASEADA NO TEXTO CRIADO ──────────────
-        art_result = self.regenerate_media_from_revised_text(post_text, media_type=media_type)
+        art_result = self.regenerate_media_from_revised_text(post_text, media_type=media_type, overlay_style=overlay_style)
         
         image_prompt = art_result.get("image_prompt", "")
         image_b64 = art_result.get("image_base64", "")

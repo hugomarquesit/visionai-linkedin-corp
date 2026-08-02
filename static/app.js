@@ -990,12 +990,13 @@ function updateMediaDisplay(b64, mime, mediaType = 'image') {
 }
 
 async function generatePost() {
-  const topic       = $('gen-topic') ? $('gen-topic').value.trim() : '';
-  const format      = $('gen-format') ? $('gen-format').value : 'standard';
-  const tone        = $('gen-tone') ? $('gen-tone').value : 'visionario';
-  const voice       = $('gen-voice-mode') ? $('gen-voice-mode').value : 'corporate';
-  const objective   = $('gen-content-objective') ? $('gen-content-objective').value : 'corporativo_sales';
-  const webResearch = $('gen-web-research') ? $('gen-web-research').checked : false;
+  const topic        = $('gen-topic') ? $('gen-topic').value.trim() : '';
+  const format       = $('gen-format') ? $('gen-format').value : 'standard';
+  const tone         = $('gen-tone') ? $('gen-tone').value : 'visionario';
+  const voice        = $('gen-voice-mode') ? $('gen-voice-mode').value : 'corporate';
+  const objective    = $('gen-content-objective') ? $('gen-content-objective').value : 'corporativo_sales';
+  const webResearch  = $('gen-web-research') ? $('gen-web-research').checked : false;
+  const overlayStyle = $('gen-overlay-style') ? $('gen-overlay-style').value : 'photo_pure';
 
   if (!topic) { showToast('Insira um tema para gerar o post', 'error'); return; }
 
@@ -1022,7 +1023,8 @@ async function generatePost() {
         media_type: currentMediaMode,
         voice_mode: voice,
         content_objective: objective,
-        web_research: webResearch
+        web_research: webResearch,
+        overlay_style: overlayStyle
       }),
     });
 
