@@ -537,52 +537,67 @@ REGRAS:
                 
         return (clean_full_text, clean_headline)
 
-    def regenerate_media_from_revised_text(self, revised_text: str, media_type: str = "image", overlay_style: str = "photo_pure", art_style: str = "auto") -> dict:
+    def regenerate_media_from_revised_text(
+        self,
+        revised_text: str,
+        media_type: str = "image",
+        overlay_style: str = "photo_pure",
+        art_style: str = "auto",
+        topic: str = "",
+        tone: str = "",
+        content_objective: str = ""
+    ) -> dict:
         """
-        Recebe o texto editado pelo usuário e gera uma nova peça visual com total liberdade artística,
-        sem engessamento ou predeterminação de cenários corporativos fixos.
+        Gera uma peça visual aplicando ESTRITAMENTE as parametrizações e guardrails escolhidos pelo usuário no formulário.
         """
         clean_full_text, fallback_headline = self._clean_post_content(revised_text)
 
         art_style_directives = {
-            "auto": "Escolha LIVREMENTE o estilo mais impactante (Fotografia Editorial, Render 3D Abstrato, Ilustração Minimalista de Revista ou Frame Cinematográfico) que melhor combine com o assunto.",
-            "photo": "Fotografia Editorial de Altíssima Definição (Capa de revista tipo Forbes/Wired/National Geographic), iluminação natural marcante, foco nítido.",
-            "render_3d": "Render 3D Conceitual e Abstrato (Estilo Cinema4D/Octane Render), com geometrias elegantes, dados em 3D, luzes volumétricas e texturas modernas.",
-            "illustration": "Ilustração Minimalista Contemporânea de Revista (Estilo New Yorker/Tech Review), vetores limpos, paleta elegante e conceito marcante.",
-            "cinematic": "Frame Cinematográfico de Filme/Documentário (Widescreen 16:9), composição dramática, iluminação de cena de alto contraste.",
-            "infographic": "Diagrama e Infográfico Didático Limpo, mostrando conceitos visuais, arquitetura de dados ou conexões de forma moderna."
+            "auto": "LIVRE: Escolha a melhor expressão artística adaptada ao conteúdo (Render 3D Abstrato, Fotografia Editorial, Ilustração Minimalista ou Frame Cinematográfico).",
+            "photo": "FOTOGRAFIA EDITORIAL REALISTA: Capa de revista (Forbes, Wired, NatGeo). PROIBIDO usar vetores ou ilustrações 3D.",
+            "render_3d": "RENDER 3D ABSTRATO E CONCEITUAL: Estilo Cinema4D / Octane Render com geometrias flutuantes, redes de dados 3D e iluminação volumétrica. PROIBIDO fotos de pessoas em escritórios!",
+            "illustration": "ILUSTRAÇÃO MINIMALISTA E VETORIAL: Estilo revista New Yorker ou Tech Review, vetores limpos e design gráfico contemporâneo. PROIBIDO fotografias!",
+            "cinematic": "FRAME CINEMATOGRÁFICO WIDESCREEN (16:9): Iluminação dramática de filme/documentário, alto contraste e storytelling visual marcante.",
+            "infographic": "DIAGRAMA E INFOGRÁFICO TÉCNICO DIDÁTICO: Esquema visual limpo representando arquiteturas, conexões de dados ou conceitos."
         }
 
         selected_art_directive = art_style_directives.get(art_style, art_style_directives["auto"])
 
         prompt = f"""
-Você é um Diretor de Arte Internacional, Fotógrafo Editorial de Capas de Revista (Forbes, Wired, Harvard Business Review) e Artista 3D.
+Você é um Diretor de Arte Internacional e Fotógrafo Editorial de Elite.
 
-TEXTO DO POST NO LINKEDIN:
+PARAMETRIZAÇÕES E GUARDRAILS ESTRITOS DEFINIDOS PELO USUÁRIO (MANDATÓRIOS):
+- TEMA / TÍTULO DA CRIAÇÃO: {topic or 'Extraído do texto'}
+- OBJETIVO DO CONTEÚDO: {'🎓 EDUCATIVO & CIENTÍFICO (Foco em dados, papers e ensino puro - SEM PITCH DE VENDAS)' if content_objective == 'educativo_academic' else '🚀 CORPORATIVO & PITCH B2B'}
+- TOM DE VOZ: {tone or 'Livre'}
+- ESTILO ARTÍSTICO OBRIGATÓRIO DA IMAGEM (`art_style`): {selected_art_directive}
+
+TEXTO REVISADO DO POST NO LINKEDIN:
 ---
 {clean_full_text[:2000]}
 ---
 
-SUAS TAREFAS:
-1. **SELO DE CATEGORIA**: Identifique a linha temática em Português (Ex: CONCEITOS & CIÊNCIA DA IA, VISÃO AGRO-INDUSTRIAL, REALIDADE MISTA & VR, IA MULTIMODAL & SAC, VISÃO COMPUTACIONAL, GOVERNANÇA CORPORATIVA, PAPERS & RESEARCH, INOVAÇÃO & FUTURO).
-2. **MANCHETE CLICKBAIT B2B**: Crie uma manchete provocativa, magnética e de alta conversão em PORTUGUÊS (de 6 a 12 palavras).
-3. **PROMPT DE IMAGEM HIPER-CRIATIVO EM INGLÊS**: Crie um prompt de imagem em INGLÊS 100% FIEL E ADERENTE AO CONTEÚDO ESPECÍFICO DO TEXTO.
+REGRAS RÍGIDAS E INVIOLÁVEIS DE CUMPRIMENTO DAS PARAMETRIZAÇÕES (GUARDRAILS):
+1. **RESPEITE RIGOROSAMENTE O ESTILO ARTÍSTICO SELECIONADO (`art_style`)**:
+   - Se o estilo for 'render_3d', O PROMPT DEVE SER PARA UMA ARTE 3D ABSTRATA (Cinema4D / Octane Render). PROIBIDO foto de pessoas de terno ou escritórios!
+   - Se o estilo for 'illustration', O PROMPT DEVE SER PARA UMA ILUSTRAÇÃO VETORIAL MINIMALISTA. PROIBIDO fotografias reais!
+   - Se o estilo for 'cinematic', O PROMPT DEVE SER PARA UM FRAME CINEMATOGRÁFICO DRAMÁTICO.
+   - Se o estilo for 'infographic', O PROMPT DEVE SER PARA UM DIAGRAMA VISUAL TÉCNICO E LIMPO.
+   - Se o estilo for 'photo', O PROMPT DEVE SER PARA FOTOGRAFIA EDITORIAL DE ALTA RESOLUÇÃO.
 
-DIRETRIZES DE LIBERDADE E CRIATIVIDADE VISUAL (SEM NENHUM ENGESSAMENTO):
-- **DIRETRIZ ARTÍSTICA SELECIONADA**: {selected_art_directive}
-- **SEJA TOTALMENTE ADAPTÁVEL AO TEMA**:
-  * Se o post for sobre algoritmos, matemática ou redes neurais: crie arte 3D abstrata, nós de dados brilhantes, física computacional ou escultura digital.
-  * Se o post for sobre medicina ou biologia: crie laboratórios modernos de P&D, estruturas moleculares em 3D ou médicos analisando diagnósticos holísticos.
-  * Se o post for sobre agro ou sustentabilidade: crie lavouras deslumbrantes ao pôr do sol, biotecnologia em estufas de vidro ou drones de precisão no campo.
-  * Se o post for sobre liderança, cultura ou pessoas: crie retratos fotojornalísticos autênticos ou momentos reais de colaboração humana.
-- **PROIBIDO**: NÃO crie imagens repetitivas de "mesa de escritório corporativa com tablet e pessoas de terno" a menos que o post seja especificamente sobre reuniões corporativas!
-- ADICIONE NO FINAL DO PROMPT: 'masterpiece, highly detailed, 8k resolution, crisp focus, NO text, NO written words, NO letters, NO typography, NO logos'.
+2. **RESPEITE O CONTEÚDO ESPECÍFICO DO TEXTO**:
+   - Analise o assunto exato, a metáfora, o setor e a história do post.
+   - NUNCA repita o mesmo padrão genérico de 'mesa de escritório corporativa com tablet e pessoas de terno' a menos que o post trate especificamente de reuniões corporativas!
+
+3. **FORMATO DE SAÍDA**:
+   - Descreva a cena em INGLÊS com detalhes de iluminação, paleta de cores, composição e assunto.
+   - ADICIONE NO FINAL DO PROMPT: 'masterpiece, highly detailed, 8k resolution, crisp focus, NO text, NO written words, NO letters, NO typography, NO logos'.
 
 Responda APENAS com JSON:
 {{
   "category": "NOME_CURTO_DA_CATEGORIA_EM_PT",
   "clickbait_headline": "Manchete Provocativa em Português",
-  "image_prompt": "prompt de imagem hiper-criativo em inglês"
+  "image_prompt": "prompt de imagem em inglês respeitando estritamente o guardrail"
 }}
 """
         raw = self._generate(prompt, temperature=0.85)
@@ -730,7 +745,15 @@ FORMATO DE SAÍDA: Retorne APENAS o texto do post em português, pronto para ser
         post_text, _ = self._clean_post_content(raw_post_text)
 
         # ── ETAPA 2: GERAÇÃO DA ARTE VISUAL BASEADA NO TEXTO CRIADO ──────────────
-        art_result = self.regenerate_media_from_revised_text(post_text, media_type=media_type, overlay_style=overlay_style, art_style=art_style)
+        art_result = self.regenerate_media_from_revised_text(
+            post_text,
+            media_type=media_type,
+            overlay_style=overlay_style,
+            art_style=art_style,
+            topic=topic,
+            tone=tone,
+            content_objective=content_objective
+        )
         
         image_prompt = art_result.get("image_prompt", "")
         image_b64 = art_result.get("image_base64", "")

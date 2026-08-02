@@ -1144,21 +1144,39 @@ window.publishGeneratedPost = publishGeneratedPost;
 window.openScheduleModal = openScheduleModal;
 
 async function regenerateMediaFromText() {
-  const revisedText = $('gen-editable-text').value.trim();
+  const revisedText = $('gen-editable-text') ? $('gen-editable-text').value.trim() : '';
   if (!revisedText) { showToast('Escreva ou revise o texto antes de re-gerar a mídia', 'error'); return; }
 
+  const topic        = $('gen-topic') ? $('gen-topic').value.trim() : '';
+  const tone         = $('gen-tone') ? $('gen-tone').value : '';
+  const objective    = $('gen-content-objective') ? $('gen-content-objective').value : '';
+  const overlayStyle = $('gen-overlay-style') ? $('gen-overlay-style').value : 'photo_pure';
+  const artStyle     = $('gen-art-style') ? $('gen-art-style').value : 'auto';
+
   const btn = $('regenerate-media-btn');
-  btn.disabled = true;
-  btn.textContent = '🔄 Re-gerando mídia...';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🔄 Re-gerando mídia...';
+  }
 
   try {
     const { ok, data } = await apiFetch('/api/gemini/regenerate-media', {
       method: 'POST',
-      body: JSON.stringify({ revised_text: revisedText, media_type: currentMediaMode }),
+      body: JSON.stringify({
+        revised_text: revisedText,
+        media_type: currentMediaMode,
+        overlay_style: overlayStyle,
+        art_style: artStyle,
+        topic: topic,
+        tone: tone,
+        content_objective: objective
+      }),
     });
 
-    btn.disabled = false;
-    btn.textContent = '🔄 Re-gerar Mídia com Texto Revisado';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Re-gerar Mídia com Texto Revisado';
+    }
 
     if (ok && data.image_base64) {
       updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || currentMediaMode);
@@ -1167,8 +1185,10 @@ async function regenerateMediaFromText() {
       showToast('Erro ao re-gerar mídia', 'error');
     }
   } catch (e) {
-    btn.disabled = false;
-    btn.textContent = '🔄 Re-gerar Mídia com Texto Revisado';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Re-gerar Mídia com Texto Revisado';
+    }
     showToast('Erro ao re-gerar mídia', 'error');
   }
 }
