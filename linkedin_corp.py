@@ -318,6 +318,102 @@ class LinkedInCorporate:
         }
         return self._post("/rest/posts", payload)
 
+    def _upload_document(self, pdf_bytes: bytes, title: str = "Document") -> dict:
+        """
+        Faz upload de um documento PDF para a API do LinkedIn (/rest/documents) e retorna o documentUrn.
+        """
+        init_payload = {
+            "initializeUploadRequest": {
+                "owner": self.org_urn
+            }
+        }
+        init_headers = {**self.headers, "Content-Type": "application/json"}
+        init_url = f"{LI_BASE}/rest/documents?action=initializeUpload"
+        try:
+            r = requests.post(init_url, headers=init_headers, json=init_payload, timeout=15)
+            if r.status_code in [200, 201]:
+                val = r.json().get("value", {})
+                upload_url = val.get("uploadUrl")
+                document_urn = val.get("document")
+                if upload_url and document_urn:
+                    put_headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/pdf"}
+                    r2 = requests.put(upload_url, headers=put_headers, data=pdf_bytes, timeout=45)
+                    if r2.status_code in [200, 201, 204]:
+                        return {"ok": True, "document_urn": document_urn}
+                    else:
+                        print(f"Document PUT failed: {r2.status_code} {r2.text}")
+            else:
+                print(f"initializeUpload document failed: {r.status_code} {r.text}")
+        except Exception as e:
+            print(f"Exception em _upload_document: {e}")
+
+        # Fallback via assets API (/v2/assets?action=registerUpload)
+        try:
+            register_payload = {
+                "registerUploadRequest": {
+                    "recipes": ["urn:li:digitalmediaRecipe:feedshare-document"],
+                    "owner": self.org_urn,
+                    "serviceRelationships": [{"relationshipType": "OWNER", "identifier": "urn:li:userGeneratedContent"}]
+                }
+            }
+            reg_resp = requests.post(f"{LI_BASE}/v2/assets?action=registerUpload", headers=self.headers, json=register_payload, timeout=15)
+            if reg_resp.status_code in [200, 201]:
+                data = reg_resp.json().get("value", {})
+                doc_asset = data.get("asset")
+                upload_mechanism = data.get("uploadMechanism", {}).get("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest", {})
+                upload_url = upload_mechanism.get("uploadUrl")
+                if upload_url and doc_asset:
+                    put_headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/pdf"}
+                    r3 = requests.put(upload_url, headers=put_headers, data=pdf_bytes, timeout=45)
+                    if r3.status_code in [200, 201, 204]:
+                        return {"ok": True, "document_urn": doc_asset}
+        except Exception as ex:
+            print(f"Fallback _upload_document via assets failed: {ex}")
+
+        return {"ok": False, "error": "Upload de documento PDF não suportado ou falhou na API do LinkedIn"}
+
+    def publish_pdf_carousel(
+        self,
+        text: str,
+        pdf_b64: str,
+        title: str = "Carrossel Corporate",
+        visibility: str = "PUBLIC"
+    ) -> dict:
+        """
+        Publica um carrossel em documento PDF na página da organização LinkedIn.
+        """
+        import base64 as b64_mod
+
+        if not pdf_b64:
+            return self.create_org_post(text, visibility)
+
+        try:
+            pdf_bytes = b64_mod.b64decode(pdf_b64)
+        except Exception as e:
+            return {"ok": False, "error": f"Decode base64 do PDF falhou: {e}"}
+
+        upload_result = self._upload_document(pdf_bytes, title=title)
+        if not upload_result.get("ok"):
+            print(f"Upload de carrossel PDF falhou ({upload_result.get('error')}). Publicando como post com texto.")
+            return self.create_org_post(text, visibility)
+
+        doc_urn = upload_result["document_urn"]
+        payload = {
+            "author": self.org_urn,
+            "commentary": text,
+            "visibility": visibility,
+            "distribution": {"feedDistribution": "MAIN_FEED"},
+            "lifecycleState": "PUBLISHED",
+            "isReshareDisabledByAuthor": False,
+            "content": {
+                "media": {
+                    "title": title,
+                    "id": doc_urn,
+                }
+            },
+        }
+        return self._post("/rest/posts", payload)
+
     # ─── rw_organization_admin ────────────────────────────────────────────────
     def get_org_admins(self) -> dict:
         """Lista administradores da organização."""
