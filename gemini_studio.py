@@ -231,7 +231,7 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
                         for idx, orig in enumerate(chunk):
                             item_t = None
                             for t in translated_chunk:
-                                if t.get("index") == idx:
+                                if str(t.get("index")) == str(idx):
                                     item_t = t
                                     break
                             if not item_t and idx < len(translated_chunk):
