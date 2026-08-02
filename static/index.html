@@ -474,6 +474,7 @@
             <input type="text" id="trend-search-input" class="input-field" style="flex:1; min-width:220px; background:#020617; color:#fff; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:13px;" placeholder="🔍 Pesquisar qualquer tema (ex: Agro, NR-12, VR, SAC...)" onkeyup="filterWebTrends(this.value)" />
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button class="btn btn-secondary btn-sm" onclick="filterWebTrendsCategory('')" style="font-size:12px; padding:6px 12px;">Todas</button>
+              <button class="btn btn-outline btn-sm" onclick="loadHuggingFacePapersAction()" style="font-size:12px; color:#F59E0B; border-color:rgba(245,158,11,0.5); padding:6px 12px; font-weight:700;">📚 Papers (HuggingFace/ArXiv)</button>
               <button class="btn btn-outline btn-sm" onclick="filterWebTrendsCategory('AGRO')" style="font-size:12px; color:#9EFF00; border-color:rgba(158,255,0,0.3); padding:6px 12px;">🌾 Agro</button>
               <button class="btn btn-outline btn-sm" onclick="filterWebTrendsCategory('SEGURANÇA')" style="font-size:12px; color:#00E5FF; border-color:rgba(0,229,255,0.3); padding:6px 12px;">🛡️ NR-12/Indústria</button>
               <button class="btn btn-outline btn-sm" onclick="filterWebTrendsCategory('MISTA')" style="font-size:12px; color:#FF9900; border-color:rgba(255,153,0,0.3); padding:6px 12px;">🥽 VR/EdTech</button>
@@ -509,9 +510,14 @@
               </select>
             </div>
 
-            <button class="btn-ai full-width" id="btn-generate-carousel" onclick="generateCarouselPdfAction()">
-              📄 Gerar Carrossel em PDF
-            </button>
+            <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+              <button class="btn-ai" id="btn-generate-carousel" onclick="generateCarouselPdfAction()" style="flex:1; min-width:180px;">
+                📄 Gerar Carrossel em PDF
+              </button>
+              <button class="btn btn-primary hidden" id="btn-publish-carousel-now" onclick="publishCarouselNowAction()" style="flex:1; min-width:200px; padding:12px; font-weight:700; background:linear-gradient(135deg, #00E5FF, #0088FF); color:#fff; border:none; border-radius:8px; cursor:pointer;">
+                🚀 Publicar Carrossel Agora
+              </button>
+            </div>
           </div>
 
           <div class="card">
@@ -690,6 +696,58 @@
           </div>
         </div>
       </div>
+
+      <!-- Configurações Dinâmicas do Brand DNA -->
+      <div class="card mt-4" style="border: 1px solid #334155; margin-top:24px;">
+        <h3 class="card-title" style="color:#9EFF00; font-size:18px;">⚙️ Configurações Dinâmicas do Brand DNA (Zero Hardcode)</h3>
+        <p style="color:#94a3b8; font-size:13px; margin-bottom:16px;">Toda alteração salva aqui é persistida no banco de dados SQLite e atualiza o motor de IA e as molduras institucionais em tempo real.</p>
+        
+        <div class="grid-2col mb-3" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div class="field-group">
+            <label>Nome da Empresa</label>
+            <input type="text" id="dna-company-name" class="input-field" placeholder="Ex: VisionAI" />
+          </div>
+          <div class="field-group">
+            <label>Website Oficial</label>
+            <input type="text" id="dna-website-url" class="input-field" placeholder="Ex: https://visionai.com.br" />
+          </div>
+        </div>
+
+        <div class="grid-2col mb-3" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px;">
+          <div class="field-group">
+            <label>Setor / Indústria</label>
+            <input type="text" id="dna-industry" class="input-field" placeholder="Ex: Inteligência Artificial &amp; Computação de Borda" />
+          </div>
+          <div class="field-group">
+            <label>Público-Alvo Executivo</label>
+            <input type="text" id="dna-target-audience" class="input-field" placeholder="Ex: C-Levels, Diretores de TI, Heads de Operações" />
+          </div>
+        </div>
+
+        <div class="field-group mb-3" style="margin-top:12px;">
+          <label>Tom de Voz Institucional</label>
+          <input type="text" id="dna-tone-of-voice" class="input-field" placeholder="Ex: Visionário, Técnico, Pragmático e Orientado a ROI" />
+        </div>
+
+        <div class="field-group mb-3" style="margin-top:12px;">
+          <label>Linhas de Serviço / Soluções da Empresa</label>
+          <textarea id="dna-core-services" class="textarea-field" rows="3" style="width:100%; background:#020617; color:#fff; border:1px solid #334155; border-radius:8px; padding:10px; font-size:14px;" placeholder="Descreva os serviços ou produtos da empresa..."></textarea>
+        </div>
+
+        <div class="field-group mb-3" style="margin-top:12px;">
+          <label>Diferenciais Competitivos Técnicos</label>
+          <textarea id="dna-differentials" class="textarea-field" rows="2" style="width:100%; background:#020617; color:#fff; border:1px solid #334155; border-radius:8px; padding:10px; font-size:14px;" placeholder="Descreva os diferenciais técnicos da empresa..."></textarea>
+        </div>
+
+        <div class="field-group mb-3" style="margin-top:12px;">
+          <label>Pilares de Conteúdo Estratégicos</label>
+          <textarea id="dna-content-pillars" class="textarea-field" rows="2" style="width:100%; background:#020617; color:#fff; border:1px solid #334155; border-radius:8px; padding:10px; font-size:14px;" placeholder="Descreva os pilares de conteúdo..."></textarea>
+        </div>
+
+        <button class="btn btn-primary mt-3" onclick="saveBrandDNAAction()" style="background:linear-gradient(135deg, #9EFF00, #00E5FF); color:#020617; font-weight:800; padding:12px 24px; border:none; border-radius:8px; cursor:pointer;">
+          💾 Salvar &amp; Persistir Brand DNA no Banco
+        </button>
+      </div>
     </section>
 
     <!-- ── PERFIL PESSOAL ── -->
@@ -763,6 +821,6 @@
 <!-- TOAST -->
 <div id="toast" class="toast hidden"></div>
 
-<script src="/static/app.js?v=388"></script>
+<script src="/static/app.js?v=389"></script>
 </body>
 </html>

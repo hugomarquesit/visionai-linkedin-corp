@@ -44,6 +44,125 @@ class GeminiStudio:
         self.fallback_models = ["models/gemini-flash-latest", "models/gemini-pro-latest"]
         self.scraped_context = self._scrape_visionai_website()
 
+    def _get_dynamic_brand_dna(self) -> dict:
+        """Carrega os dados do Brand DNA salvos no banco SQLite de forma 100% dinâmica."""
+        db = SessionLocal()
+        try:
+            from database import BrandDNA
+            dna = db.query(BrandDNA).first()
+            if dna:
+                return {
+                    "company_name": dna.company_name or "VisionAI",
+                    "website_url": dna.website_url or "https://visionai.com.br",
+                    "industry": dna.industry or "Inteligência Artificial & Computação de Borda",
+                    "target_audience": dna.target_audience or "C-Levels, Diretores de TI, Heads de Operações",
+                    "tone_of_voice": dna.tone_of_voice or "Visionário, Técnico, Pragmático e Orientado a ROI",
+                    "core_services": dna.core_services or "IA Multimodal, Visão Computacional, Realidade Mista",
+                    "differentials": dna.differentials or "Processamento Edge, IA Multimodal",
+                    "content_pillars": dna.content_pillars or "Conceitos & Ciência, Inovação"
+                }
+        except Exception as e:
+            print(f"Erro ao carregar BrandDNA do DB: {e}")
+        finally:
+            db.close()
+            
+        return {
+            "company_name": "VisionAI",
+            "website_url": "https://visionai.com.br",
+            "industry": "Inteligência Artificial & Computação de Borda",
+            "target_audience": "C-Levels, Diretores de TI, Heads de Operações",
+            "tone_of_voice": "Visionário, Técnico, Pragmático",
+            "core_services": "IA Multimodal, Visão Computacional, Realidade Mista",
+            "differentials": "Processamento Edge, IA Multimodal",
+            "content_pillars": "Conceitos & Ciência, Inovação"
+        }
+
+    def _get_brand_dna_context(self) -> str:
+        """Gera o contexto da empresa para os prompts de IA de forma 100% dinâmica a partir do DB."""
+        dna = self._get_dynamic_brand_dna()
+        return f"""
+EMPRESA: {dna['company_name']}
+WEBSITE: {dna['website_url']}
+SETOR/INDÚSTRIA: {dna['industry']}
+PÚBLICO-ALVO: {dna['target_audience']}
+TOM DE VOZ INSTITUCIONAL: {dna['tone_of_voice']}
+SERVIÇOS / SOLUÇÕES: {dna['core_services']}
+DIFERENCIAIS COMPETITIVOS: {dna['differentials']}
+PILARES DE CONTEÚDO: {dna['content_pillars']}
+"""
+
+    def fetch_huggingface_trending_papers(self, query: str = None) -> dict:
+        """
+        Busca os papéis de pesquisa acadêmica em alta no HuggingFace / ArXiv.
+        Retorna lista de dicionários com: title, summary, paper_url, authors, published_at, category.
+        """
+        import requests
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisionAI Corporate Bot"}
+        papers = []
+        
+        # 1. Tenta a API oficial do HuggingFace Daily Papers
+        try:
+            hf_url = "https://huggingface.co/api/daily_papers"
+            resp = requests.get(hf_url, headers=headers, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                for item in data[:15]:
+                    paper_data = item.get("paper", {})
+                    paper_id = paper_data.get("id", "")
+                    title = paper_data.get("title", "")
+                    summary = paper_data.get("summary", "") or paper_data.get("abstract", "")
+                    authors_list = [a.get("name", "") for a in paper_data.get("authors", []) if isinstance(a, dict)]
+                    authors_str = ", ".join(authors_list[:3]) if authors_list else "Pesquisadores IA"
+                    paper_url = f"https://huggingface.co/papers/{paper_id}" if paper_id else "https://huggingface.co/papers"
+                    
+                    if query and query.strip():
+                        q_lower = query.lower()
+                        if q_lower not in title.lower() and q_lower not in summary.lower():
+                            continue
+                            
+                    papers.append({
+                        "paper_id": paper_id,
+                        "title": title,
+                        "summary": summary[:400] + ("..." if len(summary) > 400 else ""),
+                        "authors": authors_str,
+                        "paper_url": paper_url,
+                        "published_at": paper_data.get("publishedAt", "")[:10],
+                        "source": "HuggingFace Papers"
+                    })
+        except Exception as e:
+            print(f"Erro na API HuggingFace Papers: {e}")
+
+        # 2. Se a lista estiver vazia ou houver busca específica, faz fallback via Google Search Grounding de Papers ou ArXiv
+        if not papers or (query and len(papers) < 3):
+            search_term = f"site:huggingface.co/papers {query}" if query else "site:huggingface.co/papers trending AI papers 2026"
+            try:
+                grounding_prompt = f"""
+Pesquise na web papers acadêmicos e pesquisas de IA no HuggingFace Papers ou ArXiv sobre: '{query or 'Trending AI Research'}'.
+Retorne APENAS um JSON com array de até 6 papers:
+[
+  {{
+    "title": "Título em Português ou Inglês",
+    "summary": "Resumo executivo do paper em Português",
+    "authors": "Nomes dos autores",
+    "paper_url": "https://huggingface.co/papers/XXXX.XXXXX ou https://arxiv.org/abs/XXXX.XXXXX",
+    "published_at": "2026",
+    "source": "ArXiv / HuggingFace"
+  }}
+]
+"""
+                raw = self._generate_with_search(grounding_prompt, temperature=0.3)
+                import re
+                match = re.search(r'\[.*\]', raw, re.DOTALL)
+                if match:
+                    grounded_papers = json.loads(match.group())
+                    for p in grounded_papers:
+                        if isinstance(p, dict) and p.get("title"):
+                            papers.append(p)
+            except Exception as e:
+                print(f"Fallback Grounding Papers falhou: {e}")
+                
+        return {"ok": True, "count": len(papers), "papers": papers}
+
     def _scrape_visionai_website(self) -> str:
         """Scrape limpo do site e bundles da SPA visionai.com.br para extrair conteúdo das 6 linhas de serviço."""
         import re
@@ -331,6 +450,12 @@ REGRAS:
             bg = bg.resize((1200, 630), Image.Resampling.LANCZOS)
             logo_b64 = self._get_official_logo_b64()
 
+            dna = self._get_dynamic_brand_dna()
+            company_name = html.escape(dna['company_name'])
+            company_name_upper = html.escape(dna['company_name'].upper())
+            website_url_clean = html.escape(dna['website_url'].replace('https://', '').replace('http://', '').rstrip('/'))
+            industry_clean = html.escape(dna['industry'][:55])
+
             first_line = pt_headline.strip().split("\n")[0]
             clean_first_line = first_line.replace("#", "").replace("**", "").strip()
             clean_category = html.escape(category.upper())
@@ -352,9 +477,9 @@ REGRAS:
 
   <!-- Badge Minimalista no Topo Esquerdo -->
   <g transform="translate(50, 40)">
-    <rect width="180" height="36" rx="8" fill="rgba(15, 23, 42, 0.85)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <rect width="210" height="36" rx="8" fill="rgba(15, 23, 42, 0.85)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
     {logo_tag}
-    <text x="{48 if logo_b64 else 16}" y="23" font-family="'Inter', sans-serif" font-weight="700" font-size="11" fill="#ffffff" letter-spacing="1">VISIONAI EDITORIAL</text>
+    <text x="{48 if logo_b64 else 16}" y="23" font-family="'Inter', sans-serif" font-weight="700" font-size="11" fill="#ffffff" letter-spacing="1">{company_name_upper} EDITORIAL</text>
   </g>
 
   <!-- Badge de Categoria no Topo Direito -->
@@ -369,7 +494,7 @@ REGRAS:
   </text>
 </svg>"""
             else:
-                # Banner Publicitário Oficial VisionAI (ad_banner)
+                # Banner Publicitário Oficial (ad_banner)
                 logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="80" y="55" width="44" height="44"/>' if logo_b64 else '<rect x="80" y="55" width="44" height="44" rx="10" fill="url(#vision-grad)"/>'
                 
                 def wrap_text_to_tspans(text: str, max_chars: int = 42, start_x: int = 80, dy: int = 48) -> str:
@@ -410,8 +535,7 @@ REGRAS:
 
   <g transform="translate(80, 55)">
     {logo_tag}
-    <text x="54" y="32" font-family="'Outfit', 'Inter', sans-serif" font-weight="900" font-size="26" fill="#ffffff" letter-spacing="-0.5">VISION<tspan fill="#9EFF00">AI</tspan></text>
-    <text x="205" y="32" font-family="'Inter', sans-serif" font-weight="400" font-size="14" fill="#94a3b8">| Corporate Tech</text>
+    <text x="54" y="32" font-family="'Outfit', 'Inter', sans-serif" font-weight="900" font-size="26" fill="#ffffff" letter-spacing="-0.5">{company_name}</text>
   </g>
 
   <g transform="translate(920, 58)">
@@ -424,8 +548,8 @@ REGRAS:
   </text>
 
   <rect x="80" y="535" width="140" height="4" rx="2" fill="url(#vision-grad)"/>
-  <text x="80" y="575" font-family="'Inter', sans-serif" font-weight="500" font-size="14" fill="#94a3b8">Inovação, Inteligência Artificial &amp; Computação na Borda</text>
-  <text x="1120" y="575" font-family="'Inter', sans-serif" font-weight="800" font-size="15" fill="#9EFF00" text-anchor="end">visionai.com.br ✦</text>
+  <text x="80" y="575" font-family="'Inter', sans-serif" font-weight="500" font-size="14" fill="#94a3b8">{industry_clean}</text>
+  <text x="1120" y="575" font-family="'Inter', sans-serif" font-weight="800" font-size="15" fill="#9EFF00" text-anchor="end">{website_url_clean} ✦</text>
 </svg>"""
 
             overlay_png = cairosvg.svg2png(bytestring=svg_overlay.encode('utf-8'))
@@ -701,10 +825,10 @@ Responda APENAS com JSON:
             org_context_block = ""
         else:
             objective_directive = (
-                "MODO: COMUNICAÇÃO CORPORATIVA, MARKETING B2B & SOLUÇÕES VISIONAI.\n"
-                "Sua missão é conectar o tema às soluções estratégicas, ROI e diferenciais competitivos da VisionAI (visionai.com.br)."
+                "MODO: COMUNICAÇÃO CORPORATIVA, MARKETING B2B & SOLUÇÕES INSTITUCIONAIS.\n"
+                "Sua missão é conectar o tema às soluções estratégicas, ROI e diferenciais competitivos da empresa."
             )
-            org_context_block = f"CONTEXTO INSTITUCIONAL DA VISIONAI:\n{ORG_CONTEXT}\n{self.scraped_context}\n"
+            org_context_block = f"CONTEXTO INSTITUCIONAL:\n{self._get_brand_dna_context()}\n{self.scraped_context}\n"
 
         # ── ETAPA 1: GERAÇÃO DO TEXTO DO POST ──────────────────────────────────
         text_prompt = f"""

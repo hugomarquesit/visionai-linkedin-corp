@@ -47,6 +47,8 @@ class PostDraft(Base):
     media_type = Column(String, default="image") # "image", "video", "custom"
     media_mime = Column(String, default="image/jpeg")
     model = Column(String)
+    source_url = Column(String, nullable=True)
+    source_name = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class ScheduledPost(Base):
@@ -62,6 +64,8 @@ class ScheduledPost(Base):
     status = Column(String, default="pending") # "pending", "published", "failed"
     published_urn = Column(String, nullable=True)
     error_message = Column(Text, nullable=True)
+    source_url = Column(String, nullable=True)
+    source_name = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class WebTrendItem(Base):

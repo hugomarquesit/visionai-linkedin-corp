@@ -55,13 +55,45 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
+RATE_LIMIT_CACHE = {}
+
 @app.middleware("http")
-async def add_no_cache_header(request: Request, call_next):
+async def add_security_headers_and_rate_limit(request: Request, call_next):
+    # 1. Basic Rate Limiting Check by IP (Max 120 reqs/min per IP)
+    import time
+    client_ip = request.client.host if request.client else "unknown"
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+        
+    now_ts = int(time.time())
+    ip_history = RATE_LIMIT_CACHE.setdefault(client_ip, [])
+    ip_history = [ts for ts in ip_history if now_ts - ts < 60]
+    
+    if len(ip_history) > 120:
+        return JSONResponse(
+            {"detail": "Muitas requisições enviadas. Limite de segurança excedido. Tente novamente em 1 minuto."},
+            status_code=429
+        )
+        
+    ip_history.append(now_ts)
+    RATE_LIMIT_CACHE[client_ip] = ip_history
+
+    # 2. Proceed with Request
     response = await call_next(request)
+
+    # 3. Add Hardened Security Headers
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
     if request.url.path.startswith("/static") or request.url.path == "/":
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+        
     return response
 
 # ── Clients (instanciados uma vez) ──────────────────────────────────────────
@@ -285,7 +317,33 @@ async def get_brand_dna(_: bool = Depends(require_auth)):
     finally:
         db.close()
 
+@app.get("/api/brand/dna")
+@app.get("/api/brand-dna")
+async def get_brand_dna(_: bool = Depends(require_auth)):
+    db = SessionLocal()
+    try:
+        dna = db.query(BrandDNA).first()
+        if not dna:
+            dna = BrandDNA()
+            db.add(dna)
+            db.commit()
+            db.refresh(dna)
+        return {
+            "ok": True,
+            "company_name": dna.company_name or "VisionAI",
+            "website_url": dna.website_url or "https://visionai.com.br",
+            "industry": dna.industry or "Inteligência Artificial & Computação de Borda",
+            "target_audience": dna.target_audience or "C-Levels, Diretores de TI, Heads de Operações",
+            "tone_of_voice": dna.tone_of_voice or "Visionário, Técnico, Pragmático e Orientado a ROI",
+            "core_services": dna.core_services or "",
+            "differentials": dna.differentials or "",
+            "content_pillars": dna.content_pillars or ""
+        }
+    finally:
+        db.close()
+
 @app.post("/api/brand/dna")
+@app.post("/api/brand-dna")
 async def update_brand_dna(payload: BrandDNAPayload, _: bool = Depends(require_auth)):
     db = SessionLocal()
     try:
@@ -293,16 +351,16 @@ async def update_brand_dna(payload: BrandDNAPayload, _: bool = Depends(require_a
         if not dna:
             dna = BrandDNA()
             db.add(dna)
-        if payload.company_name: dna.company_name = payload.company_name
-        if payload.website_url: dna.website_url = payload.website_url
-        if payload.industry: dna.industry = payload.industry
-        if payload.target_audience: dna.target_audience = payload.target_audience
-        if payload.tone_of_voice: dna.tone_of_voice = payload.tone_of_voice
-        if payload.core_services: dna.core_services = payload.core_services
-        if payload.differentials: dna.differentials = payload.differentials
-        if payload.content_pillars: dna.content_pillars = payload.content_pillars
+        if payload.company_name is not None: dna.company_name = payload.company_name
+        if payload.website_url is not None: dna.website_url = payload.website_url
+        if payload.industry is not None: dna.industry = payload.industry
+        if payload.target_audience is not None: dna.target_audience = payload.target_audience
+        if payload.tone_of_voice is not None: dna.tone_of_voice = payload.tone_of_voice
+        if payload.core_services is not None: dna.core_services = payload.core_services
+        if payload.differentials is not None: dna.differentials = payload.differentials
+        if payload.content_pillars is not None: dna.content_pillars = payload.content_pillars
         db.commit()
-        return {"ok": True, "message": "Brand DNA atualizado com sucesso"}
+        return {"ok": True, "message": "Brand DNA atualizado e persistido com sucesso no banco de dados"}
     finally:
         db.close()
 
@@ -448,6 +506,11 @@ class GenerateCarouselPayload(BaseModel):
     topic: str
     slides_count: Optional[int] = 5
 
+class PublishCarouselPayload(BaseModel):
+    pdf_base64: str
+    title: Optional[str] = "Carrossel Corporate"
+    text: Optional[str] = ""
+
 class SchedulePostPayload(BaseModel):
     topic: Optional[str] = ""
     text: str
@@ -472,7 +535,9 @@ def scheduled_posts_worker():
                 print(f"Executando publicação agendada ID {post.id} ({post.topic})...")
                 try:
                     if post.image_base64:
-                        if post.media_type == "video" or (post.image_mime and "video" in post.image_mime):
+                        if post.media_type == "carousel" or (post.image_mime and "pdf" in post.image_mime):
+                            res = li.publish_pdf_carousel(post.post_text, post.image_base64, title=post.topic or "Carrossel Corporate")
+                        elif post.media_type == "video" or (post.image_mime and "video" in post.image_mime):
                             res = li.create_org_post_with_video(post.post_text, post.image_base64, post.image_mime)
                         else:
                             res = li.create_org_post_with_image(post.post_text, post.image_base64, post.image_mime)
@@ -499,12 +564,18 @@ def scheduled_posts_worker():
 
 threading.Thread(target=scheduled_posts_worker, daemon=True).start()
 
-# ── Gemini — Web Trends, Carousel & Document Parsing ────────────────────────
+# ── Gemini — Web Trends, Trending Papers, Carousel & Document Parsing ────────────────────────
 @app.get("/api/gemini/web-trends")
 async def gemini_web_trends(query: Optional[str] = None, refresh: bool = False, _: bool = Depends(require_auth)):
-    """Retorna tendências e notícias em tempo real sobre o setor VisionAI (salvas no banco SQLite)."""
+    """Retorna tendências e notícias em tempo real sobre o setor salvas no banco SQLite."""
     trends = ai.fetch_web_trends(query, force_refresh=refresh)
     return {"ok": True, **trends, "model": ai.model}
+
+@app.get("/api/gemini/trending-papers")
+async def gemini_trending_papers(query: Optional[str] = None, _: bool = Depends(require_auth)):
+    """Busca pesquisas acadêmicas e papers em alta no HuggingFace Papers / ArXiv."""
+    papers = ai.fetch_huggingface_trending_papers(query=query)
+    return papers
 
 @app.post("/api/gemini/web-trends/mark-used")
 async def gemini_mark_trend_used(payload: MarkTrendUsedPayload, _: bool = Depends(require_auth)):
@@ -517,6 +588,19 @@ async def gemini_generate_carousel(payload: GenerateCarouselPayload, _: bool = D
     """Gera um carrossel em PDF multi-slide corporativo para o LinkedIn."""
     res = ai.generate_carousel_pdf(payload.topic, payload.slides_count or 5)
     return {"ok": True, **res, "model": ai.model}
+
+@app.post("/api/posts/publish-carousel")
+async def publish_carousel_now(payload: PublishCarouselPayload, _: bool = Depends(require_auth)):
+    """Publica o PDF do carrossel imediatamente no LinkedIn."""
+    if not payload.pdf_base64:
+        raise HTTPException(status_code=400, detail="O código base64 do PDF do carrossel é obrigatório")
+    title = payload.title or "Carrossel Corporate LinkedIn"
+    text = payload.text or f"✦ {title}\n\nConfira o carrossel completo em PDF anexado!"
+    result = li.publish_pdf_carousel(text, payload.pdf_base64, title=title)
+    if result.get("ok"):
+        return {"ok": True, "urn": result.get("id"), "message": "Carrossel publicado no LinkedIn com sucesso!"}
+    else:
+        return JSONResponse({"ok": False, "detail": result.get("error", "Falha ao publicar carrossel")}, status_code=500)
 
 @app.post("/api/brand/upload-document")
 async def upload_document(file: UploadFile = File(...), _: bool = Depends(require_auth)):

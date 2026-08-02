@@ -136,10 +136,40 @@ function renderTrendsList(trends) {
         </div>
         <h4 style="color:#ffffff; font-size:15px; margin-bottom:8px; line-height:1.4;">${escapeHtml(t.title)}</h4>
         <p style="font-size:13px; color:#94a3b8; margin-bottom:10px; line-height:1.5;">${escapeHtml(t.summary)}</p>
+        ${t.source_url ? `<div style="margin-bottom:8px;"><a href="${escapeHtml(t.source_url)}" target="_blank" style="color:#00E5FF; text-decoration:underline; font-size:12px; font-weight:600;">🔗 Ver Paper / Fonte Original no HuggingFace / ArXiv</a></div>` : ''}
       </div>
       <div style="font-size:12px; color:#9EFF00; font-weight:600; background:rgba(2,6,23,0.6); padding:8px; border-radius:6px; border:1px solid rgba(158,255,0,0.2);">💡 Impacto B2B: ${escapeHtml(t.impact_b2b || '')}</div>
     </div>
   `).join('');
+}
+
+async function loadHuggingFacePapersAction(query = '') {
+  const container = $('web-trends-panel-container') || $('web-trends-container');
+  if (!container) return;
+
+  container.innerHTML = '<div class="empty-state"><p class="chip-loading">✦ Buscando Trending Papers no HuggingFace e ArXiv em tempo real...</p></div>';
+
+  try {
+    const url = `/api/gemini/trending-papers${query ? '?query=' + encodeURIComponent(query) : ''}`;
+    const { ok, data } = await apiFetch(url);
+    if (ok && data.papers && Array.isArray(data.papers) && data.papers.length > 0) {
+      cachedWebTrends = data.papers.map(p => ({
+        id: p.paper_id,
+        title: p.title,
+        category: 'PAPER CIENTÍFICO (HUGGINGFACE)',
+        summary: p.summary,
+        impact_b2b: `Autores: ${p.authors} | Publicado: ${p.published_at || '2026'}`,
+        suggested_topic: `Estudo de Caso & Análise do Paper: ${p.title}`,
+        source_url: p.paper_url
+      }));
+      renderTrendsList(cachedWebTrends);
+      showToast(`${data.papers.length} Trending Papers do HuggingFace carregados!`, 'success');
+    } else {
+      container.innerHTML = '<div class="empty-state"><p>Nenhum paper encontrado para o filtro. Tente outra palavra-chave.</p></div>';
+    }
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><p>Erro de conexão ao buscar Trending Papers do HuggingFace.</p></div>';
+  }
 }
 
 function filterWebTrends(query) {
@@ -167,10 +197,16 @@ function filterWebTrendsCategory(cat) {
 
 window.filterWebTrends = filterWebTrends;
 window.filterWebTrendsCategory = filterWebTrendsCategory;
+window.loadHuggingFacePapersAction = loadHuggingFacePapersAction;
 
 async function generatePostFromTrend(idx) {
   const item = cachedWebTrends[idx];
   if (!item) return;
+
+  if (item.source_url) {
+    if ($('gen-content-objective')) $('gen-content-objective').value = 'educativo_academic';
+    if ($('gen-web-research')) $('gen-web-research').checked = true;
+  }
 
   // Marca no banco SQLite como usado para não repetir
   apiFetch('/api/gemini/web-trends/mark-used', {
@@ -189,11 +225,15 @@ async function generatePostFromTrend(idx) {
   generatePost();
 }
 
+let currentCarouselPdfB64 = null;
+let currentCarouselTitle = null;
+
 async function generateCarouselPdfAction() {
   const topic = $('carousel-topic') ? $('carousel-topic').value.trim() : '';
   const count = $('carousel-slides-count') ? parseInt($('carousel-slides-count').value) : 5;
   const previewArea = $('carousel-preview-area');
   const btn = $('btn-generate-carousel');
+  const publishNowBtn = $('btn-publish-carousel-now');
 
   if (!topic) {
     showToast('Informe o tema do carrossel em PDF', 'error');
@@ -217,17 +257,25 @@ async function generateCarouselPdfAction() {
     }
 
     if (ok && data.pdf_base64) {
+      currentCarouselPdfB64 = data.pdf_base64;
+      currentCarouselTitle = data.title || topic;
       const pdfDataUrl = `data:application/pdf;base64,${data.pdf_base64}`;
       currentGeneratedImageBase64 = data.pdf_base64;
       currentGeneratedImageMime = 'application/pdf';
+
+      if (publishNowBtn) {
+        publishNowBtn.classList.remove('hidden');
+        publishNowBtn.style.display = 'block';
+      }
 
       if (previewArea) {
         previewArea.innerHTML = `
           <div class="card mb-3" style="text-align:center;">
             <h4 style="color:#9EFF00;margin-bottom:8px;">✅ Carrossel PDF Gerado (${data.slides_count} Slides)</h4>
             <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">${escapeHtml(data.title)}</p>
-            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
-              <a href="${pdfDataUrl}" download="carrossel-visionai.pdf" class="btn btn-primary btn-sm">📥 Baixar PDF (${data.slides_count} slides)</a>
+            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;flex-wrap:wrap;">
+              <a href="${pdfDataUrl}" download="carrossel-corporate.pdf" class="btn btn-primary btn-sm">📥 Baixar PDF (${data.slides_count} slides)</a>
+              <button class="btn btn-primary btn-sm" onclick="publishCarouselNowAction()" style="background:linear-gradient(135deg, #00E5FF, #0088FF); font-weight:700;">🚀 Publicar Agora no LinkedIn</button>
               <button class="btn btn-secondary btn-sm" onclick="sendCarouselToCalendar()">📅 Agendar no LinkedIn</button>
             </div>
             <iframe src="${pdfDataUrl}" style="width:100%;height:450px;border:1px solid rgba(158,255,0,0.3);border-radius:12px;"></iframe>
@@ -246,6 +294,50 @@ async function generateCarouselPdfAction() {
     showToast(`Erro de conexão: ${e.message}`, 'error');
   }
 }
+
+async function publishCarouselNowAction() {
+  if (!currentCarouselPdfB64) {
+    showToast('Gere um carrossel em PDF primeiro antes de publicar', 'error');
+    return;
+  }
+
+  const btn = $('btn-publish-carousel-now');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🔄 Publicando carrossel...';
+  }
+
+  try {
+    const topic = currentCarouselTitle || ($('carousel-topic') ? $('carousel-topic').value.trim() : 'Carrossel Corporate');
+    const { ok, data } = await apiFetch('/api/posts/publish-carousel', {
+      method: 'POST',
+      body: JSON.stringify({
+        pdf_base64: currentCarouselPdfB64,
+        title: topic,
+        text: `✦ ${topic}\n\nConfira o carrossel completo em PDF anexado!`
+      })
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🚀 Publicar Carrossel Agora';
+    }
+
+    if (ok) {
+      showToast('Carrossel publicado no LinkedIn com sucesso!', 'success');
+    } else {
+      showToast(data.detail || 'Erro ao publicar carrossel', 'error');
+    }
+  } catch (e) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🚀 Publicar Carrossel Agora';
+    }
+    showToast('Erro de rede ao publicar carrossel', 'error');
+  }
+}
+
+window.publishCarouselNowAction = publishCarouselNowAction;
 
 function sendCarouselToCalendar() {
   switchTab('calendar');
@@ -1499,14 +1591,71 @@ async function init() {
   }
   addEv('regenerate-media-btn', 'click', regenerateMediaFromText);
 
-  // Load auto topics, web trends & drafts on start if authed
+  // Load auto topics, web trends, drafts & Brand DNA settings on start if authed
   if (authed) {
     loadAutoTopics();
     loadDrafts();
     loadScheduledPosts();
+    loadBrandDNASettings();
   }
 
   // Studio — Strategy & Hashtags
   addEv('generate-strategy-btn', 'click', generateStrategy);
   addEv('generate-hashtags-btn', 'click', generateHashtags);
 }
+
+async function loadBrandDNASettings() {
+  try {
+    const { ok, data } = await apiFetch('/api/brand-dna');
+    if (ok) {
+      if ($('dna-company-name')) $('dna-company-name').value = data.company_name || '';
+      if ($('dna-website-url')) $('dna-website-url').value = data.website_url || '';
+      if ($('dna-industry')) $('dna-industry').value = data.industry || '';
+      if ($('dna-target-audience')) $('dna-target-audience').value = data.target_audience || '';
+      if ($('dna-tone-of-voice')) $('dna-tone-of-voice').value = data.tone_of_voice || '';
+      if ($('dna-core-services')) $('dna-core-services').value = data.core_services || '';
+      if ($('dna-differentials')) $('dna-differentials').value = data.differentials || '';
+      if ($('dna-content-pillars')) $('dna-content-pillars').value = data.content_pillars || '';
+    }
+  } catch (e) {
+    console.warn('Falha ao carregar Brand DNA:', e);
+  }
+}
+
+async function saveBrandDNAAction() {
+  const companyName = $('dna-company-name') ? $('dna-company-name').value.trim() : '';
+  const websiteUrl = $('dna-website-url') ? $('dna-website-url').value.trim() : '';
+  const industry = $('dna-industry') ? $('dna-industry').value.trim() : '';
+  const targetAudience = $('dna-target-audience') ? $('dna-target-audience').value.trim() : '';
+  const toneOfVoice = $('dna-tone-of-voice') ? $('dna-tone-of-voice').value.trim() : '';
+  const coreServices = $('dna-core-services') ? $('dna-core-services').value.trim() : '';
+  const differentials = $('dna-differentials') ? $('dna-differentials').value.trim() : '';
+  const contentPillars = $('dna-content-pillars') ? $('dna-content-pillars').value.trim() : '';
+
+  try {
+    const { ok, data } = await apiFetch('/api/brand-dna', {
+      method: 'POST',
+      body: JSON.stringify({
+        company_name: companyName,
+        website_url: websiteUrl,
+        industry: industry,
+        target_audience: targetAudience,
+        tone_of_voice: toneOfVoice,
+        core_services: coreServices,
+        differentials: differentials,
+        content_pillars: contentPillars
+      })
+    });
+
+    if (ok) {
+      showToast('Brand DNA salvo e persistido com sucesso no banco SQLite!', 'success');
+    } else {
+      showToast('Erro ao salvar Brand DNA', 'error');
+    }
+  } catch (e) {
+    showToast('Erro de rede ao salvar Brand DNA', 'error');
+  }
+}
+
+window.loadBrandDNASettings = loadBrandDNASettings;
+window.saveBrandDNAAction = saveBrandDNAAction;
