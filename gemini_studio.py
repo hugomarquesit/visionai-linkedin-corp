@@ -294,6 +294,7 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
 """
                 raw = self._generate_with_search(grounding_prompt, temperature=0.2)
                 clean = raw.replace("```json", "").replace("```", "").strip()
+                clean = re.sub(r'\[\d+\]', '', clean)
                 start = clean.find("[")
                 end = clean.rfind("]") + 1
                 if start != -1 and end > start:
