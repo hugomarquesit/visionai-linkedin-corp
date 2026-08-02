@@ -301,6 +301,8 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
                     grounded_papers = json.loads(clean[start:end], strict=False)
                     for p in grounded_papers:
                         if isinstance(p, dict) and p.get("title"):
+                            if isinstance(p.get("authors"), list):
+                                p["authors"] = ", ".join(p["authors"])
                             papers.append(p)
             except Exception as e:
                 print(f"Grounding Papers por tema '{query}' falhou: {e}")
