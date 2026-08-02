@@ -180,13 +180,13 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         return ""
 
     def _translate_papers_to_ptbr(self, raw_papers: list) -> list:
-        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR) em lotes por índice."""
+        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR) em lotes rápidos de 3 itens."""
         import re, json
         if not raw_papers:
             return []
 
         all_translated = []
-        chunk_size = 5
+        chunk_size = 3
 
         for i in range(0, len(raw_papers), chunk_size):
             chunk = raw_papers[i:i+chunk_size]
@@ -204,7 +204,7 @@ Você é um Tradutor Técnico e Especialista em IA para o mercado corporativo br
 SUA MISSÃO: Traduza e adapte a lista de {len(chunk)} papers acadêmicos abaixo para PORTUGUÊS DO BRASIL (PT-BR).
 
 REGRAS RÍGIDAS DE TRADUÇÃO:
-1. **title**: Crie um título magnético, claro e profissional em PORTUGUÊS DO BRASIL.
+1. **title**: Crie um título magnético, claro, didático e de alta autoridade técnico-executiva em PORTUGUÊS DO BRASIL.
 2. **summary**: Crie um resumo executivo didático e plausível de 2 a 3 frases em PORTUGUÊS DO BRASIL explicando o problema resolvido e a inovação.
 3. **Mantenha o campo `index` exato (0, 1, 2, ...)** de cada item.
 
@@ -264,13 +264,13 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisionAI Corporate Bot"}
         papers = []
         
-        # 1. Tenta a API oficial do HuggingFace Daily Papers
+        # 1. Tenta a API oficial do HuggingFace Daily Papers (limita aos 8 principais para tradução ultra rápida)
         try:
             hf_url = "https://huggingface.co/api/daily_papers"
             resp = requests.get(hf_url, headers=headers, timeout=8)
             if resp.status_code == 200:
                 data = resp.json()
-                for item in data[:15]:
+                for item in data[:8]:
                     paper_data = item.get("paper", {})
                     paper_id = paper_data.get("id", "")
                     title = paper_data.get("title", "")
