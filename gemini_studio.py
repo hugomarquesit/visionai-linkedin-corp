@@ -177,7 +177,28 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         except Exception as e:
             print(f"Erro no web scraping ao vivo da URL {url}: {e}")
 
-        return ""
+    def _safe_json_loads(self, text: str):
+        """Sanitização avançada e parsing seguro de JSON gerado por LLMs."""
+        import json, re
+        if not text or not isinstance(text, str):
+            return None
+        clean = text.replace("```json", "").replace("```", "").strip()
+        clean = re.sub(r'\[\d+\]', '', clean)
+        clean = re.sub(r',(?=\s*[\}\]])', '', clean)
+        
+        start = clean.find("[")
+        end = clean.rfind("]") + 1
+        if start != -1 and end > start:
+            json_str = clean[start:end]
+            try:
+                return json.loads(json_str, strict=False)
+            except Exception:
+                sanitized = re.sub(r'[\r\n]+', ' ', json_str)
+                try:
+                    return json.loads(sanitized, strict=False)
+                except Exception as e:
+                    print(f"Erro no safe_json_loads: {e}")
+        return None
 
     def _translate_papers_to_ptbr(self, raw_papers: list) -> list:
         """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR) em lotes por índice."""
@@ -228,31 +249,25 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
 """
             try:
                 raw = self._generate(prompt, temperature=0.2)
-                clean = raw.replace("```json", "").replace("```", "").strip()
-                start = clean.find("[")
-                end = clean.rfind("]") + 1
-                if start != -1 and end > start:
-                    translated_chunk = json.loads(clean[start:end], strict=False)
-                    if isinstance(translated_chunk, list) and len(translated_chunk) > 0:
-                        for idx, orig in enumerate(chunk):
-                            item_t = None
-                            for t in translated_chunk:
-                                if str(t.get("index")) == str(idx):
-                                    item_t = t
-                                    break
-                            if not item_t and idx < len(translated_chunk):
-                                item_t = translated_chunk[idx]
+                translated_chunk = self._safe_json_loads(raw)
+                if isinstance(translated_chunk, list) and len(translated_chunk) > 0:
+                    for idx, orig in enumerate(chunk):
+                        item_t = None
+                        for t in translated_chunk:
+                            if str(t.get("index")) == str(idx):
+                                item_t = t
+                                break
+                        if not item_t and idx < len(translated_chunk):
+                            item_t = translated_chunk[idx]
 
-                            if item_t and item_t.get("title"):
-                                merged = dict(orig)
-                                merged["title"] = item_t.get("title", orig.get("title"))
-                                merged["summary"] = item_t.get("summary", orig.get("summary"))
-                                merged["pdf_preview_ptbr"] = item_t.get("pdf_preview_ptbr", item_t.get("summary", ""))
-                                all_translated.append(merged)
-                            else:
-                                all_translated.append(orig)
-                    else:
-                        all_translated.extend(chunk)
+                        if item_t and item_t.get("title"):
+                            merged = dict(orig)
+                            merged["title"] = item_t.get("title", orig.get("title"))
+                            merged["summary"] = item_t.get("summary", orig.get("summary"))
+                            merged["pdf_preview_ptbr"] = item_t.get("pdf_preview_ptbr", item_t.get("summary", ""))
+                            all_translated.append(merged)
+                        else:
+                            all_translated.append(orig)
                 else:
                     all_translated.extend(chunk)
             except Exception as e:
@@ -293,12 +308,8 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
 ]
 """
                 raw = self._generate_with_search(grounding_prompt, temperature=0.2)
-                clean = raw.replace("```json", "").replace("```", "").strip()
-                clean = re.sub(r'\[\d+\]', '', clean)
-                start = clean.find("[")
-                end = clean.rfind("]") + 1
-                if start != -1 and end > start:
-                    grounded_papers = json.loads(clean[start:end], strict=False)
+                grounded_papers = self._safe_json_loads(raw)
+                if isinstance(grounded_papers, list):
                     for p in grounded_papers:
                         if isinstance(p, dict) and p.get("title"):
                             if isinstance(p.get("authors"), list):
