@@ -180,24 +180,38 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         return ""
 
     def _translate_papers_to_ptbr(self, raw_papers: list) -> list:
-        """Tradução e enriquecimento B2B de papers em inglês para Português do Brasil (PT-BR)."""
+        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR)."""
         import re, json
         if not raw_papers:
             return []
+
+        simplified = []
+        for p in raw_papers:
+            simplified.append({
+                "paper_id": p.get("paper_id", ""),
+                "title": p.get("title", ""),
+                "summary": p.get("summary", ""),
+                "paper_url": p.get("paper_url", "")
+            })
         
         prompt = f"""
-Traduza e adapte a lista de papers acadêmicos/pesquisas de IA abaixo para PORTUGUÊS DO BRASIL (PT-BR).
-Cada título e resumo executivo deve estar em Português do Brasil impecável, claro e profissional.
+Você é um Tradutor Técnico e Pesquisador Sênior de IA para o mercado brasileiro.
+SUA MISSÃO: Traduza e adapte a lista de papers acadêmicos/pesquisas de IA abaixo para PORTUGUÊS DO BRASIL (PT-BR).
 
-LISTA DE PAPERS:
-{json.dumps(raw_papers, ensure_ascii=False)}
+DIRETRIZES OBRIGATÓRIAS DE TRADUÇÃO:
+1. **Título**: Traduza o título para um Português do Brasil claro, didático, magnético e de alta autoridade técnico-executiva.
+2. **Resumo (Summary)**: Crie um resumo executivo plausível de 2 a 3 frases em Português do Brasil explicando com clareza a inovação do artigo, o problema resolvido e por que isso é relevante.
+3. **Mantenha os links e IDs originais**: Mantenha `paper_id`, `authors`, `paper_url`, `published_at` e `source`.
 
-Responda APENAS com um array JSON no formato:
+PAPERS ORIGINAIS (EM INGLÊS):
+{json.dumps(simplified, ensure_ascii=False)}
+
+Responda APENAS com um array JSON válido (sem qualquer bloco de código markdown ```json):
 [
   {{
     "paper_id": "ID original",
-    "title": "Título traduzido em Português do Brasil",
-    "summary": "Resumo executivo do paper em Português do Brasil",
+    "title": "Título traduzido e adaptado em Português do Brasil",
+    "summary": "Resumo executivo didático e claro em Português do Brasil",
     "authors": "Autores originais",
     "paper_url": "URL original",
     "published_at": "Data",
@@ -206,11 +220,23 @@ Responda APENAS com um array JSON no formato:
 ]
 """
         try:
-            raw = self._generate(prompt, temperature=0.3)
-            match = re.search(r'\[.*\]', raw, re.DOTALL)
-            if match:
-                translated = json.loads(match.group())
+            raw = self._generate(prompt, temperature=0.2)
+            clean = raw.replace("```json", "").replace("```", "").strip()
+            start = clean.find("[")
+            end = clean.rfind("]") + 1
+            if start != -1 and end > start:
+                translated = json.loads(clean[start:end], strict=False)
                 if isinstance(translated, list) and len(translated) > 0:
+                    raw_dict = {p.get("paper_id"): p for p in raw_papers}
+                    for item in translated:
+                        pid = item.get("paper_id")
+                        orig = raw_dict.get(pid, {})
+                        if orig:
+                            if not item.get("authors"): item["authors"] = orig.get("authors", "")
+                            if not item.get("published_at"): item["published_at"] = orig.get("published_at", "")
+                            if not item.get("paper_url"): item["paper_url"] = orig.get("paper_url", "")
+                            if not item.get("source"): item["source"] = orig.get("source", "HuggingFace Papers")
+                    print(f"✅ {len(translated)} papers traduzidos com sucesso para PT-BR.")
                     return translated
         except Exception as e:
             print(f"Tradução de papers para PT-BR falhou: {e}")
@@ -219,9 +245,9 @@ Responda APENAS com um array JSON no formato:
     def fetch_huggingface_trending_papers(self, query: str = None) -> dict:
         """
         Busca os papéis de pesquisa acadêmica em alta no HuggingFace / ArXiv.
-        Garante que todo o conteúdo seja retornado em PORTUGUÊS DO BRASIL (PT-BR).
+        Garante que todo o conteúdo seja retornado em PORTUGUÊS DO BRASIL (PT-BR) com títulos didáticos e explicações plausíveis.
         """
-        import requests, json
+        import requests, json, re
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisionAI Corporate Bot"}
         papers = []
         
@@ -257,33 +283,37 @@ Responda APENAS com um array JSON no formato:
         except Exception as e:
             print(f"Erro na API HuggingFace Papers: {e}")
 
-        # Se houver papers em inglês, faz a tradução automática para PT-BR
+        # Se houver papers capturados da API, realiza a tradução e enriquecimento executivo para PT-BR
         if papers:
             papers = self._translate_papers_to_ptbr(papers)
 
-        # 2. Se a lista estiver vazia ou houver busca específica, faz fallback via Google Search Grounding de Papers
+        # 2. Se a lista estiver vazia ou houver busca por tema específico, realiza busca ao vivo na web (Google Search Grounding) por papers reais
         if not papers or (query and len(papers) < 3):
             try:
                 grounding_prompt = f"""
-Pesquise na web papers acadêmicos e pesquisas de IA no HuggingFace Papers ou ArXiv sobre: '{query or 'Trending AI Research'}'.
-Retorne APENAS um JSON com array de até 6 papers em PORTUGUÊS DO BRASIL (PT-BR):
+Pesquise na internet papers acadêmicos, artigos científicos e pesquisas RECENTES (2025/2026) no HuggingFace Papers ou ArXiv sobre o tema: '{query or 'Artificial Intelligence Research'}'.
+
+SUA MISSÃO: Retorne de 5 a 8 papers acadêmicos reais com títulos e resumos explicativos EXCLUSIVAMENTE em PORTUGUÊS DO BRASIL (PT-BR).
+
+Responda APENAS com um array JSON no formato (sem qualquer bloco de código markdown ```json):
 [
   {{
-    "paper_id": "ID",
-    "title": "Título em Português do Brasil",
-    "summary": "Resumo executivo do paper em Português do Brasil",
-    "authors": "Nomes dos autores",
+    "paper_id": "ID do ArXiv ou HuggingFace",
+    "title": "Título explicativo e Didático em Português do Brasil",
+    "summary": "Resumo executivo plausível e enriquecedor de 2 a 3 frases em Português do Brasil",
+    "authors": "Nomes dos pesquisadores/autores",
     "paper_url": "https://huggingface.co/papers/XXXX.XXXXX ou https://arxiv.org/abs/XXXX.XXXXX",
     "published_at": "2026",
-    "source": "ArXiv / HuggingFace"
+    "source": "ArXiv / HuggingFace Papers"
   }}
 ]
 """
                 raw = self._generate_with_search(grounding_prompt, temperature=0.3)
-                import re
-                match = re.search(r'\[.*\]', raw, re.DOTALL)
-                if match:
-                    grounded_papers = json.loads(match.group())
+                clean = raw.replace("```json", "").replace("```", "").strip()
+                start = clean.find("[")
+                end = clean.rfind("]") + 1
+                if start != -1 and end > start:
+                    grounded_papers = json.loads(clean[start:end], strict=False)
                     for p in grounded_papers:
                         if isinstance(p, dict) and p.get("title"):
                             papers.append(p)
