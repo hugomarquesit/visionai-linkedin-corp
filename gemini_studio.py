@@ -93,8 +93,8 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
 
     def _fetch_full_paper_or_url_content(self, url: str) -> str:
         """
-        Faz o download e leitura INTEGRAL do PDF ou artigo da web a partir da URL.
-        Converte papers do HuggingFace/ArXiv para o PDF completo via PyPDF.
+        Faz a leitura AO VIVO E EM TEMPO REAL (no momento exato da geração) do PDF ou artigo da web a partir da URL.
+        Não utiliza nenhum cache estático, garantindo a leitura atualizada do paper completo.
         """
         import requests, re, io
         from pypdf import PdfReader
@@ -102,48 +102,70 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         if not url or not url.startswith("http"):
             return ""
 
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisionAI Corporate Scraper"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisionAI Live Scraper"}
 
-        # 1. Identificação de Papers ArXiv / HuggingFace Papers
+        # 1. Identificação de ID do ArXiv / HuggingFace na URL (ex: 2401.12345 ou 2607.27372)
         arxiv_match = re.search(r'(\d{4}\.\d{4,5})', url)
-        if "arxiv.org" in url or "huggingface.co/papers" in url:
-            if arxiv_match:
-                paper_id = arxiv_match.group(1)
-                pdf_url = f"https://arxiv.org/pdf/{paper_id}.pdf"
-                try:
-                    r = requests.get(pdf_url, headers=headers, timeout=20)
-                    if r.status_code == 200 and len(r.content) > 1000:
-                        reader = PdfReader(io.BytesIO(r.content))
-                        extracted_text = ""
-                        for page in reader.pages[:15]: # Lê até as primeiras 15 páginas do paper
-                            txt = page.extract_text()
-                            if txt:
-                                extracted_text += txt + "\n"
-                        if len(extracted_text) > 300:
-                            print(f"Paper PDF completo extraído via PyPDF ({len(extracted_text)} caracteres).")
-                            return extracted_text[:18000]
-                except Exception as e:
-                    print(f"Erro ao baixar/extrair PDF do ArXiv {pdf_url}: {e}")
-
-        # 2. Leitura se a URL for um PDF direto
-        if url.lower().endswith(".pdf"):
+        if arxiv_match:
+            paper_id = arxiv_match.group(1)
+            pdf_url = f"https://arxiv.org/pdf/{paper_id}.pdf"
+            print(f"🔥 Baixando e lendo PDF do paper AO VIVO no momento da geração: {pdf_url}...")
             try:
-                r = requests.get(url, headers=headers, timeout=20)
-                if r.status_code == 200:
+                r = requests.get(pdf_url, headers=headers, timeout=25)
+                if r.status_code == 200 and len(r.content) > 1000:
                     reader = PdfReader(io.BytesIO(r.content))
                     extracted_text = ""
-                    for page in reader.pages[:15]:
+                    for page in reader.pages[:20]: # Lê até 20 páginas do paper completo
                         txt = page.extract_text()
                         if txt:
                             extracted_text += txt + "\n"
                     if len(extracted_text) > 300:
-                        return extracted_text[:18000]
+                        print(f"✅ PDF do paper lido na íntegra ao vivo ({len(extracted_text)} caracteres).")
+                        return extracted_text[:20000]
             except Exception as e:
-                print(f"Erro ao extrair PDF direto {url}: {e}")
+                print(f"Falha no download ao vivo do PDF ArXiv {pdf_url}: {e}")
 
-        # 3. Leitura de Página HTML da Web (Web Scraping de Artigo)
+        # 2. Se for uma página do HuggingFace Papers sem ID direto na URL, busca a URL do PDF no HTML
+        if "huggingface.co/papers" in url or "arxiv.org" in url:
+            try:
+                r_page = requests.get(url, headers=headers, timeout=15)
+                if r_page.status_code == 200:
+                    page_html = r_page.text
+                    pdf_link_match = re.search(r'https?://arxiv\.org/pdf/\d{4}\.\d{4,5}(?:\.pdf)?', page_html)
+                    if pdf_link_match:
+                        target_pdf = pdf_link_match.group(0)
+                        if not target_pdf.endswith('.pdf'): target_pdf += '.pdf'
+                        r_pdf = requests.get(target_pdf, headers=headers, timeout=25)
+                        if r_pdf.status_code == 200:
+                            reader = PdfReader(io.BytesIO(r_pdf.content))
+                            extracted_text = ""
+                            for page in reader.pages[:20]:
+                                txt = page.extract_text()
+                                if txt: extracted_text += txt + "\n"
+                            if len(extracted_text) > 300:
+                                print(f"✅ PDF extraído do HTML do HuggingFace e lido ao vivo ({len(extracted_text)} caracteres).")
+                                return extracted_text[:20000]
+            except Exception as e:
+                print(f"Falha ao raspar página HTML de paper: {e}")
+
+        # 3. Leitura ao vivo de PDF direto
+        if url.lower().endswith(".pdf"):
+            try:
+                r = requests.get(url, headers=headers, timeout=25)
+                if r.status_code == 200:
+                    reader = PdfReader(io.BytesIO(r.content))
+                    extracted_text = ""
+                    for page in reader.pages[:20]:
+                        txt = page.extract_text()
+                        if txt: extracted_text += txt + "\n"
+                    if len(extracted_text) > 300:
+                        return extracted_text[:20000]
+            except Exception as e:
+                print(f"Erro ao extrair PDF direto ao vivo {url}: {e}")
+
+        # 4. Leitura ao vivo de página web genérica (Artigos / notícias)
         try:
-            r = requests.get(url, headers=headers, timeout=12)
+            r = requests.get(url, headers=headers, timeout=15)
             if r.status_code == 200:
                 html_text = r.text
                 clean_text = re.sub(r'<script[^>]*>.*?</script>', '', html_text, flags=re.DOTALL)
@@ -153,7 +175,7 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
                 if len(clean_text) > 200:
                     return clean_text[:15000]
         except Exception as e:
-            print(f"Erro ao fazer web scraping da URL {url}: {e}")
+            print(f"Erro no web scraping ao vivo da URL {url}: {e}")
 
         return ""
 
