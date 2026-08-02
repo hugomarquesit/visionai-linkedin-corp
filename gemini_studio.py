@@ -180,27 +180,32 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         return ""
 
     def _translate_papers_to_ptbr(self, raw_papers: list) -> list:
-        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR)."""
+        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR) em lotes (batching de 5 itens)."""
         import re, json
         if not raw_papers:
             return []
 
-        simplified = []
-        for p in raw_papers:
-            simplified.append({
-                "paper_id": p.get("paper_id", ""),
-                "title": p.get("title", ""),
-                "summary": p.get("summary", ""),
-                "paper_url": p.get("paper_url", "")
-            })
-        
-        prompt = f"""
+        all_translated = []
+        chunk_size = 5
+
+        for i in range(0, len(raw_papers), chunk_size):
+            chunk = raw_papers[i:i+chunk_size]
+            simplified = []
+            for p in chunk:
+                simplified.append({
+                    "paper_id": p.get("paper_id", ""),
+                    "title": p.get("title", ""),
+                    "summary": p.get("summary", ""),
+                    "paper_url": p.get("paper_url", "")
+                })
+            
+            prompt = f"""
 Você é um Tradutor Técnico e Pesquisador Sênior de IA para o mercado brasileiro.
 SUA MISSÃO: Traduza e adapte a lista de papers acadêmicos/pesquisas de IA abaixo para PORTUGUÊS DO BRASIL (PT-BR).
 
 DIRETRIZES OBRIGATÓRIAS DE TRADUÇÃO:
 1. **Título**: Traduza o título para um Português do Brasil claro, didático, magnético e de alta autoridade técnico-executiva.
-2. **Resumo (Summary)**: Crie um resumo executivo plausível de 2 a 3 frases em Português do Brasil explicando com clareza a inovação do artigo, o problema resolvido e por que isso é relevante.
+2. **Resumo (Summary)**: Crie um resumo executivo didático e plausível de 2 a 3 frases em Português do Brasil explicando com clareza a inovação do artigo, o problema resolvido e por que isso é relevante.
 3. **Mantenha os links e IDs originais**: Mantenha `paper_id`, `authors`, `paper_url`, `published_at` e `source`.
 
 PAPERS ORIGINAIS (EM INGLÊS):
@@ -219,28 +224,34 @@ Responda APENAS com um array JSON válido (sem qualquer bloco de código markdow
   }}
 ]
 """
-        try:
-            raw = self._generate(prompt, temperature=0.2)
-            clean = raw.replace("```json", "").replace("```", "").strip()
-            start = clean.find("[")
-            end = clean.rfind("]") + 1
-            if start != -1 and end > start:
-                translated = json.loads(clean[start:end], strict=False)
-                if isinstance(translated, list) and len(translated) > 0:
-                    raw_dict = {p.get("paper_id"): p for p in raw_papers}
-                    for item in translated:
-                        pid = item.get("paper_id")
-                        orig = raw_dict.get(pid, {})
-                        if orig:
-                            if not item.get("authors"): item["authors"] = orig.get("authors", "")
-                            if not item.get("published_at"): item["published_at"] = orig.get("published_at", "")
-                            if not item.get("paper_url"): item["paper_url"] = orig.get("paper_url", "")
-                            if not item.get("source"): item["source"] = orig.get("source", "HuggingFace Papers")
-                    print(f"✅ {len(translated)} papers traduzidos com sucesso para PT-BR.")
-                    return translated
-        except Exception as e:
-            print(f"Tradução de papers para PT-BR falhou: {e}")
-        return raw_papers
+            try:
+                raw = self._generate(prompt, temperature=0.2)
+                clean = raw.replace("```json", "").replace("```", "").strip()
+                start = clean.find("[")
+                end = clean.rfind("]") + 1
+                if start != -1 and end > start:
+                    translated_chunk = json.loads(clean[start:end], strict=False)
+                    if isinstance(translated_chunk, list) and len(translated_chunk) > 0:
+                        raw_dict = {p.get("paper_id"): p for p in chunk}
+                        for item in translated_chunk:
+                            pid = item.get("paper_id")
+                            orig = raw_dict.get(pid, {})
+                            if orig:
+                                if not item.get("authors"): item["authors"] = orig.get("authors", "")
+                                if not item.get("published_at"): item["published_at"] = orig.get("published_at", "")
+                                if not item.get("paper_url"): item["paper_url"] = orig.get("paper_url", "")
+                                if not item.get("source"): item["source"] = orig.get("source", "HuggingFace Papers")
+                        all_translated.extend(translated_chunk)
+                    else:
+                        all_translated.extend(chunk)
+                else:
+                    all_translated.extend(chunk)
+            except Exception as e:
+                print(f"Tradução do lote {i} de papers para PT-BR falhou: {e}")
+                all_translated.extend(chunk)
+
+        print(f"✅ Total de {len(all_translated)} papers traduzidos com sucesso para PT-BR.")
+        return all_translated
 
     def fetch_huggingface_trending_papers(self, query: str = None) -> dict:
         """
