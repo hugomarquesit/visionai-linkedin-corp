@@ -91,12 +91,115 @@ DIFERENCIAIS COMPETITIVOS: {dna['differentials']}
 PILARES DE CONTEÚDO: {dna['content_pillars']}
 """
 
+    def _fetch_full_paper_or_url_content(self, url: str) -> str:
+        """
+        Faz o download e leitura INTEGRAL do PDF ou artigo da web a partir da URL.
+        Converte papers do HuggingFace/ArXiv para o PDF completo via PyPDF.
+        """
+        import requests, re, io
+        from pypdf import PdfReader
+
+        if not url or not url.startswith("http"):
+            return ""
+
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisionAI Corporate Scraper"}
+
+        # 1. Identificação de Papers ArXiv / HuggingFace Papers
+        arxiv_match = re.search(r'(\d{4}\.\d{4,5})', url)
+        if "arxiv.org" in url or "huggingface.co/papers" in url:
+            if arxiv_match:
+                paper_id = arxiv_match.group(1)
+                pdf_url = f"https://arxiv.org/pdf/{paper_id}.pdf"
+                try:
+                    r = requests.get(pdf_url, headers=headers, timeout=20)
+                    if r.status_code == 200 and len(r.content) > 1000:
+                        reader = PdfReader(io.BytesIO(r.content))
+                        extracted_text = ""
+                        for page in reader.pages[:15]: # Lê até as primeiras 15 páginas do paper
+                            txt = page.extract_text()
+                            if txt:
+                                extracted_text += txt + "\n"
+                        if len(extracted_text) > 300:
+                            print(f"Paper PDF completo extraído via PyPDF ({len(extracted_text)} caracteres).")
+                            return extracted_text[:18000]
+                except Exception as e:
+                    print(f"Erro ao baixar/extrair PDF do ArXiv {pdf_url}: {e}")
+
+        # 2. Leitura se a URL for um PDF direto
+        if url.lower().endswith(".pdf"):
+            try:
+                r = requests.get(url, headers=headers, timeout=20)
+                if r.status_code == 200:
+                    reader = PdfReader(io.BytesIO(r.content))
+                    extracted_text = ""
+                    for page in reader.pages[:15]:
+                        txt = page.extract_text()
+                        if txt:
+                            extracted_text += txt + "\n"
+                    if len(extracted_text) > 300:
+                        return extracted_text[:18000]
+            except Exception as e:
+                print(f"Erro ao extrair PDF direto {url}: {e}")
+
+        # 3. Leitura de Página HTML da Web (Web Scraping de Artigo)
+        try:
+            r = requests.get(url, headers=headers, timeout=12)
+            if r.status_code == 200:
+                html_text = r.text
+                clean_text = re.sub(r'<script[^>]*>.*?</script>', '', html_text, flags=re.DOTALL)
+                clean_text = re.sub(r'<style[^>]*>.*?</style>', '', clean_text, flags=re.DOTALL)
+                clean_text = re.sub(r'<[^>]+>', ' ', clean_text)
+                clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                if len(clean_text) > 200:
+                    return clean_text[:15000]
+        except Exception as e:
+            print(f"Erro ao fazer web scraping da URL {url}: {e}")
+
+        return ""
+
+    def _translate_papers_to_ptbr(self, raw_papers: list) -> list:
+        """Tradução e enriquecimento B2B de papers em inglês para Português do Brasil (PT-BR)."""
+        if not raw_papers:
+            return []
+        
+        prompt = f"""
+Traduza e adapte a lista de papers acadêmicos/pesquisas de IA abaixo para PORTUGUÊS DO BRASIL (PT-BR).
+Cada título e resumo executivo deve estar em Português do Brasil impecável, claro e profissional.
+
+LISTA DE PAPERS:
+{json.dumps(raw_papers, ensure_ascii=False)}
+
+Responda APENAS com um array JSON no formato:
+[
+  {{
+    "paper_id": "ID original",
+    "title": "Título traduzido em Português do Brasil",
+    "summary": "Resumo executivo do paper em Português do Brasil",
+    "authors": "Autores originais",
+    "paper_url": "URL original",
+    "published_at": "Data",
+    "source": "HuggingFace Papers / ArXiv"
+  }}
+]
+"""
+        try:
+            import re, json
+            raw = self._generate(prompt, temperature=0.3)
+            match = re.search(r'\[.*\]', raw, re.DOTALL)
+            if match:
+                translated = json.loads(match.group())
+                if isinstance(translated, list) and len(translated) > 0:
+                    return translated
+        except Exception as e:
+            print(f"Tradução de papers para PT-BR falhou: {e}")
+        return raw_papers
+
     def fetch_huggingface_trending_papers(self, query: str = None) -> dict:
         """
         Busca os papéis de pesquisa acadêmica em alta no HuggingFace / ArXiv.
-        Retorna lista de dicionários com: title, summary, paper_url, authors, published_at, category.
+        Garante que todo o conteúdo seja retornado em PORTUGUÊS DO BRASIL (PT-BR).
         """
-        import requests
+        import requests, json
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisionAI Corporate Bot"}
         papers = []
         
@@ -132,17 +235,21 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         except Exception as e:
             print(f"Erro na API HuggingFace Papers: {e}")
 
-        # 2. Se a lista estiver vazia ou houver busca específica, faz fallback via Google Search Grounding de Papers ou ArXiv
+        # Se houver papers em inglês, faz a tradução automática para PT-BR
+        if papers:
+            papers = self._translate_papers_to_ptbr(papers)
+
+        # 2. Se a lista estiver vazia ou houver busca específica, faz fallback via Google Search Grounding de Papers
         if not papers or (query and len(papers) < 3):
-            search_term = f"site:huggingface.co/papers {query}" if query else "site:huggingface.co/papers trending AI papers 2026"
             try:
                 grounding_prompt = f"""
 Pesquise na web papers acadêmicos e pesquisas de IA no HuggingFace Papers ou ArXiv sobre: '{query or 'Trending AI Research'}'.
-Retorne APENAS um JSON com array de até 6 papers:
+Retorne APENAS um JSON com array de até 6 papers em PORTUGUÊS DO BRASIL (PT-BR):
 [
   {{
-    "title": "Título em Português ou Inglês",
-    "summary": "Resumo executivo do paper em Português",
+    "paper_id": "ID",
+    "title": "Título em Português do Brasil",
+    "summary": "Resumo executivo do paper em Português do Brasil",
     "authors": "Nomes dos autores",
     "paper_url": "https://huggingface.co/papers/XXXX.XXXXX ou https://arxiv.org/abs/XXXX.XXXXX",
     "published_at": "2026",
@@ -764,9 +871,10 @@ Responda APENAS com JSON:
         content_objective: str = "corporativo_sales",
         web_research: bool = False,
         overlay_style: str = "photo_pure",
-        art_style: str = "auto"
+        art_style: str = "auto",
+        source_url: str = ""
     ) -> dict:
-        """Gera um post completo com texto e mídia respeitando rigorosamente o objetivo (Educativo/Pesquisa vs Corporativo/Vendas) e a liberdade artística."""
+        """Gera um post completo com texto e mídia respeitando rigorosamente a leitura do PDF/paper na íntegra, objetivo e estéticas."""
         
         format_guides = {
             "pulse_article": (
@@ -830,6 +938,29 @@ Responda APENAS com JSON:
             )
             org_context_block = f"CONTEXTO INSTITUCIONAL:\n{self._get_brand_dna_context()}\n{self.scraped_context}\n"
 
+        # Leitura INTEGRAL do Paper / Artigo se houver URL ou fonte especificada
+        import re
+        paper_full_content = ""
+        target_link = source_url.strip() if source_url else ""
+        if not target_link:
+            url_match = re.search(r'https?://[^\s]+', topic)
+            if url_match:
+                target_link = url_match.group(0)
+
+        if target_link:
+            paper_full_content = self._fetch_full_paper_or_url_content(target_link)
+
+        paper_context_block = ""
+        if paper_full_content:
+            paper_context_block = f"""
+CONTEÚDO COMPLETO EXTRAÍDO E LIDO NA ÍNTEGRA DO PAPER/ARTIGO FONTE ({target_link}):
+{paper_full_content[:18000]}
+
+INSTRUÇÃO CRÍTICA DO AGENTE DE IA:
+- Você LEU O PAPER COMPLETO ACIMA. Analise detalhadamente as hipóteses, metodologias, equações/arquiteturas e resultados empíricos descritos.
+- Escreva o post 100% em PORTUGUÊS DO BRASIL (PT-BR) com base na leitura detalhada deste artigo.
+"""
+
         # ── ETAPA 1: GERAÇÃO DO TEXTO DO POST ──────────────────────────────────
         text_prompt = f"""
 Você é um especialista em Inteligência Artificial, Pesquisador de TI e Redator de Alto Nível para o LinkedIn.
@@ -838,30 +969,36 @@ Você é um especialista em Inteligência Artificial, Pesquisador de TI e Redato
 
 {org_context_block}
 
+{paper_context_block}
+
 PERFIL DE NARRATIVA: {voice_instruction}
 TEMA/TÍTULO SOLICITADO: {topic}
 FORMATO DE CONTEÚDO: {format_guides.get(format_type, format_guides['standard'])}
 TOM DE VOZ: {tone_guides.get(tone, tone_guides['visionario'])}
 
 DIRETRIZES DE COPYWRITING & FORMATAÇÃO (ESTRITAMENTE OBRIGATÓRIAS):
-1. **RESPEITE O FORMATO E O OBJETIVO SOLICITADO**:
+1. **IDIOMA E LEITURA DO PAPER**:
+   - Todo o texto deve ser escrito OBRIGATORIAMENTE em PORTUGUÊS DO BRASIL (PT-BR).
+   - Se um paper ou documento foi lido acima, incorpore os conceitos e fundamentos desse estudo.
+
+2. **RESPEITE O FORMATO E O OBJETIVO SOLICITADO**:
    - Se o formato for 'pulse_article', crie um artigo completo com seções organizadas, introdução conceitual e aprofundamento.
    - Se o modo for 'educativo_academic', NÃO insira pitches comerciais da empresa. Foque em entregar conhecimento puro e valioso.
 
-2. **ZERO ASTERISCOS OU MARKDOWN**:
+3. **ZERO ASTERISCOS OU MARKDOWN**:
    - PROIBIDO usar asteriscos (`**` ou `*`) para negrito ou itálico (o LinkedIn exibe os asteriscos brutos no feed).
    - PROIBIDO usar cerquilhas (`#`, `##`) como títulos.
    - Use emojis elegantes (como `✦`, `▸`, `⚡`, `💡`, `👉`, `📍`) para destacar pontos e títulos.
 
-3. **ESTILO DE ESCRITA HUMANO E RICO**:
+4. **ESTILO DE ESCRITA HUMANO E RICO**:
    - PROIBIDO clichês robóticos de IA como: "No mundo de hoje", "Em constante evolução", "Na era da IA", "Em suma", "Vamos juntos".
    - Parágrafos curtos (2 a 3 linhas) para excelente leitura no celular.
 
-FORMATO DE SAÍDA: Retorne APENAS o texto do post em português, pronto para ser publicado. Sem explicações adicionais e SEM NENHUM ASTERISCO.
+FORMATO DE SAÍDA: Retorne APENAS o texto do post em Português do Brasil (PT-BR), pronto para ser publicado. Sem explicações adicionais e SEM NENHUM ASTERISCO.
 """
         # Se a pesquisa na web estiver ativada ou for modo educativo, usa Google Search Grounding para trazer artigos e dados recentes!
         if web_research or content_objective == "educativo_academic":
-            search_prompt = f"Pesquise na web artigos científicos, papers recentes, definições e notícias sobre: '{topic}'. {text_prompt}"
+            search_prompt = f"Pesquise na web artigos científicos, papers recentes em Português do Brasil (PT-BR) sobre: '{topic}'. {text_prompt}"
             raw_post_text = self._generate_with_search(search_prompt, temperature=0.85).strip()
         else:
             raw_post_text = self._generate(text_prompt, temperature=0.85).strip()
@@ -1178,17 +1315,19 @@ Você é o Diretor de Inteligência de Mercado & Tendências Tecnológicas B2B d
 SUA MISSÃO: Realize uma busca em tempo real na internet (Google Search) e traga exatamente de 8 a 12 notícias e tendências B2B RECENTES, REAIS E INÉDITAS sobre:
 {search_query_str} (Data/Seed: {timestamp_seed}).
 
-Importante: Traga notícias reais publicadas na imprensa ou portais de tecnologia sobre empresas, lançamentos, investimentos e cases de sucesso B2B.
+REGRA RÍGIDA DE IDIOMA (ESTRITAMENTE OBRIGATÓRIO):
+- TODAS AS NOTÍCIAS, TÍTULOS, RESUMOS E IMPACTOS B2B DEVEM SER RETORNADOS 100% EM PORTUGUÊS DO BRASIL (PT-BR).
+- Se a fonte original ou o portal for em inglês ou outro idioma, traduza e adapte perfeitamente para o Português do Brasil.
 
 Responda APENAS com um objeto JSON válido (sem qualquer bloco de código markdown como ```json):
 {{
   "trends": [
     {{
-      "title": "Título específico da notícia ou tendência real encontrada",
+      "title": "Título específico em Português do Brasil",
       "category": "EDGE AI | VISÃO AGRO | REALIDADE MISTA | GOVERNANÇA | SAC MULTIMODAL | SEGURANÇA | ROBÓTICA | MÍDIA B2B",
-      "summary": "Resumo executivo de 2 a 3 frases com dados concretos da matéria",
-      "impact_b2b": "Por que isso importa para diretores e VPs B2B",
-      "suggested_topic": "Tema estratégico pronto para gerar post no LinkedIn"
+      "summary": "Resumo executivo de 2 a 3 frases em Português do Brasil",
+      "impact_b2b": "Por que isso importa para diretores e VPs B2B (em PT-BR)",
+      "suggested_topic": "Tema estratégico em Português do Brasil para post no LinkedIn"
     }}
   ]
 }}
@@ -1317,13 +1456,25 @@ Responda APENAS com um objeto JSON válido (sem qualquer bloco de código markdo
             "vendas_diretas": "Conduza cada slide para um forte Call to Action de demonstração comercial."
         }.get(content_objective, f"Foque no objetivo de {content_objective}.")
 
+        target_link = source_url.strip() if source_url else ""
+        if not target_link:
+            url_match = re.search(r'https?://[^\s]+', topic)
+            if url_match:
+                target_link = url_match.group(0)
+
+        paper_full_text = ""
+        if target_link:
+            paper_full_text = self._fetch_full_paper_or_url_content(target_link)
+
         research_context = ""
-        if web_research or source_url:
-            query = f"{topic} {source_url}".strip()
+        if paper_full_text:
+            research_context = f"\nTEXTO INTEGRAL EXTRAÍDO E LIDO NA ÍNTEGRA DO PAPER FONTE ({target_link}):\n{paper_full_text[:18000]}\n\nIMPORTANTE: Todo o roteiro dos slides deve ser em PORTUGUÊS DO BRASIL (PT-BR) fundamentado nos achados do paper acima.\n"
+        elif web_research:
+            query = f"{topic}".strip()
             web_data = self.fetch_web_trends(query=query)
             if web_data and web_data.get("trends"):
                 t_list = web_data["trends"][:2]
-                research_context = "\nCONTEÚDO E PESQUISA EM TEMPO REAL:\n" + "\n".join([f"- {t.get('title')}: {t.get('summary')}" for t in t_list])
+                research_context = "\nCONTEÚDO E PESQUISA EM TEMPO REAL (PT-BR):\n" + "\n".join([f"- {t.get('title')}: {t.get('summary')}" for t in t_list])
 
         prompt = f"""
 Você é o Diretor de Criação Executivo da empresa {brand_name} ({website_url}).

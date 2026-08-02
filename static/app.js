@@ -203,6 +203,8 @@ async function generatePostFromTrend(idx) {
   const item = cachedWebTrends[idx];
   if (!item) return;
 
+  currentSourceUrl = item.source_url || "";
+
   if (item.source_url) {
     if ($('gen-content-objective')) $('gen-content-objective').value = 'educativo_academic';
     if ($('gen-web-research')) $('gen-web-research').checked = true;
@@ -263,7 +265,8 @@ async function generateCarouselPdfAction() {
         art_style: artStyle,
         overlay_style: overlayStyle,
         target_audience: targetAudience,
-        web_research: webResearch
+        web_research: webResearch,
+        source_url: currentSourceUrl
       })
     });
 
@@ -1134,7 +1137,8 @@ async function generatePost() {
         content_objective: objective,
         web_research: webResearch,
         overlay_style: overlayStyle,
-        art_style: artStyle
+        art_style: artStyle,
+        source_url: currentSourceUrl
       }),
     });
 

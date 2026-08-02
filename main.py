@@ -145,6 +145,11 @@ class GeneratePostPayload(BaseModel):
     tone: str = "visionario"
     media_type: Optional[str] = "image"
     voice_mode: Optional[str] = "corporate"
+    content_objective: Optional[str] = "corporativo_sales"
+    web_research: Optional[bool] = False
+    overlay_style: Optional[str] = "photo_pure"
+    art_style: Optional[str] = "auto"
+    source_url: Optional[str] = ""
 
 class ReviewPostPayload(BaseModel):
     draft: str
@@ -436,7 +441,12 @@ async def gemini_generate_post(payload: GeneratePostPayload, _: bool = Depends(r
         payload.format_type,
         payload.tone,
         media_type=payload.media_type or "image",
-        voice_mode=payload.voice_mode or "corporate"
+        voice_mode=payload.voice_mode or "corporate",
+        content_objective=payload.content_objective or "corporativo_sales",
+        web_research=payload.web_research or False,
+        overlay_style=payload.overlay_style or "photo_pure",
+        art_style=payload.art_style or "auto",
+        source_url=payload.source_url or ""
     )
     
     # Save the generated post to the database
