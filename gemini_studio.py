@@ -181,6 +181,7 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
 
     def _translate_papers_to_ptbr(self, raw_papers: list) -> list:
         """Tradução e enriquecimento B2B de papers em inglês para Português do Brasil (PT-BR)."""
+        import re, json
         if not raw_papers:
             return []
         
@@ -205,7 +206,6 @@ Responda APENAS com um array JSON no formato:
 ]
 """
         try:
-            import re, json
             raw = self._generate(prompt, temperature=0.3)
             match = re.search(r'\[.*\]', raw, re.DOTALL)
             if match:
