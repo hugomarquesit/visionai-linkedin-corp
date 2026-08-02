@@ -264,64 +264,29 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
 
     def fetch_huggingface_trending_papers(self, query: str = None) -> dict:
         """
-        Busca os papéis de pesquisa acadêmica em alta no HuggingFace / ArXiv.
-        Garante que todo o conteúdo seja retornado em PORTUGUÊS DO BRASIL (PT-BR) com títulos didáticos e explicações plausíveis.
+        Busca os papéis de pesquisa acadêmica em alta no HuggingFace / ArXiv ou por tema específico.
+        Garante que todo o conteúdo seja retornado em PORTUGUÊS DO BRASIL (PT-BR) com títulos didáticos, explicação do match e prévia completa do PDF.
         """
         import requests, json, re
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisionAI Corporate Bot"}
         papers = []
         
-        # 1. Tenta a API oficial do HuggingFace Daily Papers (limita aos 8 principais para tradução ultra rápida)
-        try:
-            hf_url = "https://huggingface.co/api/daily_papers"
-            resp = requests.get(hf_url, headers=headers, timeout=8)
-            if resp.status_code == 200:
-                data = resp.json()
-                for item in data[:8]:
-                    paper_data = item.get("paper", {})
-                    paper_id = paper_data.get("id", "")
-                    title = paper_data.get("title", "")
-                    summary = paper_data.get("summary", "") or paper_data.get("abstract", "")
-                    authors_list = [a.get("name", "") for a in paper_data.get("authors", []) if isinstance(a, dict)]
-                    authors_str = ", ".join(authors_list[:3]) if authors_list else "Pesquisadores IA"
-                    paper_url = f"https://huggingface.co/papers/{paper_id}" if paper_id else "https://huggingface.co/papers"
-                    
-                    if query and query.strip():
-                        q_lower = query.lower()
-                        if q_lower not in title.lower() and q_lower not in summary.lower():
-                            continue
-                            
-                    papers.append({
-                        "paper_id": paper_id,
-                        "title": title,
-                        "summary": summary[:400] + ("..." if len(summary) > 400 else ""),
-                        "authors": authors_str,
-                        "paper_url": paper_url,
-                        "published_at": paper_data.get("publishedAt", "")[:10],
-                        "source": "HuggingFace Papers"
-                    })
-        except Exception as e:
-            print(f"Erro na API HuggingFace Papers: {e}")
-
-        # Se houver papers capturados da API, realiza a tradução e enriquecimento executivo para PT-BR
-        if papers:
-            papers = self._translate_papers_to_ptbr(papers)
-
-        # 2. Se a lista estiver vazia ou houver busca por tema específico, realiza busca ao vivo na web (Google Search Grounding) por papers reais
-        if not papers or (query and len(papers) < 3):
+        # 1. Se for uma busca por tema específico do usuário, utiliza busca ao vivo com Google Search Grounding para achar os papers exatos que dão match
+        if query and query.strip():
             try:
                 grounding_prompt = f"""
-Pesquise na internet papers acadêmicos, artigos científicos e pesquisas RECENTES (2025/2026) no HuggingFace Papers ou ArXiv sobre o tema: '{query or 'Artificial Intelligence Research'}'.
+Pesquise na internet papers acadêmicos, artigos científicos e pesquisas RECENTES (2025/2026) no HuggingFace Papers, ArXiv ou IEEE sobre o tema específico: '{query}'.
 
-SUA MISSÃO: Retorne de 5 a 8 papers acadêmicos reais que deem MATCH PERFEITO com o tema '{query}'. Todas as respostas devem estar EXCLUSIVAMENTE em PORTUGUÊS DO BRASIL (PT-BR).
+SUA MISSÃO: Retorne de 5 a 8 papers acadêmicos reais que deem MATCH PERFEITO com o tema '{query}'.
+Todas as respostas devem estar EXCLUSIVAMENTE em PORTUGUÊS DO BRASIL (PT-BR).
 
 Responda APENAS com um array JSON no formato (sem qualquer bloco de código markdown ```json):
 [
   {{
     "paper_id": "ID do ArXiv ou HuggingFace",
     "title": "Título explicativo e Didático em Português do Brasil",
-    "summary": "Explicação didática de 2 a 3 frases em Português do Brasil de por que deu match com a busca",
-    "pdf_preview_ptbr": "Prévia completa e estruturada do PDF em Português do Brasil (parágrafos ricos detalhando o problema, metodologia, métricas e aplicação B2B)",
+    "summary": "Explicação didática de 2 a 3 frases em Português do Brasil de por que este paper deu match com o tema '{query}'",
+    "pdf_preview_ptbr": "PRÉVIA COMPLETA DO PDF (PT-BR): 3 a 5 parágrafos detalhados em Português do Brasil com o problema resolvido, a metodologia, algoritmos, dados experimentais, ROI e aplicação prática.",
     "authors": "Nomes dos pesquisadores/autores",
     "paper_url": "https://huggingface.co/papers/XXXX.XXXXX ou https://arxiv.org/abs/XXXX.XXXXX",
     "published_at": "2026",
@@ -341,8 +306,40 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
                                 p["pdf_preview_ptbr"] = p.get("summary", "")
                             papers.append(p)
             except Exception as e:
-                print(f"Fallback Grounding Papers falhou: {e}")
-                
+                print(f"Grounding Papers por tema '{query}' falhou: {e}")
+            return {"ok": True, "count": len(papers), "papers": papers}
+
+        # 2. Caso contrário (sem busca específica), traz os daily papers do HuggingFace
+        try:
+            hf_url = "https://huggingface.co/api/daily_papers"
+            resp = requests.get(hf_url, headers=headers, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                for item in data[:8]:
+                    paper_data = item.get("paper", {})
+                    paper_id = paper_data.get("id", "")
+                    title = paper_data.get("title", "")
+                    summary = paper_data.get("summary", "") or paper_data.get("abstract", "")
+                    authors_list = [a.get("name", "") for a in paper_data.get("authors", []) if isinstance(a, dict)]
+                    authors_str = ", ".join(authors_list[:3]) if authors_list else "Pesquisadores IA"
+                    paper_url = f"https://huggingface.co/papers/{paper_id}" if paper_id else "https://huggingface.co/papers"
+                    
+                    papers.append({
+                        "paper_id": paper_id,
+                        "title": title,
+                        "summary": summary[:400] + ("..." if len(summary) > 400 else ""),
+                        "authors": authors_str,
+                        "paper_url": paper_url,
+                        "published_at": paper_data.get("publishedAt", "")[:10],
+                        "source": "HuggingFace Papers"
+                    })
+        except Exception as e:
+            print(f"Erro na API HuggingFace Papers: {e}")
+
+        # Se houver papers capturados da API, realiza a tradução e enriquecimento executivo para PT-BR
+        if papers:
+            papers = self._translate_papers_to_ptbr(papers)
+
         return {"ok": True, "count": len(papers), "papers": papers}
 
     def _scrape_visionai_website(self) -> str:
