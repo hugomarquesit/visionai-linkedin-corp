@@ -178,7 +178,7 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
             print(f"Erro no web scraping ao vivo da URL {url}: {e}")
 
     def _safe_json_loads(self, text: str):
-        """Sanitização avançada e parsing seguro de JSON gerado por LLMs."""
+        """Sanitização avançada e parsing seguro de JSON gerado por LLMs com auto-reparo de truncamento."""
         import json, re
         if not text or not isinstance(text, str):
             return None
@@ -187,13 +187,21 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         clean = re.sub(r',(?=\s*[\}\]])', '', clean)
         
         start = clean.find("[")
-        end = clean.rfind("]") + 1
-        if start != -1 and end > start:
-            json_str = clean[start:end]
+        if start != -1:
+            json_str = clean[start:]
+            end = json_str.rfind("]")
+            if end != -1:
+                json_str = json_str[:end+1]
+            else:
+                last_obj_end = json_str.rfind("}")
+                if last_obj_end != -1:
+                    json_str = json_str[:last_obj_end+1] + "\n]"
+            
             try:
                 return json.loads(json_str, strict=False)
             except Exception:
                 sanitized = re.sub(r'[\r\n]+', ' ', json_str)
+                sanitized = re.sub(r',(?=\s*\])', '', sanitized)
                 try:
                     return json.loads(sanitized, strict=False)
                 except Exception as e:
