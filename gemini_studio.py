@@ -44,7 +44,7 @@ class GeminiStudio:
         except Exception:
             self.client = genai.Client(api_key=api_key)
         self.model = TEXT_MODEL
-        self.fallback_models = ["gemini-2.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"]
+        self.fallback_models = ["gemini-3.5-flash", "gemini-3-pro-preview", "gemini-2.5-flash", "gemini-3.1-flash-lite"]
         self.scraped_context = self._scrape_visionai_website()
 
     def _get_dynamic_brand_dna(self) -> dict:
