@@ -209,33 +209,39 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
         return None
 
     def _translate_papers_to_ptbr(self, raw_papers: list) -> list:
-        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR) em lotes por índice."""
+        """Tradução e enriquecimento executivo B2B de papers acadêmicos em inglês para Português do Brasil (PT-BR) baseados na leitura real do PDF."""
         import re, json
         if not raw_papers:
             return []
 
         all_translated = []
-        chunk_size = 3
+        chunk_size = 2
 
         for i in range(0, len(raw_papers), chunk_size):
             chunk = raw_papers[i:i+chunk_size]
             prompt_papers = []
             for idx, p in enumerate(chunk):
+                paper_url = p.get("paper_url") or p.get("paper_id") or ""
+                real_pdf_text = ""
+                if paper_url:
+                    real_pdf_text = self._fetch_full_paper_or_url_content(paper_url)
+                
                 prompt_papers.append({
                     "index": idx,
                     "paper_id": p.get("paper_id", f"paper_{idx}"),
                     "original_title": p.get("title", ""),
-                    "original_summary": p.get("summary", "")
+                    "original_summary": p.get("summary", ""),
+                    "real_pdf_text": real_pdf_text[:4000] if real_pdf_text else ""
                 })
             
             prompt = f"""
-Você é um Tradutor Técnico e Especialista em IA para o mercado corporativo brasileiro.
-SUA MISSÃO: Traduza, adapte e crie uma prévia técnica didática em PORTUGUÊS DO BRASIL (PT-BR) para a lista de {len(chunk)} papers acadêmicos abaixo.
+Você é um Tradutor Técnico e Especialista em Inteligência Artificial da VizionAI (https://visionai.com.br).
+SUA MISSÃO: Analise a leitura dos artigos e crie uma síntese técnica didática em PORTUGUÊS DO BRASIL (PT-BR) para a lista de {len(chunk)} papers acadêmicos abaixo.
 
 REGRAS RÍGIDAS DE TRADUÇÃO & CONTEÚDO:
 1. **title**: Crie um título magnético, claro, didático e de alta autoridade técnico-executiva em PORTUGUÊS DO BRASIL.
 2. **summary**: Crie uma explicação didática de 2 a 3 frases em PORTUGUÊS DO BRASIL sobre o conteúdo do artigo e a relevância prática.
-3. **pdf_preview_ptbr**: Crie uma PRÉVIA ESTRUTURADA COMPLETA DO CONTEÚDO DO PDF em PORTUGUÊS DO BRASIL (3 a 4 parágrafos ricos em PT-BR) detalhando:
+3. **pdf_preview_ptbr**: Crie uma PRÉVIA COMPLETA DO PDF EM PORTUGUÊS DO BRASIL (3 a 4 parágrafos ricos baseados na leitura do PDF real) detalhando:
    - O problema científico/técnico resolvido pelo estudo.
    - A inovação de arquitetura/algoritmo proposta pelos autores.
    - Resultados empíricos, métricas e benchmarks medidos.
@@ -282,7 +288,7 @@ Responda APENAS com um array JSON válido sem qualquer bloco de código markdown
                 print(f"Tradução do lote de papers para PT-BR falhou: {e}")
                 all_translated.extend(chunk)
 
-        print(f"✅ Total de {len(all_translated)} papers traduzidos e mapeados para PT-BR.")
+        print(f"✅ Total de {len(all_translated)} papers traduzidos e mapeados para PT-BR com leitura real de PDF.")
         return all_translated
 
     def fetch_huggingface_trending_papers(self, query: str = None) -> dict:

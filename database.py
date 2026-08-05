@@ -7,7 +7,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Use a SQLite database file in the corporate directory
 DB_PATH = os.path.join(BASE_DIR, "visionai_corp_v2.db")
 
-engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False, "timeout": 15})
+engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False, "timeout": 30})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -84,6 +84,36 @@ class WebTrendItem(Base):
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
+        # Garante a existência do registro padrão do BrandDNA da VizionAI
+        db = SessionLocal()
+        try:
+            b = db.query(BrandDNA).first()
+            if not b:
+                default_services = (
+                    "1. Computação de Borda & Visão Computacional (Edge-AI em câmeras industriais e sensores)\n"
+                    "2. Automação de Processos com Agentes LLM B2B e RAG Enterprise\n"
+                    "3. EdTech AI (Plataformas inteligentes de capacitação e ensino adaptativo)\n"
+                    "4. Data Analytics & Inteligência Preditiva para Tomada de Decisão\n"
+                    "5. Governança, Segurança e Guardrails de Privacidade (LGPD em IA)\n"
+                    "6. Integração Cloud & Hybrid com Pipelines de Baixa Latência"
+                )
+                b = BrandDNA(
+                    company_name="VizionAI",
+                    website_url="https://visionai.com.br",
+                    industry="Inteligência Artificial Corporativa, Visão Computacional & EdTech AI",
+                    target_audience="C-Levels, Diretores de Tecnologia (CTO/CIO), Heads de Inovação e Gerentes de Operações",
+                    tone_of_voice="Visionário, Altamente Técnico, Didático, Pragmático e Focado em ROI Corporativo",
+                    core_services=default_services,
+                    differentials="Soluções proprietárias integrando Edge-AI, LLMs locais com RAG avançado, plataformas adaptativas EdTech e modelos de Visão Computacional de altíssima precisão.",
+                    content_pillars="Casos de Uso B2B, Inovações Acadêmicas Traduzidas para Negócios, ROI em IA, Computação de Borda e EdTech AI."
+                )
+                db.add(b)
+                db.commit()
+        except Exception as err:
+            db.rollback()
+            print(f"Aviso no seed do BrandDNA: {err}")
+        finally:
+            db.close()
     except Exception as e:
         print(f"Warning: init_db encounter: {e}")
 
