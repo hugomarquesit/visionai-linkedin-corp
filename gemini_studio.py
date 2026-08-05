@@ -39,9 +39,12 @@ Público-alvo: C-Levels, Heads de Operação, Diretores de TI, Gestores Industri
 class GeminiStudio:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
-        self.client = genai.Client(api_key=api_key)
+        try:
+            self.client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
+        except Exception:
+            self.client = genai.Client(api_key=api_key)
         self.model = TEXT_MODEL
-        self.fallback_models = ["models/gemini-flash-latest", "models/gemini-pro-latest"]
+        self.fallback_models = ["gemini-2.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"]
         self.scraped_context = self._scrape_visionai_website()
 
     def _get_dynamic_brand_dna(self) -> dict:
