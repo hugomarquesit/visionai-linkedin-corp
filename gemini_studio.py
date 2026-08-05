@@ -202,6 +202,10 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
             except Exception:
                 sanitized = re.sub(r'[\r\n]+', ' ', json_str)
                 sanitized = re.sub(r',(?=\s*\])', '', sanitized)
+                if sanitized.count('"') % 2 != 0:
+                    sanitized += '"}'
+                    if not sanitized.endswith("]"):
+                        sanitized += "\n]"
                 try:
                     return json.loads(sanitized, strict=False)
                 except Exception as e:
@@ -231,7 +235,7 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
                     "paper_id": p.get("paper_id", f"paper_{idx}"),
                     "original_title": p.get("title", ""),
                     "original_summary": p.get("summary", ""),
-                    "real_pdf_text": real_pdf_text[:4000] if real_pdf_text else ""
+                    "real_pdf_text": real_pdf_text[:2000] if real_pdf_text else ""
                 })
             
             prompt = f"""
@@ -337,13 +341,13 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
 
             return {"ok": True, "count": len(papers), "papers": papers}
 
-        # 2. Caso contrário (sem busca específica), traz os daily papers do HuggingFace
+        # 2. Caso contrário (sem busca específica), traz os daily papers do HuggingFace (limitado aos 5 principais)
         try:
             hf_url = "https://huggingface.co/api/daily_papers"
             resp = requests.get(hf_url, headers=headers, timeout=8)
             if resp.status_code == 200:
                 data = resp.json()
-                for item in data[:8]:
+                for item in data[:5]:
                     paper_data = item.get("paper", {})
                     paper_id = paper_data.get("id", "")
                     title = paper_data.get("title", "")
@@ -355,7 +359,7 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
                     papers.append({
                         "paper_id": paper_id,
                         "title": title,
-                        "summary": summary[:400] + ("..." if len(summary) > 400 else ""),
+                        "summary": summary[:300] + ("..." if len(summary) > 300 else ""),
                         "authors": authors_str,
                         "paper_url": paper_url,
                         "published_at": paper_data.get("publishedAt", "")[:10],
