@@ -80,10 +80,6 @@ async function apiFetch(path, opts = {}) {
 let cachedWebTrends = [];
 let cachedExtractedPosts = [];
 let currentSourceUrl = '';
-let currentCarouselPdfB64 = '';
-let currentCarouselTitle = '';
-let currentGeneratedImageBase64 = '';
-let currentGeneratedImageMime = '';
 
 async function loadWebTrends(query = '', forceRefresh = false) {
   const container = $('web-trends-panel-container') || $('web-trends-container');
