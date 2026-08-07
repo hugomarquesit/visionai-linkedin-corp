@@ -121,7 +121,7 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
                 if r.status_code == 200 and len(r.content) > 1000:
                     reader = PdfReader(io.BytesIO(r.content))
                     extracted_text = ""
-                    for page in reader.pages[:20]: # Lê até 20 páginas do paper completo
+                    for page in reader.pages[:5]: # Lê até 5 páginas do paper (suficiente para abstract e introdução)
                         txt = page.extract_text()
                         if txt:
                             extracted_text += txt + "\n"
@@ -145,12 +145,12 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
                         if r_pdf.status_code == 200:
                             reader = PdfReader(io.BytesIO(r_pdf.content))
                             extracted_text = ""
-                            for page in reader.pages[:20]:
+                            for page in reader.pages[:5]:
                                 txt = page.extract_text()
                                 if txt: extracted_text += txt + "\n"
                             if len(extracted_text) > 300:
                                 print(f"✅ PDF extraído do HTML do HuggingFace e lido ao vivo ({len(extracted_text)} caracteres).")
-                                return extracted_text[:20000]
+                                return extracted_text[:10000]
             except Exception as e:
                 print(f"Falha ao raspar página HTML de paper: {e}")
 
@@ -161,7 +161,7 @@ PILARES DE CONTEÚDO: {dna['content_pillars']}
                 if r.status_code == 200:
                     reader = PdfReader(io.BytesIO(r.content))
                     extracted_text = ""
-                    for page in reader.pages[:20]:
+                    for page in reader.pages[:5]:
                         txt = page.extract_text()
                         if txt: extracted_text += txt + "\n"
                     if len(extracted_text) > 300:
@@ -1659,7 +1659,7 @@ Responda APENAS com um objeto JSON válido (sem qualquer bloco de código markdo
 
         research_context = ""
         if paper_full_text:
-            research_context = f"\nTEXTO INTEGRAL EXTRAÍDO E LIDO NA ÍNTEGRA DO PAPER FONTE ({target_link}):\n{paper_full_text[:18000]}\n\nIMPORTANTE: Todo o roteiro dos slides deve ser em PORTUGUÊS DO BRASIL (PT-BR) fundamentado nos achados do paper acima.\n"
+            research_context = f"\nTEXTO INTEGRAL EXTRAÍDO DO PAPER FONTE ({target_link}):\n{paper_full_text[:3500]}\n\nIMPORTANTE: Todo o roteiro dos slides deve ser em PORTUGUÊS DO BRASIL (PT-BR) fundamentado nos achados do paper acima.\n"
         elif web_research:
             query = f"{topic}".strip()
             web_data = self.fetch_web_trends(query=query)
