@@ -79,6 +79,11 @@ async function apiFetch(path, opts = {}) {
 // ═══════════════════════════════════════════════════════ RADAR DE TENDÊNCIAS DA WEB & RECURSOS AVANÇADOS
 let cachedWebTrends = [];
 let cachedExtractedPosts = [];
+let currentSourceUrl = '';
+let currentCarouselPdfB64 = '';
+let currentCarouselTitle = '';
+let currentGeneratedImageBase64 = '';
+let currentGeneratedImageMime = '';
 
 async function loadWebTrends(query = '', forceRefresh = false) {
   const container = $('web-trends-panel-container') || $('web-trends-container');
@@ -296,7 +301,7 @@ async function generateCarouselPdfAction() {
         overlay_style: overlayStyle,
         target_audience: targetAudience,
         web_research: webResearch,
-        source_url: currentSourceUrl
+        source_url: (typeof currentSourceUrl !== 'undefined' && currentSourceUrl) ? currentSourceUrl : ''
       })
     });
 
@@ -1175,7 +1180,7 @@ async function generatePost() {
         web_research: webResearch,
         overlay_style: overlayStyle,
         art_style: artStyle,
-        source_url: currentSourceUrl
+        source_url: (typeof currentSourceUrl !== 'undefined' && currentSourceUrl) ? currentSourceUrl : ''
       }),
     });
 
