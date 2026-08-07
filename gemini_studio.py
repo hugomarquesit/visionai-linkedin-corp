@@ -1659,51 +1659,42 @@ Responda APENAS com um objeto JSON válido (sem qualquer bloco de código markdo
 
         research_context = ""
         if paper_full_text:
-            research_context = f"\nTEXTO INTEGRAL EXTRAÍDO DO PAPER FONTE ({target_link}):\n{paper_full_text[:3500]}\n\nIMPORTANTE: Todo o roteiro dos slides deve ser em PORTUGUÊS DO BRASIL (PT-BR) fundamentado nos achados do paper acima.\n"
-        elif web_research:
+            research_context = f"\n📄 CONTEÚDO EXTRAÍDO DO PAPER/ARTIGO FONTE ({target_link}):\n{paper_full_text[:4000]}\n\nIMPORTANTE: Crie os slides em PORTUGUÊS DO BRASIL fundamentados nos achados e descobertas do artigo acima.\n"
+        else:
+            # Varredura ativa na internet via Google Search Grounding para o tema solicitado
             query = f"{topic}".strip()
-            web_data = self.fetch_web_trends(query=query)
+            web_data = self.fetch_web_trends(query=query, force_refresh=True)
             if web_data and web_data.get("trends"):
-                t_list = web_data["trends"][:2]
-                research_context = "\nCONTEÚDO E PESQUISA EM TEMPO REAL (PT-BR):\n" + "\n".join([f"- {t.get('title')}: {t.get('summary')}" for t in t_list])
+                t_list = web_data["trends"][:4]
+                research_context = "\n🌐 PESQUISAS E DADOS EM TEMPO REAL EXTRAÍDOS DA WEB (PT-BR):\n" + "\n".join([f"• {t.get('title')}: {t.get('summary')}" for t in t_list]) + "\n"
 
         prompt = f"""
-Você é o Diretor de Criação Executivo da empresa {brand_name} ({website_url}).
-Setor da Empresa: {company_industry}
-Serviços: {dna.get('core_services', '')}
+Você é um Estrategista Executivo de Conteúdo e Designer de Apresentações B2B de classe mundial da empresa {brand_name} ({website_url}).
+Setor: {company_industry}
 
-TAREFA: Crie um roteiro em exatamente {slide_count} slides para um Carrossel Infográfico Corporativo no LinkedIn.
-TEMA PRINCIPAL OBRIGATÓRIO: "{topic}"
+Sua missão é criar o roteiro em exatamente {slide_count} slides para um Carrossel Infográfico Corporativo no LinkedIn sobre o tema: "{topic}".
+
 PÚBLICO-ALVO: {effective_audience}
-
-DIRETRIZES DE ESTILO E CONTEÚDO:
-- TOM DE VOZ: {tone.upper()} ({tone_instructions})
-- OBJETIVO DO CONTEÚDO: {content_objective.upper()} ({objective_instructions})
-- ESTILO ARTÍSTICO DO CRIATIVO: {art_style.upper()}
-- MOLDURA INSTITUCIONAL: {overlay_style.upper()}
+TOM DE VOZ: {tone.upper()} ({tone_instructions})
+OBJETIVO: {content_objective.upper()} ({objective_instructions})
 {research_context}
 
-Evolução dos Slides:
-- Slide 1: Capa (Manchete Provocativa/Executiva de Alto Impacto referente diretamente a "{topic}")
-- Slide 2: O Problema / A Dor Específica do Público {effective_audience} relacionada a "{topic}"
-- Slide 3: A Virada de Chave / Solução Tecnológica
-- Slide 4: Métricas Reais de Impacto & ROI Medido
-- Slide {slide_count}: Conclusão & Chamada para Ação (CTA para {website_url})
-
-REGRAS RÍGIDAS DE FORMATAÇÃO:
-- "headline": Manchete impactante diretamente sobre "{topic}" com no máximo 8 a 12 palavras.
-- "body": Texto explicativo e direto com no máximo 20 a 30 palavras.
-- "badge": Categoria ou etiqueta do slide em caixa alta (ex: "CATEGORIA", "O DESAFIO", "SOLUÇÃO", "ROI & MÉTRICAS", "PRÓXIMOS PASSOS").
+ORIENTAÇÕES DE CRIAÇÃO FLUIDA & CONTEÚDO NATURAL:
+- NÃO utilize uma estrutura rígida ou repetitiva. Desenvolva os {slide_count} slides de forma orgânica, fluida, didática e de alto valor em PORTUGUÊS DO BRASIL (PT-BR).
+- Cada slide deve revelar um conceito, dado, arquitetura, mito vs realidade, estudo de caso ou diretriz prática extraída das pesquisas ou do tema.
+- O campo "badge" deve ser uma etiqueta dinâmica em caixa alta perfeitamente alinhada com o conteúdo exato do slide (ex: "DEFINIÇÃO", "DESAFIO DE ROI", "ARQUITETURA EDGE", "DADOS DE MERCADO", "MITO vs REALIDADE", "ESTUDO DE CASO", "CHECKLIST", "AÇÃO PRÁTICA").
+- O campo "headline" deve conter uma manchete direta e magnética (6 a 12 palavras).
+- O campo "body" deve conter uma explicação pragmática de alto valor (15 a 35 palavras).
 
 Responda APENAS com um objeto JSON no formato:
 {{
-  "title": "Título Geral do Carrossel sobre {topic}",
+  "title": "Título Impactante do Carrossel sobre {topic}",
   "slides": [
     {{
       "slide_number": 1,
-      "badge": "BADGE EM CAIXA ALTA",
-      "headline": "Manchete Principal do Slide",
-      "body": "Texto explicativo direto e impactante"
+      "badge": "BADGE DINÂMICO EM CAIXA ALTA",
+      "headline": "Manchete Principal do Slide 1",
+      "body": "Texto rico e explicativo fundamentado no tema"
     }}
   ]
 }}
