@@ -259,6 +259,9 @@ let currentCarouselTitle = null;
 
 async function generateCarouselPdfAction() {
   const topic = $('carousel-topic') && $('carousel-topic').value.trim() ? $('carousel-topic').value.trim() : ($('gen-topic') ? $('gen-topic').value.trim() : '');
+  if ($('carousel-topic') && !$('carousel-topic').value.trim() && topic) {
+    $('carousel-topic').value = topic;
+  }
   const count = $('carousel-slides-count') ? parseInt($('carousel-slides-count').value) : 5;
   const tone = $('gen-tone') ? $('gen-tone').value : 'provocativo';
   const objective = $('gen-content-objective') ? $('gen-content-objective').value : 'lideranca_pensamento';
@@ -596,6 +599,12 @@ function switchStudio(panel) {
   document.querySelectorAll('.studio-panel').forEach(p => p.classList.remove('active'));
   document.querySelector(`[data-studio="${panel}"]`)?.classList.add('active');
   $(`studio-${panel}`)?.classList.add('active');
+
+  if (panel === 'carousel') {
+    if ($('carousel-topic') && !$('carousel-topic').value.trim() && $('gen-topic') && $('gen-topic').value.trim()) {
+      $('carousel-topic').value = $('gen-topic').value.trim();
+    }
+  }
 
   if (panel === 'web-trends' && cachedWebTrends.length === 0) {
     loadWebTrends();
@@ -1004,6 +1013,7 @@ function selectAutoTopic(index, autoGenerate = false) {
 
   const topicInput = $('gen-topic');
   if (topicInput) topicInput.value = item.topic;
+  if ($('carousel-topic')) $('carousel-topic').value = item.topic;
 
   if (item.format && $('gen-format')) $('gen-format').value = item.format;
   if (item.tone && $('gen-tone')) $('gen-tone').value = item.tone;

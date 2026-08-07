@@ -38,7 +38,10 @@ Público-alvo: C-Levels, Heads de Operação, Diretores de TI, Gestores Industri
 
 class GeminiStudio:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
+        raw_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
+        if "GEMINI_API_KEY=" in raw_key:
+            raw_key = raw_key.split("GEMINI_API_KEY=")[-1]
+        api_key = raw_key.strip().strip("'").strip('"')
         try:
             self.client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
         except Exception:
@@ -446,6 +449,87 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
                 print(f"Modelo {m} falhou em _generate: {e}")
                 continue
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
+
+    def _safe_parse_json(self, raw_text: str):
+        """Parse de JSON extremamente resiliente para saídas de modelos LLM."""
+        if not raw_text:
+            return None
+        import re, json
+        clean = raw_text.replace("```json", "").replace("```", "").strip()
+
+        # Tentativa 1: json.loads direto
+        try:
+            return json.loads(clean, strict=False)
+        except Exception:
+            pass
+
+        # Tentativa 2: Extração por limites de objeto { ... }
+        start_obj = clean.find("{")
+        end_obj = clean.rfind("}")
+        if start_obj != -1 and end_obj > start_obj:
+            try:
+                return json.loads(clean[start_obj:end_obj + 1], strict=False)
+            except Exception:
+                pass
+
+        # Tentativa 3: Extração por limites de array [ ... ]
+        start_arr = clean.find("[")
+        end_arr = clean.rfind("]")
+        if start_arr != -1 and end_arr > start_arr:
+            try:
+                return json.loads(clean[start_arr:end_arr + 1], strict=False)
+            except Exception:
+                pass
+
+        # Tentativa 4: Limpeza de vírgulas sobressalentes e caracteres de controle
+        sanitized = re.sub(r',(?=\s*[\}\]])', '', clean)
+        sanitized = re.sub(r'[\r\n\t]+', ' ', sanitized)
+        if start_obj != -1 and end_obj > start_obj:
+            try:
+                return json.loads(sanitized[start_obj:end_obj + 1], strict=False)
+            except Exception:
+                pass
+
+        return None
+
+    def _generate_json(self, prompt: str, temperature: float = 0.7):
+        """Gera conteúdo estruturado em JSON usando response_mime_type='application/json' com fallback gracioso."""
+        for m in self.fallback_models:
+            try:
+                response = self.client.models.generate_content(
+                    model=m,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=temperature,
+                        max_output_tokens=4096,
+                        response_mime_type="application/json"
+                    ),
+                )
+                self.model = m
+                parsed = self._safe_parse_json(response.text or "")
+                if parsed is not None:
+                    return parsed
+            except Exception as e:
+                print(f"Modelo {m} falhou em _generate_json com response_mime_type: {e}")
+                # Tentativa sem response_mime_type em caso de incompatibilidade do modelo
+                try:
+                    response = self.client.models.generate_content(
+                        model=m,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            temperature=temperature,
+                            max_output_tokens=4096
+                        ),
+                    )
+                    self.model = m
+                    parsed = self._safe_parse_json(response.text or "")
+                    if parsed is not None:
+                        return parsed
+                except Exception as e2:
+                    print(f"Modelo {m} falhou sem response_mime_type: {e2}")
+                    continue
+        return {}
+
 
     def _generate_with_search(self, prompt: str, temperature: float = 0.8) -> str:
         """Gera conteúdo ativando Google Search Grounding para obter informações dinâmicas e atualizadas da internet."""
@@ -1588,8 +1672,8 @@ Você é o Diretor de Criação Executivo da empresa {brand_name} ({website_url}
 Setor da Empresa: {company_industry}
 Serviços: {dna.get('core_services', '')}
 
-TAREFA: Crie um roteiro em {slide_count} slides para um Carrossel Infográfico Corporativo no LinkedIn.
-TEMA PRINCIPAL: "{topic}"
+TAREFA: Crie um roteiro em exatamente {slide_count} slides para um Carrossel Infográfico Corporativo no LinkedIn.
+TEMA PRINCIPAL OBRIGATÓRIO: "{topic}"
 PÚBLICO-ALVO: {effective_audience}
 
 DIRETRIZES DE ESTILO E CONTEÚDO:
@@ -1600,45 +1684,61 @@ DIRETRIZES DE ESTILO E CONTEÚDO:
 {research_context}
 
 Evolução dos Slides:
-- Slide 1: Capa (Manchete Provocativa/Executiva de Alto Impacto + Subtítulo)
-- Slide 2: O Problema / A Dor Específica do Público {effective_audience}
+- Slide 1: Capa (Manchete Provocativa/Executiva de Alto Impacto referente diretamente a "{topic}")
+- Slide 2: O Problema / A Dor Específica do Público {effective_audience} relacionada a "{topic}"
 - Slide 3: A Virada de Chave / Solução Tecnológica
 - Slide 4: Métricas Reais de Impacto & ROI Medido
 - Slide {slide_count}: Conclusão & Chamada para Ação (CTA para {website_url})
 
-Responda APENAS com JSON no formato:
+REGRAS RÍGIDAS DE FORMATAÇÃO:
+- "headline": Manchete impactante diretamente sobre "{topic}" com no máximo 8 a 12 palavras.
+- "body": Texto explicativo e direto com no máximo 20 a 30 palavras.
+- "badge": Categoria ou etiqueta do slide em caixa alta (ex: "CATEGORIA", "O DESAFIO", "SOLUÇÃO", "ROI & MÉTRICAS", "PRÓXIMOS PASSOS").
+
+Responda APENAS com um objeto JSON no formato:
 {{
-  "title": "Título Geral do Carrossel",
+  "title": "Título Geral do Carrossel sobre {topic}",
   "slides": [
     {{
       "slide_number": 1,
-      "badge": "CATEGORIA OU BADGE",
+      "badge": "BADGE EM CAIXA ALTA",
       "headline": "Manchete Principal do Slide",
       "body": "Texto explicativo direto e impactante"
     }}
   ]
 }}
 """
-        raw = self._generate(prompt, temperature=0.7)
-        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        data = self._generate_json(prompt, temperature=0.7)
         slides_data = []
         carousel_title = topic
-        if json_match:
-            try:
-                data = json.loads(json_match.group())
-                slides_data = data.get("slides", [])
-                carousel_title = data.get("title", topic)
-            except Exception:
-                pass
 
-        if not slides_data:
-            slides_data = [
-                {"slide_number": 1, "badge": f"{brand_name.upper()} INSIGHTS", "headline": topic[:45], "body": f"Como a tecnologia avançada está transformando operações em {company_industry}."},
-                {"slide_number": 2, "badge": "O DESAFIO", "headline": "Por Que a Abordagem Tradicional Falha?", "body": "Altos custos operacionais, latência e falta de visibilidade em tempo real."},
-                {"slide_number": 3, "badge": "A SOLUÇÃO", "headline": "Arquitetura Inteligente", "body": f"Automação e análise preditiva desenvolvida especificamente para {effective_audience}."},
-                {"slide_number": 4, "badge": "RESULTADOS", "headline": "Métricas Reais de ROI", "body": "Redução drástica de falhas e ganho imediato de eficiência operacional."},
-                {"slide_number": 5, "badge": "PRÓXIMOS PASSOS", "headline": "Transforme Sua Operação", "body": f"Acesse {website_url} e fale com nossos especialistas."}
+        if isinstance(data, dict):
+            slides_data = data.get("slides", [])
+            carousel_title = data.get("title", topic)
+
+        if not slides_data or not isinstance(slides_data, list):
+            slides_data = []
+            fallback_stages = [
+                ("CAPA & VISÃO", f"{topic[:50]}", f"Como liderar a transformação e obter vantagem competitiva em {topic}."),
+                ("O DESAFIO", f"O Desafio em {topic[:35]}", f"Entenda as barreiras operacionais, riscos e custos ocultos enfrentados em {topic}."),
+                ("A VIRADA DE CHAVE", f"Estratégia para {topic[:35]}", f"Abordagem tecnológica e arquitetura ideal desenvolvida para {effective_audience}."),
+                ("MÉTRICAS & ROI", "Resultados Mensuráveis", f"Impacto direto de {topic} com ganhos de eficiência, redução de falhas e ROI medido."),
+                ("PRÓXIMOS PASSOS", "Transformação Contínua", f"Acesse {website_url} e consulte nossos especialistas em {topic}.")
             ]
+            for idx in range(slide_count):
+                stage_idx = min(idx, len(fallback_stages) - 1)
+                badge, h_text, b_text = fallback_stages[stage_idx]
+                if idx >= len(fallback_stages):
+                    badge = f"SLIDE {idx+1}"
+                    h_text = f"Aprofundando {topic[:35]}"
+                    b_text = f"Análise detalhada de implementação e melhores práticas de {topic} para {effective_audience}."
+                slides_data.append({
+                    "slide_number": idx + 1,
+                    "badge": badge,
+                    "headline": h_text,
+                    "body": b_text
+                })
+
 
         logo_b64 = self._get_official_logo_b64()
         logo_tag = f'<image href="data:image/png;base64,{logo_b64}" x="80" y="70" width="50" height="50"/>' if logo_b64 else '<rect x="80" y="70" width="50" height="50" rx="12" fill="url(#vision-grad)"/>'
