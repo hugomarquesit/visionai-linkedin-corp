@@ -975,10 +975,10 @@ REGRAS:
         clean_full_text, fallback_headline = self._clean_post_content(revised_text)
 
         art_style_directives = {
-            "auto": "LIVRE: Escolha a melhor expressão artística adaptada ao conteúdo (Render 3D Abstrato, Fotografia Editorial, Ilustração Minimalista ou Frame Cinematográfico).",
-            "photo": "FOTOGRAFIA EDITORIAL REALISTA: Capa de revista (Forbes, Wired, NatGeo). PROIBIDO usar vetores ou ilustrações 3D.",
-            "render_3d": "RENDER 3D ABSTRATO E CONCEITUAL: Estilo Cinema4D / Octane Render com geometrias flutuantes, redes de dados 3D e iluminação volumétrica. PROIBIDO fotos de pessoas em escritórios!",
-            "illustration": "ILUSTRAÇÃO MINIMALISTA E VETORIAL: Estilo revista New Yorker ou Tech Review, vetores limpos e design gráfico contemporâneo. PROIBIDO fotografias!",
+            "auto": "FOTOGRAFIA EDITORIAL REALISTA & HIPER-REALISMO 8K: Capa de revista internacional (Forbes, Wired, NatGeo). Foto ultra-detalhada com iluminação profissional, texturas autênticas e ambiente real do setor. PROIBIDO ilustrações vetoriais ou desenhos animados!",
+            "photo": "FOTOGRAFIA EDITORIAL REALISTA 8K: Capa de revista (Forbes, Wired, NatGeo). Foto ultra-detalhada com lente 85mm. PROIBIDO usar vetores ou ilustrações 3D.",
+            "render_3d": "RENDER 3D ABSTRATO E CONCEITUAL: Estilo Cinema4D / Octane Render com geometrias flutuantes, redes de dados 3D e iluminação volumétrica.",
+            "illustration": "ILUSTRAÇÃO MINIMALISTA E VETORIAL: Estilo revista New Yorker ou Tech Review, vetores limpos e design gráfico contemporâneo.",
             "cinematic": "FRAME CINEMATOGRÁFICO WIDESCREEN (16:9): Iluminação dramática de filme/documentário, alto contraste e storytelling visual marcante.",
             "infographic": "DIAGRAMA E INFOGRÁFICO TÉCNICO DIDÁTICO: Esquema visual limpo representando arquiteturas, conexões de dados ou conceitos."
         }
@@ -1794,6 +1794,16 @@ Responda APENAS com um objeto JSON no formato:
             badge_border = "rgba(99,102,241,0.5)"
             badge_text = "#6366f1"
 
+        # Geração de Fotografia Editorial Realista 8K baseada no tema para o fundo do carrossel
+        photo_bg_tag = ""
+        try:
+            photo_prompt = f"National Geographic Forbes style photorealistic 8k editorial photograph representing: {topic}, real world authentic environment, professional lighting, crisp focus, masterpiece, NO text, NO written words, NO letters, NO signs, NO typography, NO logos"
+            photo_b64, photo_mime = self._generate_image_base64(photo_prompt, pt_title=topic, overlay_style="photo_pure")
+            if photo_b64 and not photo_b64.startswith("<svg") and len(photo_b64) > 5000:
+                photo_bg_tag = f'<image href="data:{photo_mime};base64,{photo_b64}" x="0" y="0" width="1080" height="1080" preserveAspectRatio="xMidYMid slice" opacity="0.38"/><rect width="1080" height="1080" fill="url(#photo-vignette)"/>'
+        except Exception as e_photo:
+            print(f"Aviso na geração de foto realista para fundo de carrossel: {e_photo}")
+
         writer = PdfWriter()
         total_slides = len(slides_data)
 
@@ -1852,6 +1862,11 @@ Responda APENAS com um objeto JSON no formato:
       <stop offset="50%" stop-color="{bg_color_2}"/>
       <stop offset="100%" stop-color="{bg_color_1}"/>
     </linearGradient>
+    <linearGradient id="photo-vignette" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(3, 7, 18, 0.82)"/>
+      <stop offset="50%" stop-color="rgba(3, 7, 18, 0.65)"/>
+      <stop offset="100%" stop-color="rgba(3, 7, 18, 0.92)"/>
+    </linearGradient>
     <linearGradient id="vision-grad" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="{accent_color}"/>
       <stop offset="100%" stop-color="{secondary_accent}"/>
@@ -1859,6 +1874,7 @@ Responda APENAS com um objeto JSON no formato:
   </defs>
 
   <rect width="1080" height="1080" fill="url(#bg-grad)"/>
+  {photo_bg_tag}
   {slide_visual_art}
 
   <g transform="translate(80, 70)">
