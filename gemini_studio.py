@@ -1737,44 +1737,62 @@ Responda APENAS com um objeto JSON no formato:
         # Definição de Cores e Estilo Visual baseados em overlay_style e art_style
         if overlay_style == "cyberpunk_neon":
             bg_color_1 = "#050505"
+        # Determina a paleta de cores cromática e marca d'água visual com base no tema exato
+        topic_lower = topic.lower()
+        if any(k in topic_lower for k in ["agro", "campo", "safra", "fazenda", "sustentab", "floresta", "biotec"]):
+            bg_color_1 = "#022c22"
+            bg_color_2 = "#064e3b"
+            accent_color = "#10b981"
+            secondary_accent = "#a3e635"
+            watermark_text = "AGROTECH ✦ BIOTECH"
+            badge_bg = "rgba(16,185,129,0.15)"
+            badge_border = "rgba(16,185,129,0.5)"
+            badge_text = "#10b981"
+        elif any(k in topic_lower for k in ["borda", "edge", "visão", "camera", "câmera", "sensor", "nr12", "nr-12"]):
+            bg_color_1 = "#030712"
             bg_color_2 = "#0f172a"
-            accent_color = "#9EFF00"
-            secondary_accent = "#00E5FF"
+            accent_color = "#9eff00"
+            secondary_accent = "#00e5ff"
+            watermark_text = "EDGE AI ✦ VISION SYSTEM"
             badge_bg = "rgba(158,255,0,0.15)"
             badge_border = "rgba(158,255,0,0.5)"
-            badge_text = "#9EFF00"
-        elif overlay_style == "minimalist":
-            bg_color_1 = "#0f172a"
-            bg_color_2 = "#1e293b"
-            accent_color = "#00E5FF"
-            secondary_accent = "#ffffff"
-            badge_bg = "rgba(255,255,255,0.1)"
-            badge_border = "rgba(255,255,255,0.3)"
-            badge_text = "#ffffff"
-        elif overlay_style == "glassmorphism":
-            bg_color_1 = "#0b1329"
-            bg_color_2 = "#172554"
-            accent_color = "#38BDF8"
-            secondary_accent = "#818CF8"
-            badge_bg = "rgba(56,189,248,0.15)"
-            badge_border = "rgba(56,189,248,0.4)"
-            badge_text = "#38BDF8"
-        elif overlay_style == "executive_frame":
-            bg_color_1 = "#0B192C"
-            bg_color_2 = "#1E3E62"
-            accent_color = "#F59E0B"
-            secondary_accent = "#00E5FF"
+            badge_text = "#9eff00"
+        elif any(k in topic_lower for k in ["meta quest", "vr", "realidade", "edtech", "treinamento", "imersivo", "óculos"]):
+            bg_color_1 = "#1e1b4b"
+            bg_color_2 = "#312e81"
+            accent_color = "#c084fc"
+            secondary_accent = "#38bdf8"
+            watermark_text = "SPATIAL COMPUTING ✦ VR"
+            badge_bg = "rgba(192,132,252,0.15)"
+            badge_border = "rgba(192,132,252,0.5)"
+            badge_text = "#c084fc"
+        elif any(k in topic_lower for k in ["roi", "finance", "custo", "investimento", "lucro", "vendas", "faturamento", "c-level"]):
+            bg_color_1 = "#0b192c"
+            bg_color_2 = "#1e3e62"
+            accent_color = "#f59e0b"
+            secondary_accent = "#38bdf8"
+            watermark_text = "B2B ROI ✦ METRICS"
             badge_bg = "rgba(245,158,11,0.15)"
             badge_border = "rgba(245,158,11,0.5)"
-            badge_text = "#F59E0B"
+            badge_text = "#f59e0b"
+        elif any(k in topic_lower for k in ["robô", "robot", "automação", "fábrica", "fabrica", "indústria", "maquina", "máquina"]):
+            bg_color_1 = "#0f172a"
+            bg_color_2 = "#1e293b"
+            accent_color = "#f97316"
+            secondary_accent = "#facc15"
+            watermark_text = "INDUSTRY 4.0 ✦ ROBOTICS"
+            badge_bg = "rgba(249,115,22,0.15)"
+            badge_border = "rgba(249,115,22,0.5)"
+            badge_text = "#f97316"
         else:
-            bg_color_1 = "#050505"
-            bg_color_2 = "#0f172a"
-            accent_color = "#9EFF00"
-            secondary_accent = "#00E5FF"
-            badge_bg = "rgba(158,255,0,0.15)"
-            badge_border = "rgba(158,255,0,0.5)"
-            badge_text = "#9EFF00"
+            bg_color_1 = "#090d16"
+            bg_color_2 = "#131b2e"
+            accent_color = "#6366f1"
+            secondary_accent = "#ec4899"
+            watermark_text = "INTELLIGENCE ✦ INNOVATION"
+            badge_bg = "rgba(99,102,241,0.15)"
+            badge_border = "rgba(99,102,241,0.5)"
+            badge_text = "#6366f1"
 
         writer = PdfWriter()
         total_slides = len(slides_data)
@@ -1810,6 +1828,23 @@ Responda APENAS com um objeto JSON no formato:
             headline_svg = wrap_svg_text(headline, max_chars=22, start_x=80, start_y=380, dy=68, font_size=54, fill_color="#ffffff")
             body_svg = wrap_svg_text(body, max_chars=38, start_x=80, start_y=720, dy=42, font_size=28, fill_color="#94a3b8")
 
+            # Arte visual de fundo dinâmica variando por slide e por tema
+            slide_visual_art = f"""
+  <!-- Marca d'água dinâmica do tema no fundo -->
+  <text x="540" y="560" font-family="'Outfit', sans-serif" font-weight="900" font-size="80" fill="{accent_color}" opacity="0.04" text-anchor="middle" transform="rotate(-15 540 560)">{watermark_text}</text>
+  
+  <!-- Formas geométricas de destaque do tema -->
+  <circle cx="960" cy="180" r="320" fill="{accent_color}" opacity="0.09"/>
+  <circle cx="120" cy="960" r="380" fill="{secondary_accent}" opacity="0.08"/>
+  <path d="M 0,220 L 1080,220" stroke="{accent_color}" stroke-width="1" opacity="0.15"/>
+"""
+            if s_num == 1:
+                slide_visual_art += f'<circle cx="540" cy="480" r="420" fill="none" stroke="{accent_color}" stroke-width="1.5" opacity="0.15"/>'
+            elif s_num == 2:
+                slide_visual_art += f'<path d="M 80,630 L 1000,630" stroke="#f97316" stroke-width="2" opacity="0.3"/>'
+            elif s_num == 3:
+                slide_visual_art += f'<path d="M 80,780 Q 540,680 1000,780" stroke="{secondary_accent}" stroke-width="2.5" fill="none" opacity="0.3"/>'
+
             svg_slide = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
   <defs>
     <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
@@ -1824,8 +1859,7 @@ Responda APENAS com um objeto JSON no formato:
   </defs>
 
   <rect width="1080" height="1080" fill="url(#bg-grad)"/>
-  <circle cx="950" cy="150" r="300" fill="{accent_color}" opacity="0.08"/>
-  <circle cx="150" cy="950" r="350" fill="{secondary_accent}" opacity="0.10"/>
+  {slide_visual_art}
 
   <g transform="translate(80, 70)">
     {logo_tag}
