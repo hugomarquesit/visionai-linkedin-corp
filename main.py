@@ -603,18 +603,23 @@ async def gemini_mark_trend_used(payload: MarkTrendUsedPayload, _: bool = Depend
 @app.post("/api/gemini/generate-carousel")
 async def gemini_generate_carousel(payload: GenerateCarouselPayload, _: bool = Depends(require_auth)):
     """Gera um carrossel em PDF multi-slide corporativo para o LinkedIn respeitando todas as regras de tom, estilo e marca."""
-    res = ai.generate_carousel_pdf(
-        topic=payload.topic,
-        slide_count=payload.slides_count or 5,
-        tone=payload.tone or "provocativo",
-        content_objective=payload.content_objective or "lideranca_pensamento",
-        art_style=payload.art_style or "tech_modern",
-        overlay_style=payload.overlay_style or "cyberpunk_neon",
-        target_audience=payload.target_audience or "",
-        web_research=payload.web_research or False,
-        source_url=payload.source_url or ""
-    )
-    return {"ok": True, **res, "model": ai.model}
+    try:
+        res = ai.generate_carousel_pdf(
+            topic=payload.topic,
+            slide_count=payload.slides_count or 5,
+            tone=payload.tone or "provocativo",
+            content_objective=payload.content_objective or "lideranca_pensamento",
+            art_style=payload.art_style or "tech_modern",
+            overlay_style=payload.overlay_style or "cyberpunk_neon",
+            target_audience=payload.target_audience or "",
+            web_research=payload.web_research or False,
+            source_url=payload.source_url or ""
+        )
+        return {"ok": True, **res, "model": ai.model}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"ok": False, "detail": f"Erro ao gerar carrossel em PDF: {str(e)}"}, status_code=500)
 
 @app.post("/api/posts/publish-carousel")
 async def publish_carousel_now(payload: PublishCarouselPayload, _: bool = Depends(require_auth)):

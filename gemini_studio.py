@@ -1802,7 +1802,8 @@ Responda APENAS com um objeto JSON no formato:
             photo_prompt = f"National Geographic Forbes style photorealistic 8k editorial photograph representing: {topic}, real world authentic environment, professional lighting, crisp focus, masterpiece, NO text, NO written words, NO letters, NO signs, NO typography, NO logos"
             photo_b64, photo_mime = self._generate_image_base64(photo_prompt, pt_title=topic, overlay_style="photo_pure")
             if photo_b64 and not photo_b64.startswith("<svg") and len(photo_b64) > 5000:
-                photo_bg_tag = f'<image href="data:{photo_mime};base64,{photo_b64}" x="0" y="0" width="1080" height="1080" preserveAspectRatio="xMidYMid slice" opacity="0.38"/><rect width="1080" height="1080" fill="url(#photo-vignette)"/>'
+                clean_photo_b64 = photo_b64.replace("\n", "").replace("\r", "").strip()
+                photo_bg_tag = f'<image href="data:{photo_mime};base64,{clean_photo_b64}" xlink:href="data:{photo_mime};base64,{clean_photo_b64}" x="0" y="0" width="1080" height="1080" preserveAspectRatio="xMidYMid slice" opacity="0.38"/><rect width="1080" height="1080" fill="url(#photo-vignette)"/>'
         except Exception as e_photo:
             print(f"Aviso na geração de foto realista para fundo de carrossel: {e_photo}")
 
@@ -1858,7 +1859,7 @@ Responda APENAS com um objeto JSON no formato:
             elif s_num == 3:
                 slide_visual_art += f'<path d="M 80,780 Q 540,680 1000,780" stroke="{secondary_accent}" stroke-width="2.5" fill="none" opacity="0.3"/>'
 
-            svg_slide = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+            svg_slide = f"""<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1080" height="1080" viewBox="0 0 1080 1080">
   <defs>
     <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="{bg_color_1}"/>

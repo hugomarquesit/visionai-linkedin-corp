@@ -350,6 +350,10 @@ async function generateCarouselPdfAction() {
     btn.innerHTML = '⏳ Criando slides com tom, estilo e regras da marca...';
   }
 
+  if (previewArea) {
+    previewArea.innerHTML = `<div class="empty-state" style="padding:40px 20px;"><div class="empty-icon" style="animation:spin 1s linear infinite;font-size:36px;margin-bottom:12px;">📄</div><p style="font-weight:700;color:#9EFF00;font-size:16px;margin-bottom:6px;">Gemini está construindo o seu carrossel em PDF e os slides gráficos...</p><p style="font-size:13px;color:#94a3b8;">${webResearch ? 'Pesquisando dados inéditos na web via Google Search Grounding...' : 'Gerando fotografias reais e layout corporativo (10-15s)...'}</p></div>`;
+  }
+
   try {
     const { ok, data } = await apiFetch('/api/gemini/generate-carousel', {
       method: 'POST',
@@ -430,12 +434,20 @@ async function generateCarouselPdfAction() {
       }
       showToast('Carrossel PDF criado com sucesso!', 'success');
     } else {
-      showToast('Erro ao gerar carrossel PDF', 'error');
+      const errMsg = data && data.detail ? escapeHtml(data.detail) : 'Ocorreu uma falha no modelo Gemini. Tente novamente.';
+      if (previewArea) {
+        previewArea.innerHTML = `<div class="card mb-3" style="text-align:center;border:1px solid #ef4444;background:rgba(239,68,68,0.1);padding:24px;"><div class="empty-icon" style="font-size:32px;margin-bottom:8px;">⚠️</div><h4 style="color:#f87171;margin-bottom:6px;">Erro ao Gerar Carrossel em PDF</h4><p style="font-size:13px;color:#cbd5e1;">${errMsg}</p></div>`;
+      }
+      showToast(`Erro ao gerar carrossel: ${errMsg}`, 'error');
     }
   } catch (e) {
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = '📄 Gerar Carrossel em PDF';
+    }
+    const connErr = escapeHtml(e.message || 'Falha de rede');
+    if (previewArea) {
+      previewArea.innerHTML = `<div class="card mb-3" style="text-align:center;border:1px solid #ef4444;background:rgba(239,68,68,0.1);padding:24px;"><div class="empty-icon" style="font-size:32px;margin-bottom:8px;">⚠️</div><h4 style="color:#f87171;margin-bottom:6px;">Erro de Conexão</h4><p style="font-size:13px;color:#cbd5e1;">${connErr}</p></div>`;
     }
     showToast(`Erro de conexão: ${e.message}`, 'error');
   }
