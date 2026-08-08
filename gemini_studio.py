@@ -451,11 +451,13 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
         return f"[Erro Gemini: Nenhum modelo disponível para a chave configurada]"
 
     def _safe_parse_json(self, raw_text: str):
-        """Parse de JSON extremamente resiliente para saídas de modelos LLM."""
+        """Tenta fazer o parse de JSON de forma ultra-resiliente com múltiplos fallbacks de recuperação."""
         if not raw_text:
             return None
-        import re, json
-        clean = raw_text.replace("```json", "").replace("```", "").strip()
+        import re, json, ast
+
+        clean = re.sub(r"^```(?:json|text|markdown)?\s*", "", raw_text.strip(), flags=re.IGNORECASE)
+        clean = re.sub(r"\s*```$", "", clean.strip())
 
         # Tentativa 1: json.loads direto
         try:
@@ -481,14 +483,24 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
             except Exception:
                 pass
 
-        # Tentativa 4: Limpeza de vírgulas sobressalentes e caracteres de controle
-        sanitized = re.sub(r',(?=\s*[\}\]])', '', clean)
-        sanitized = re.sub(r'[\r\n\t]+', ' ', sanitized)
-        if start_obj != -1 and end_obj > start_obj:
-            try:
+        # Tentativa 4: Limpeza de quebras de linha cruas embutidas e vírgulas sobressalentes
+        try:
+            sanitized = re.sub(r',(?=\s*[\}\]])', '', clean)
+            sanitized = re.sub(r'[\r\n\t]+', ' ', sanitized)
+            if start_obj != -1 and end_obj > start_obj:
                 return json.loads(sanitized[start_obj:end_obj + 1], strict=False)
-            except Exception:
-                pass
+        except Exception:
+            pass
+
+        # Tentativa 5: Recurso ast.literal_eval para reparar dicionários Python/JSON com aspas não escapadas
+        try:
+            if start_obj != -1 and end_obj > start_obj:
+                py_str = clean[start_obj:end_obj + 1].replace("true", "True").replace("false", "False").replace("null", "None")
+                parsed = ast.literal_eval(py_str)
+                if isinstance(parsed, (dict, list)):
+                    return parsed
+        except Exception:
+            pass
 
         return None
 
@@ -1687,6 +1699,7 @@ ORIENTAÇÕES DE CRIAÇÃO FLUIDA & CONTEÚDO NATURAL:
 - O campo "badge" deve ser uma etiqueta dinâmica em caixa alta perfeitamente alinhada com o conteúdo exato do slide (ex: "DEFINIÇÃO", "DESAFIO DE ROI", "ARQUITETURA EDGE", "DADOS DE MERCADO", "MITO vs REALIDADE", "ESTUDO DE CASO", "CHECKLIST", "AÇÃO PRÁTICA").
 - O campo "headline" deve conter uma manchete direta e magnética (6 a 12 palavras).
 - O campo "body" deve conter uma explicação pragmática de alto valor (15 a 35 palavras).
+- PROIBIDO utilizar aspas duplas (") no meio dos textos dos campos JSON (use aspas simples ' se necessário).
 
 Responda APENAS com um objeto JSON no formato:
 {{
