@@ -977,6 +977,43 @@ REGRAS:
                 
         return (clean_full_text, clean_headline)
 
+    def _build_hyper_specific_visual_prompt(self, topic: str, text_context: str = "") -> str:
+        """
+        Converte qualquer tema/título (mesmo com erros de digitação em português) em um prompt
+        fotográfico ultra-específico em inglês descrevendo a operação real exata e bounding boxes de Visão Computacional.
+        """
+        prompt = f"""
+Você é um Diretor de Fotografia e Especialista em Visão Computacional B2B da VisionAI.
+
+SUA MISSÃO:
+Analise o tema a seguir (que pode conter erros de digitação em português) e descreva em INGLÊS uma cena fotográfica realista 8K ultra-específica que retrate com 100% de precisão o ambiente operacional real e os elementos de Visão Computacional.
+
+TEMA DO USUÁRIO: "{topic}"
+CONTEXTO DO TEXTO: "{text_context[:500]}"
+
+DIRETRIZES DE MAPEAMENTO DA CENA (EM INGLÊS):
+1. **Ambiente Operacional Real**:
+   - Se o tema for EPI / acidentes / plantas / armazéns / galpões: descreva o piso de um galpão logístico industrial fabril real com prateleiras e operários. Exemplo: um trabalhador em um armazém sem capacete de proteção.
+   - Se o tema for inspeção de qualidade / produção: esteira de manufatura industrial com componentes sob análise.
+   - Se o tema for agronegócio: lavoura agrícola de grande escala com tratores e sensores.
+   - Se o tema for segurança / monitoramento: central de monitoramento de câmeras ou perímetro industrial.
+   - Se o tema for saúde: centro cirúrgico hospitalar com equipamentos de ponta.
+
+2. **Bounding Boxes & Overlays HUD de Visão Computacional**:
+   - Descreva retângulos delimitadores (glowing bounding boxes) com contornos brilhantes em Neon Cyan (#00E5FF) ou Neon Lime Green (#9EFF00) ao redor dos objetos/pessoas sob análise (ex: retângulo ao redor do operário sem capacete com o rótulo HUD "[EPI MISSING - HARD HAT NOT DETECTED 98.4%]").
+   - Inclua miras de rastreamento (crosshairs) e marcadores de telemetria analítica nas cores da marca (#00E5FF, #9EFF00).
+
+Retorne APENAS o prompt final em INGLÊS em uma única linha, terminando com: "masterpiece, highly detailed, 8k resolution, crisp focus, National Geographic Forbes style, NO written text words, NO typography, NO logos".
+"""
+        try:
+            res_text = self._generate(prompt, temperature=0.5).strip()
+            if res_text and len(res_text) > 40 and "error" not in res_text.lower():
+                return res_text
+        except Exception as e:
+            print(f"Aviso ao construir visual prompt hiper-específico: {e}")
+
+        return f"National Geographic Forbes style photorealistic 8k editorial photograph depicting real world operational environment for {topic}, with glowing neon cyan #00E5FF and lime green #9EFF00 Computer Vision bounding boxes and HUD detection brackets around subject items, professional camera lighting, crisp focus, masterpiece, NO written text words, NO typography, NO logos"
+
     def regenerate_media_from_revised_text(
         self,
         revised_text: str,
@@ -1778,69 +1815,78 @@ Responda APENAS com um objeto JSON no formato:
             bg_color_1 = "#050505"
         # Determina a paleta de cores cromática e marca d'água visual com base no tema exato
         topic_lower = topic.lower()
-        if any(k in topic_lower for k in ["agro", "campo", "safra", "fazenda", "sustentab", "floresta", "biotec"]):
-            bg_color_1 = "#022c22"
-            bg_color_2 = "#064e3b"
-            accent_color = "#10b981"
-            secondary_accent = "#a3e635"
-            watermark_text = "AGROTECH ✦ BIOTECH"
+        if any(k in topic_lower for k in ["epi", "segurança", "seguranca", "acidente", "acidentes", "armazém", "armazem", "armazens", "planta", "plantas", "galpão", "galpao", "nr12", "nr-12", "nr35", "nr-35", "inspeção", "inspecao", "prevensão", "prevenção", "monitoramento"]):
+            bg_color_1 = "#050B14"
+            bg_color_2 = "#0B1528"
+            accent_color = "#00E5FF"
+            secondary_accent = "#9EFF00"
+            watermark_text = "EPI SAFETY ✦ COMPUTER VISION"
+            badge_bg = "rgba(0,229,255,0.15)"
+            badge_border = "rgba(0,229,255,0.5)"
+            badge_text = "#00E5FF"
+        elif any(k in topic_lower for k in ["agro", "campo", "safra", "fazenda", "sustentab", "floresta", "biotec", "grãos", "graos", "soja", "milho", "pecuária"]):
+            bg_color_1 = "#022C22"
+            bg_color_2 = "#064E3B"
+            accent_color = "#10B981"
+            secondary_accent = "#9EFF00"
+            watermark_text = "AGROTECH ✦ PRECISION FARMING"
             badge_bg = "rgba(16,185,129,0.15)"
             badge_border = "rgba(16,185,129,0.5)"
-            badge_text = "#10b981"
-        elif any(k in topic_lower for k in ["borda", "edge", "visão", "camera", "câmera", "sensor", "nr12", "nr-12"]):
+            badge_text = "#10B981"
+        elif any(k in topic_lower for k in ["borda", "edge", "visão", "visao", "camera", "câmera", "cameras", "câmeras", "sensor", "sensores", "detecção", "deteccao"]):
             bg_color_1 = "#030712"
-            bg_color_2 = "#0f172a"
-            accent_color = "#9eff00"
-            secondary_accent = "#00e5ff"
+            bg_color_2 = "#0F172A"
+            accent_color = "#9EFF00"
+            secondary_accent = "#00E5FF"
             watermark_text = "EDGE AI ✦ VISION SYSTEM"
             badge_bg = "rgba(158,255,0,0.15)"
             badge_border = "rgba(158,255,0,0.5)"
-            badge_text = "#9eff00"
+            badge_text = "#9EFF00"
         elif any(k in topic_lower for k in ["meta quest", "vr", "realidade", "edtech", "treinamento", "imersivo", "óculos"]):
-            bg_color_1 = "#1e1b4b"
-            bg_color_2 = "#312e81"
-            accent_color = "#c084fc"
-            secondary_accent = "#38bdf8"
+            bg_color_1 = "#1E1B4B"
+            bg_color_2 = "#312E81"
+            accent_color = "#C084FC"
+            secondary_accent = "#38BDF8"
             watermark_text = "SPATIAL COMPUTING ✦ VR"
             badge_bg = "rgba(192,132,252,0.15)"
             badge_border = "rgba(192,132,252,0.5)"
-            badge_text = "#c084fc"
-        elif any(k in topic_lower for k in ["roi", "finance", "custo", "investimento", "lucro", "vendas", "faturamento", "c-level"]):
-            bg_color_1 = "#0b192c"
-            bg_color_2 = "#1e3e62"
-            accent_color = "#f59e0b"
-            secondary_accent = "#38bdf8"
+            badge_text = "#C084FC"
+        elif any(k in topic_lower for k in ["roi", "finance", "custo", "investimento", "lucro", "vendas", "faturamento", "ebitda", "c-level", "gestão", "gestao"]):
+            bg_color_1 = "#0B192C"
+            bg_color_2 = "#1E3E62"
+            accent_color = "#00E5FF"
+            secondary_accent = "#9EFF00"
             watermark_text = "B2B ROI ✦ METRICS"
-            badge_bg = "rgba(245,158,11,0.15)"
-            badge_border = "rgba(245,158,11,0.5)"
-            badge_text = "#f59e0b"
-        elif any(k in topic_lower for k in ["robô", "robot", "automação", "fábrica", "fabrica", "indústria", "maquina", "máquina"]):
-            bg_color_1 = "#0f172a"
-            bg_color_2 = "#1e293b"
-            accent_color = "#f97316"
-            secondary_accent = "#facc15"
-            watermark_text = "INDUSTRY 4.0 ✦ ROBOTICS"
+            badge_bg = "rgba(0,229,255,0.15)"
+            badge_border = "rgba(0,229,255,0.5)"
+            badge_text = "#00E5FF"
+        elif any(k in topic_lower for k in ["robô", "robot", "automação", "automacao", "fábrica", "fabrica", "indústria", "industria", "maquina", "máquina", "esteira"]):
+            bg_color_1 = "#0F172A"
+            bg_color_2 = "#1E293B"
+            accent_color = "#F97316"
+            secondary_accent = "#9EFF00"
+            watermark_text = "INDUSTRY 4.0 ✦ AUTOMATION"
             badge_bg = "rgba(249,115,22,0.15)"
             badge_border = "rgba(249,115,22,0.5)"
-            badge_text = "#f97316"
+            badge_text = "#F97316"
         else:
-            bg_color_1 = "#090d16"
-            bg_color_2 = "#131b2e"
-            accent_color = "#6366f1"
-            secondary_accent = "#ec4899"
-            watermark_text = "INTELLIGENCE ✦ INNOVATION"
-            badge_bg = "rgba(99,102,241,0.15)"
-            badge_border = "rgba(99,102,241,0.5)"
-            badge_text = "#6366f1"
+            bg_color_1 = "#050811"
+            bg_color_2 = "#0F172A"
+            accent_color = "#00E5FF"
+            secondary_accent = "#9EFF00"
+            watermark_text = "VISIONAI ✦ EDGE INTELLIGENCE"
+            badge_bg = "rgba(0,229,255,0.15)"
+            badge_border = "rgba(0,229,255,0.5)"
+            badge_text = "#00E5FF"
 
         # Geração de Fotografia Editorial Realista 8K hiper-conectada ao tema para o fundo do carrossel com Bounding Boxes Edge AI
         photo_bg_tag = ""
         try:
-            photo_prompt = f"National Geographic Forbes style photorealistic 8k editorial photograph depicting real world operational environment for: {topic}, featuring glowing neon cyan #00E5FF and lime green #9EFF00 Computer Vision bounding boxes and HUD detection brackets around subject items, professional camera lighting, crisp focus, masterpiece, NO written text words, NO typography, NO logos"
+            photo_prompt = self._build_hyper_specific_visual_prompt(topic, carousel_post_text)
             photo_b64, photo_mime = self._generate_image_base64(photo_prompt, pt_title=topic, overlay_style="photo_pure")
             if photo_b64 and not photo_b64.startswith("<svg") and len(photo_b64) > 5000:
                 clean_photo_b64 = photo_b64.replace("\n", "").replace("\r", "").strip()
-                photo_bg_tag = f'<image href="data:{photo_mime};base64,{clean_photo_b64}" xlink:href="data:{photo_mime};base64,{clean_photo_b64}" x="0" y="0" width="1080" height="1080" preserveAspectRatio="xMidYMid slice" opacity="0.38"/><rect width="1080" height="1080" fill="url(#photo-vignette)"/>'
+                photo_bg_tag = f'<image href="data:{photo_mime};base64,{clean_photo_b64}" xlink:href="data:{photo_mime};base64,{clean_photo_b64}" x="0" y="0" width="1080" height="1080" preserveAspectRatio="xMidYMid slice" opacity="0.42"/><rect width="1080" height="1080" fill="url(#photo-vignette)"/>'
         except Exception as e_photo:
             print(f"Aviso na geração de foto realista para fundo de carrossel: {e_photo}")
 
