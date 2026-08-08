@@ -1720,25 +1720,31 @@ ORIENTAÇÕES DE CRIAÇÃO FLUIDA & CONTEÚDO NATURAL:
 - PROIBIDO utilizar aspas duplas (") no meio dos textos dos campos JSON (use aspas simples ' se necessário).
 
 Responda APENAS com um objeto JSON no formato:
-{{
+{
   "title": "Título Impactante do Carrossel sobre {topic}",
+  "post_text": "Legenda completa e persuasiva do post do LinkedIn em Português do Brasil com Hook magnético, contexto B2B de valor, tópicos resumidos da estratégia e Call to Action executivo.",
   "slides": [
-    {{
+    {
       "slide_number": 1,
       "badge": "BADGE DINÂMICO EM CAIXA ALTA",
       "headline": "Manchete Principal do Slide 1",
       "body": "Texto rico e explicativo fundamentado no tema"
-    }}
+    }
   ]
-}}
+}
 """
         data = self._generate_json(prompt, temperature=0.7)
         slides_data = []
         carousel_title = topic
+        carousel_post_text = ""
 
         if isinstance(data, dict):
             slides_data = data.get("slides", [])
             carousel_title = data.get("title", topic)
+            carousel_post_text = data.get("post_text", "").strip()
+
+        if not carousel_post_text:
+            carousel_post_text = f"✦ {carousel_title}\n\nNo ambiente corporativo B2B, decisões sobre {topic} exigem estratégia pragmática, eficiência comprovada e retorno financeiro mensurável.\n\nSintetizamos os pontos fundamentais em um guia executivo visual:\n\n• Por que {topic} é uma prioridade estratégica para {effective_audience}\n• O impacto direto na redução de falhas e otimização de margem\n• Como aplicar as soluções da {brand_name} na operação\n\n👉 Deslize o carrossel abaixo e compartilhe sua visão nos comentários!"
 
         if not slides_data or not isinstance(slides_data, list):
             slides_data = []
@@ -1945,6 +1951,7 @@ Responda APENAS com um objeto JSON no formato:
 
         return {
             "title": carousel_title,
+            "post_text": carousel_post_text,
             "slides_count": total_slides,
             "pdf_base64": pdf_b64,
             "pdf_mime": "application/pdf",

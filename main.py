@@ -627,7 +627,7 @@ async def publish_carousel_now(payload: PublishCarouselPayload, _: bool = Depend
     if not payload.pdf_base64:
         raise HTTPException(status_code=400, detail="O código base64 do PDF do carrossel é obrigatório")
     title = payload.title or "Carrossel Corporate LinkedIn"
-    text = payload.text or f"✦ {title}\n\nConfira o carrossel completo em PDF anexado!"
+    text = payload.text if (payload.text and "Confira o carrossel completo em PDF" not in payload.text) else f"✦ {title}\n\nEstratégia executiva B2B e síntese prática de {title}.\n\nAnalisamos a fundo os pilares fundamentais de inovação, ganho operacional e ROI medido. Confira a análise detalhada no carrossel abaixo e compartilhe como sua empresa aborda esta transformação!"
     result = li.publish_pdf_carousel(text, payload.pdf_base64, title=title)
     if result.get("ok"):
         return {"ok": True, "urn": result.get("id"), "message": "Carrossel publicado no LinkedIn com sucesso!"}

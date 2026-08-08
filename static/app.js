@@ -257,6 +257,7 @@ async function generatePostFromTrend(idx) {
 
 let currentCarouselPdfB64 = null;
 let currentCarouselTitle = null;
+let currentCarouselPostText = null;
 let currentCarouselSlides = [];
 let currentCarouselSlideIdx = 0;
 
@@ -351,7 +352,7 @@ async function generateCarouselPdfAction() {
   }
 
   if (previewArea) {
-    previewArea.innerHTML = `<div class="empty-state" style="padding:40px 20px;"><div class="empty-icon" style="animation:spin 1s linear infinite;font-size:36px;margin-bottom:12px;">📄</div><p style="font-weight:700;color:#9EFF00;font-size:16px;margin-bottom:6px;">Gemini está construindo o seu carrossel em PDF e os slides gráficos...</p><p style="font-size:13px;color:#94a3b8;">${webResearch ? 'Pesquisando dados inéditos na web via Google Search Grounding...' : 'Gerando fotografias reais e layout corporativo (10-15s)...'}</p></div>`;
+    previewArea.innerHTML = `<div class="empty-state" style="padding:40px 20px;"><div class="empty-icon" style="animation:spin 1s linear infinite;font-size:36px;margin-bottom:12px;">📄</div><p style="font-weight:700;color:#9EFF00;font-size:16px;margin-bottom:6px;">Gemini está construindo o seu carrossel em PDF e a legenda executiva do post...</p><p style="font-size:13px;color:#94a3b8;">${webResearch ? 'Pesquisando dados inéditos na web via Google Search Grounding...' : 'Gerando fotografias reais com bounding boxes Edge AI e layout corporativo (10-15s)...'}</p></div>`;
   }
 
   try {
@@ -378,6 +379,7 @@ async function generateCarouselPdfAction() {
     if (ok && data.pdf_base64) {
       currentCarouselPdfB64 = data.pdf_base64;
       currentCarouselTitle = data.title || topic;
+      currentCarouselPostText = data.post_text || `✦ ${currentCarouselTitle}\n\nNo ambiente B2B, inovação em ${topic} exige decisões baseadas em ROI e eficiência medida. Sintetizamos a estratégia executiva em slides.\n\n👉 Confira a análise prática no carrossel e compartilhe sua visão nos comentários!`;
       currentCarouselSlides = data.slides_previews || [];
       currentCarouselSlideIdx = 0;
       
@@ -420,6 +422,14 @@ async function generateCarouselPdfAction() {
             <!-- Faixa de Miniaturas dos Slides -->
             <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;overflow-x:auto;padding-bottom:8px;">
               ${thumbsHtml}
+            </div>
+
+            <!-- Caixa Editável de Legenda do Post (LinkedIn) -->
+            <div style="background:#050811;border:1px solid rgba(0,229,255,0.25);border-radius:12px;padding:14px;margin-bottom:18px;text-align:left;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:12px;font-weight:700;color:#00E5FF;">📝 Legenda do Post no LinkedIn (Editável):</span>
+              </div>
+              <textarea id="carousel-post-text-input" class="input-field" style="width:100%;min-height:120px;font-size:13px;line-height:1.6;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;resize:vertical;padding:10px;" onchange="currentCarouselPostText = this.value">${escapeHtml(currentCarouselPostText)}</textarea>
             </div>
 
             <!-- Botões de Ação -->
@@ -467,12 +477,13 @@ async function publishCarouselNowAction() {
 
   try {
     const topic = currentCarouselTitle || ($('carousel-topic') ? $('carousel-topic').value.trim() : 'Carrossel Corporate');
+    const postCaption = $('carousel-post-text-input') ? $('carousel-post-text-input').value.trim() : (currentCarouselPostText || topic);
     const { ok, data } = await apiFetch('/api/posts/publish-carousel', {
       method: 'POST',
       body: JSON.stringify({
         pdf_base64: currentCarouselPdfB64,
         title: topic,
-        text: `✦ ${topic}\n\nConfira o carrossel completo em PDF anexado!`
+        text: postCaption
       })
     });
 
@@ -499,8 +510,10 @@ window.publishCarouselNowAction = publishCarouselNowAction;
 
 function sendCarouselToCalendar() {
   switchTab('calendar');
-  if ($('sched-topic')) $('sched-topic').value = $('carousel-topic') ? $('carousel-topic').value : 'Carrossel PDF VisionAI';
-  if ($('sched-text')) $('sched-text').value = `📊 Carrossel Corporativo: ${$('carousel-topic') ? $('carousel-topic').value : ''}\n\nConfira os slides em PDF acima! #VisionAI #VisaoComputacional #EdgeAI`;
+  const topic = currentCarouselTitle || ($('carousel-topic') ? $('carousel-topic').value : 'Carrossel PDF VisionAI');
+  const postCaption = $('carousel-post-text-input') ? $('carousel-post-text-input').value.trim() : (currentCarouselPostText || topic);
+  if ($('sched-topic')) $('sched-topic').value = topic;
+  if ($('sched-text')) $('sched-text').value = postCaption;
 }
 
 function useExtractedPost(idx) {
