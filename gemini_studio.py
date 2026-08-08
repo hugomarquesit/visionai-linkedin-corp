@@ -473,16 +473,28 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
         except Exception:
             pass
 
-        # Tentativa 2: Extração por limites de objeto { ... }
+        # Tentativa 2: Sanear aspas duplas internas que não sejam delimitadores de chaves/valores
+        try:
+            sanitized_quotes = re.sub(r'(?<=\w)"(?=\s*\w)', "'", clean)
+            return json.loads(sanitized_quotes, strict=False)
+        except Exception:
+            pass
+
+        # Tentativa 3: Extração por limites de objeto { ... }
         start_obj = clean.find("{")
         end_obj = clean.rfind("}")
         if start_obj != -1 and end_obj > start_obj:
+            obj_str = clean[start_obj:end_obj + 1]
             try:
-                return json.loads(clean[start_obj:end_obj + 1], strict=False)
+                return json.loads(obj_str, strict=False)
             except Exception:
-                pass
+                try:
+                    sanitized_obj = re.sub(r'(?<=\w)"(?=\s*\w)', "'", obj_str)
+                    return json.loads(sanitized_obj, strict=False)
+                except Exception:
+                    pass
 
-        # Tentativa 3: Extração por limites de array [ ... ]
+        # Tentativa 4: Extração por limites de array [ ... ]
         start_arr = clean.find("[")
         end_arr = clean.rfind("]")
         if start_arr != -1 and end_arr > start_arr:
@@ -491,7 +503,7 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
             except Exception:
                 pass
 
-        # Tentativa 4: Limpeza de quebras de linha cruas embutidas e vírgulas sobressalentes
+        # Tentativa 5: Limpeza de quebras de linha cruas embutidas e vírgulas sobressalentes
         try:
             sanitized = re.sub(r',(?=\s*[\}\]])', '', clean)
             sanitized = re.sub(r'[\r\n\t]+', ' ', sanitized)
@@ -500,7 +512,7 @@ Responda APENAS com um array JSON no formato (sem qualquer bloco de código mark
         except Exception:
             pass
 
-        # Tentativa 5: Recurso ast.literal_eval para reparar dicionários Python/JSON com aspas não escapadas
+        # Tentativa 6: Recurso ast.literal_eval para reparar dicionários Python/JSON
         try:
             if start_obj != -1 and end_obj > start_obj:
                 py_str = clean[start_obj:end_obj + 1].replace("true", "True").replace("false", "False").replace("null", "None")
@@ -1007,7 +1019,7 @@ Retorne APENAS o prompt final em INGLÊS em uma única linha, terminando com: "m
 """
         try:
             res_text = self._generate(prompt, temperature=0.5).strip()
-            if res_text and len(res_text) > 40 and "error" not in res_text.lower():
+            if res_text and len(res_text) > 40 and not res_text.startswith("[") and "erro" not in res_text.lower() and "error" not in res_text.lower():
                 return res_text
         except Exception as e:
             print(f"Aviso ao construir visual prompt hiper-específico: {e}")
