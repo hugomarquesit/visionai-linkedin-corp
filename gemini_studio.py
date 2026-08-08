@@ -870,7 +870,6 @@ REGRAS:
         negative_rules = ", NO text, NO written words, NO letters, NO signs, NO typography, 8k resolution, highly detailed, masterwork"
         full_prompt = clean_prompt + negative_rules if "NO text" not in clean_prompt else clean_prompt
 
-        # Modelos ativos para geração nativa de imagem no SDK google-genai
         image_models = ["gemini-2.5-flash-image", "gemini-3.1-flash-image", "gemini-3.1-flash-image-preview"]
 
         for model in image_models:
@@ -893,39 +892,29 @@ REGRAS:
                 print(f"Modelo de imagem {model} falhou: {e}")
                 continue
 
-        # Fallback: SVG corporativo VisionAI com título em Português (PT-BR)
         print("Usando banner SVG corporativo como fallback visual com título em Português.")
         svg_b64 = self._generate_svg_banner(title=pt_title)
         return svg_b64, "image/svg+xml"
 
     def _clean_post_content(self, text: str) -> tuple[str, str]:
         """
-        Remove cercas markdown (```markdown), preâmbulos conversacionais da IA, rótulos de títulos (ex: '1. TITLE:')
-        e limpa asteriscos markdown (**bold**, *italic*, # Header) incompatíveis com a publicação nativa do LinkedIn.
-        Retorna (texto_limpo_completo, titulo_manchete_limpo).
+        Remove cercas markdown, preâmbulos e limpa asteriscos markdown incompatíveis com LinkedIn.
         """
         import re
         if not text:
             return ("", "VisionAI Insights")
         
-        # 1. Remove cercas de código ```markdown
         cleaned = re.sub(r"^```(?:markdown|text|json)?\s*", "", text.strip(), flags=re.IGNORECASE)
         cleaned = re.sub(r"\s*```$", "", cleaned.strip())
 
-        # 2. Limpeza rigorosa de marcações Markdown incompatíveis com LinkedIn (asteriscos **, *, hashes #)
-        # Converte negritos markdown **texto** -> texto (remove os asteriscos brutos)
         cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", cleaned)
-        # Converte itálicos ou asteriscos avulsos *texto* -> texto
         cleaned = re.sub(r"\*(.*?)\*", r"\1", cleaned)
-        # Converte títulos markdown (# Título -> Título)
         cleaned = re.sub(r"^[#]+\s*(.+)$", r"\1", cleaned, flags=re.MULTILINE)
-        # Substitui tópicos marcados com asterisco/trífen no início da linha por emojis elegantes
         cleaned = re.sub(r"^\*\s+", "▸ ", cleaned, flags=re.MULTILINE)
         cleaned = re.sub(r"^\-\s+", "▸ ", cleaned, flags=re.MULTILINE)
 
         lines = [l.strip() for l in cleaned.split("\n") if l.strip()]
         
-        # 3. Filtra preâmbulos conversacionais, sugestões de banner entre colchetes ou prefixos de prompt nas primeiras linhas
         meta_patterns = [
             r"^aqui está", r"^segue ", r"^com base ", r"^conforme ", r"^proposta de post",
             r"^olá", r"^prezado", r"^\d+\.\s*title:", r"^title:", r"^título:", r"^post:", r"^assunto:", r"^prompt:",
@@ -948,7 +937,6 @@ REGRAS:
                 break
                 
         clean_full_text = "\n\n".join(lines)
-        # 4. Encontra a melhor manchete em português para a faixa do criativo
         clean_headline = "VisionAI Insights"
         for line in lines:
             clean_l = re.sub(r"^[\#\*\d\.\-\s]+", "", line).strip()
@@ -970,7 +958,7 @@ REGRAS:
         content_objective: str = ""
     ) -> dict:
         """
-        Gera uma peça visual aplicando ESTRITAMENTE as parametrizações e guardrails escolhidos pelo usuário no formulário.
+        Gera uma peça visual aplicando ESTRITAMENTE as parametrizações e guardrails escolhidos.
         """
         clean_full_text, fallback_headline = self._clean_post_content(revised_text)
 
@@ -1001,25 +989,23 @@ TEXTO REVISADO DO POST NO LINKEDIN:
 
 REGRAS RÍGIDAS E INVIOLÁVEIS DE CUMPRIMENTO DAS PARAMETRIZAÇÕES (GUARDRAILS):
 1. **RESPEITE RIGOROSAMENTE O ESTILO ARTÍSTICO SELECIONADO (`art_style`)**:
-   - Se o estilo for 'render_3d', O PROMPT DEVE SER PARA UMA ARTE 3D ABSTRATA (Cinema4D / Octane Render). PROIBIDO foto de pessoas de terno ou escritórios!
-   - Se o estilo for 'illustration', O PROMPT DEVE SER PARA UMA ILUSTRAÇÃO VETORIAL MINIMALISTA. PROIBIDO fotografias reais!
-   - Se o estilo for 'cinematic', O PROMPT DEVE SER PARA UM FRAME CINEMATOGRÁFICO DRAMÁTICO.
-   - Se o estilo for 'infographic', O PROMPT DEVE SER PARA UM DIAGRAMA VISUAL TÉCNICO E LIMPO.
-   - Se o estilo for 'photo', O PROMPT DEVE SER PARA FOTOGRAFIA EDITORIAL DE ALTA RESOLUÇÃO.
+   - Se o estilo for 'photo' ou 'auto', O PROMPT DEVE SER PARA UMA FOTOGRAFIA EDITORIAL REALISTA 8K (Forbes/NatGeo).
+   - Se o estilo for 'render_3d', O PROMPT DEVE SER PARA UMA ARTE 3D ABSTRATA.
+   - Se o estilo for 'illustration', O PROMPT DEVE SER PARA UMA ILUSTRAÇÃO VETORIAL MINIMALISTA.
 
-2. **RESPEITE O CONTEÚDO ESPECÍFICO DO TEXTO**:
-   - Analise o assunto exato, a metáfora, o setor e a história do post.
-   - NUNCA repita o mesmo padrão genérico de 'mesa de escritório corporativa com tablet e pessoas de terno' a menos que o post trate especificamente de reuniões corporativas!
+2. **CRIE UMA DESCRIÇÃO EM PORTUGUÊS QUE FAÇA SENTIDO COM O POST**:
+   - Forneça uma explicação concisa e inteligente em Português do Brasil (PT-BR) de 1 a 2 frases no campo 'image_description' descrevendo a foto/conceito visual e sua relação direta com o post.
 
 3. **FORMATO DE SAÍDA**:
-   - Descreva a cena em INGLÊS com detalhes de iluminação, paleta de cores, composição e assunto.
+   - Descreva a cena em INGLÊS no campo 'image_prompt' com detalhes de iluminação, composição e assunto.
    - ADICIONE NO FINAL DO PROMPT: 'masterpiece, highly detailed, 8k resolution, crisp focus, NO text, NO written words, NO letters, NO typography, NO logos'.
 
 Responda APENAS com JSON:
 {{
   "category": "NOME_CURTO_DA_CATEGORIA_EM_PT",
   "clickbait_headline": "Manchete Provocativa em Português",
-  "image_prompt": "prompt de imagem em inglês respeitando estritamente o guardrail"
+  "image_description": "Explicação em Português de 1 a 2 frases sobre o conceito da foto realista gerada e sua conexão direta com o post",
+  "image_prompt": "prompt de fotografia realista em inglês"
 }}
 """
         raw = self._generate(prompt, temperature=0.85)
@@ -1028,23 +1014,28 @@ Responda APENAS com JSON:
         image_prompt = ""
         category_name = "VISIONAI INSIGHTS"
         clickbait_headline = ""
+        image_description = ""
         if json_match:
             try:
                 data = json.loads(json_match.group())
                 image_prompt = data.get("image_prompt", "")
                 category_name = data.get("category", "VISIONAI INSIGHTS")
                 clickbait_headline = data.get("clickbait_headline", "").strip()
+                image_description = data.get("image_description", "").strip()
             except Exception:
                 pass
         
         if not image_prompt:
-            image_prompt = f"Creative visual concept representing: {clean_full_text[:100]}"
+            image_prompt = f"Photorealistic 8k editorial photograph representing: {clean_full_text[:100]}"
+        if not image_description:
+            image_description = f"Fotografia editorial realista representando visualmente o conceito principal de {topic or 'inovação e tecnologia B2B'}."
             
         final_banner_title = clickbait_headline if (clickbait_headline and len(clickbait_headline) >= 10) else fallback_headline
         img_b64, mime = self._generate_image_base64(image_prompt, pt_title=final_banner_title, category=category_name, overlay_style=overlay_style)
         return {
             "category": category_name,
             "creative_headline": final_banner_title,
+            "image_description": image_description,
             "image_prompt": image_prompt,
             "image_base64": img_b64,
             "image_mime": mime,

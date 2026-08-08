@@ -1094,7 +1094,7 @@ function escapeHtml(str) {
 let currentMediaMode = 'image';
 let currentGeneratedMediaType = 'image';
 
-function updateMediaDisplay(b64, mime, mediaType = 'image') {
+function updateMediaDisplay(b64, mime, mediaType = 'image', description = null) {
   const container = $('gen-image-container');
   const imgEl = $('gen-image');
   const videoEl = $('gen-video');
@@ -1134,7 +1134,13 @@ function updateMediaDisplay(b64, mime, mediaType = 'image') {
       const actualMime = mime || 'image/jpeg';
       imgEl.src = cleanB64.startsWith('data:') ? cleanB64 : `data:${actualMime};base64,${cleanB64}`;
     }
-    if (badgeEl) badgeEl.textContent = '✨ Criativo Visual Gerado para a VisionAi';
+    if (badgeEl) {
+      if (description) {
+        badgeEl.innerHTML = `📸 <strong>Fotografia Realista:</strong> ${escapeHtml(description)}`;
+      } else {
+        badgeEl.textContent = '📸 Fotografia Editorial Realista 8K (VisionAi)';
+      }
+    }
   }
 }
 
@@ -1199,7 +1205,7 @@ async function generatePost() {
       }
       
       // Inject Image or Video
-      updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || currentMediaMode);
+      updateMediaDisplay(data.image_base64, data.image_mime, data.media_type || currentMediaMode, data.image_description);
       
       if ($('gen-chars')) $('gen-chars').textContent = `${data.char_count || data.content.length} caracteres`;
       if ($('gen-meta')) $('gen-meta').classList.remove('hidden');
