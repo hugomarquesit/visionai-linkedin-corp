@@ -65,7 +65,11 @@ class GeminiStudio:
                     "tone_of_voice": dna.tone_of_voice or "Visionário, Técnico, Pragmático e Orientado a ROI",
                     "core_services": dna.core_services or "IA Multimodal, Visão Computacional, Realidade Mista",
                     "differentials": dna.differentials or "Processamento Edge, IA Multimodal",
-                    "content_pillars": dna.content_pillars or "Conceitos & Ciência, Inovação"
+                    "content_pillars": dna.content_pillars or "Conceitos & Ciência, Inovação",
+                    "primary_color": "#00E5FF",
+                    "accent_color": "#9EFF00",
+                    "secondary_color": "#0088FF",
+                    "dark_bg_color": "#050811"
                 }
         except Exception as e:
             print(f"Erro ao carregar BrandDNA do DB: {e}")
@@ -80,7 +84,11 @@ class GeminiStudio:
             "tone_of_voice": "Visionário, Técnico, Pragmático",
             "core_services": "IA Multimodal, Visão Computacional, Realidade Mista",
             "differentials": "Processamento Edge, IA Multimodal",
-            "content_pillars": "Conceitos & Ciência, Inovação"
+            "content_pillars": "Conceitos & Ciência, Inovação",
+            "primary_color": "#00E5FF",
+            "accent_color": "#9EFF00",
+            "secondary_color": "#0088FF",
+            "dark_bg_color": "#050811"
         }
 
     def _get_brand_dna_context(self) -> str:
@@ -996,38 +1004,48 @@ REGRAS:
         selected_art_directive = art_style_directives.get(art_style, art_style_directives["auto"])
 
         prompt = f"""
-Você é um Diretor de Arte Internacional e Fotógrafo Editorial de Elite.
+Você é um Diretor de Arte Internacional, Especialista em Visão Computacional B2B e Fotógrafo Editorial de Elite da {dna['company_name']}.
+
+PALETA CROMÁTICA INSTITUCIONAL DA MARCA (SITE BRAND COLOR PALETTE):
+- Cyan Neon Primário: #00E5FF (High-tech Glowing Cyan)
+- Verde Lime Destaque: #9EFF00 (High-visibility Neon Lime Green)
+- Azul Elétrico B2B: #0088FF
+- Fundo Navy Tecnológico: #050811 / #0A0F1D
 
 PARAMETRIZAÇÕES E GUARDRAILS ESTRITOS DEFINIDOS PELO USUÁRIO (MANDATÓRIOS):
 - TEMA / TÍTULO DA CRIAÇÃO: {topic or 'Extraído do texto'}
-- OBJETIVO DO CONTEÚDO: {'🎓 EDUCATIVO & CIENTÍFICO (Foco em dados, papers e ensino puro - SEM PITCH DE VENDAS)' if content_objective == 'educativo_academic' else '🚀 CORPORATIVO & PITCH B2B'}
+- OBJETIVO DO CONTEÚDO: {'🎓 EDUCATIVO & CIENTÍFICO (Foco em dados, papers e ensino puro)' if content_objective == 'educativo_academic' else '🚀 CORPORATIVO & PITCH B2B'}
 - TOM DE VOZ: {tone or 'Livre'}
 - ESTILO ARTÍSTICO OBRIGATÓRIO DA IMAGEM (`art_style`): {selected_art_directive}
 
-TEXTO REVISADO DO POST NO LINKEDIN:
+TEXTO DO POST NO LINKEDIN:
 ---
 {clean_full_text[:2000]}
 ---
 
-REGRAS RÍGIDAS E INVIOLÁVEIS DE CUMPRIMENTO DAS PARAMETRIZAÇÕES (GUARDRAILS):
-1. **RESPEITE RIGOROSAMENTE O ESTILO ARTÍSTICO SELECIONADO (`art_style`)**:
-   - Se o estilo for 'photo' ou 'auto', O PROMPT DEVE SER PARA UMA FOTOGRAFIA EDITORIAL REALISTA 8K (Forbes/NatGeo).
-   - Se o estilo for 'render_3d', O PROMPT DEVE SER PARA UMA ARTE 3D ABSTRATA.
-   - Se o estilo for 'illustration', O PROMPT DEVE SER PARA UMA ILUSTRAÇÃO VETORIAL MINIMALISTA.
+REGRAS OBRIGATÓRIAS DE CONEXÃO HIPER-ESPECÍFICA DA IMAGEM COM O TEXTO & VISÃO COMPUTACIONAL:
+1. **CENA REALISTA OPERACIONAL HIPER-CONECTADA AO CONTEXTO**:
+   - Identifique o ambiente operacional exato do texto (ex: se o post aborda EPI/segurança, crie um galpão logístico fabril real com um operário sem capacete/colete; se aborda qualidade/inspeção, crie uma esteira de manufatura automotiva; se aborda agronegócio, crie um campo agrícola com lavoura e drones; se saúde, um centro cirúrgico; se infraestrutura, máquinas industriais).
+   - NUNCA crie imagens genéricas ou abstratas desalinhadas da operação real.
 
-2. **CRIE UMA DESCRIÇÃO EM PORTUGUÊS QUE FAÇA SENTIDO COM O POST**:
-   - Forneça uma explicação concisa e inteligente em Português do Brasil (PT-BR) de 1 a 2 frases no campo 'image_description' descrevendo a foto/conceito visual e sua relação direta com o post.
+2. **BOUNDING BOXES & OVERLAYS FUTURISTAS DE VISÃO COMPUTACIONAL / EDGE AI**:
+   - Incorpore na imagem elementos realistas de Visão Computacional:
+     - Retângulos/Bounding boxes delimitadores com contornos e cantos brilhantes em Cyan Neon (#00E5FF) ou Lime Green (#9EFF00) destacando objetos, pessoas ou anomalias identificadas na cena (ex: bounding box envolvente no operário sem capacete com o rótulo HUD "PPE MISSING - 98.4%", ou na peça com falha "DEFECT DETECTED").
+     - Miras de rastreamento (crosshairs), vetores de análise e rótulos de telemetria nas cores da marca (#00E5FF, #9EFF00).
 
-3. **FORMATO DE SAÍDA**:
-   - Descreva a cena em INGLÊS no campo 'image_prompt' com detalhes de iluminação, composição e assunto.
-   - ADICIONE NO FINAL DO PROMPT: 'masterpiece, highly detailed, 8k resolution, crisp focus, NO text, NO written words, NO letters, NO typography, NO logos'.
+3. **DESCRIÇÃO EM PORTUGUÊS (PT-BR)**:
+   - Forneça no campo 'image_description' uma explicação detalhada e inteligente (1 a 2 frases) em Português do Brasil descrevendo a foto e destacando exatamente como a Visão Computacional/IA está analisando o elemento na cena.
+
+4. **FORMATO DE SAÍDA (`image_prompt`)**:
+   - Escreva o prompt da cena em INGLÊS detalhando o ambiente operacional real, o assunto principal e os bounding boxes brilhantes de computação de borda nas cores neon cyan (#00E5FF) e neon lime (#9EFF00).
+   - ADICIONE NO FINAL DO PROMPT: 'masterpiece, highly detailed, 8k resolution, crisp focus, National Geographic Forbes style'.
 
 Responda APENAS com JSON:
 {{
   "category": "NOME_CURTO_DA_CATEGORIA_EM_PT",
   "clickbait_headline": "Manchete Provocativa em Português",
-  "image_description": "Explicação em Português de 1 a 2 frases sobre o conceito da foto realista gerada e sua conexão direta com o post",
-  "image_prompt": "prompt de fotografia realista em inglês"
+  "image_description": "Explicação em Português do cenário real e da análise da IA com os bounding boxes neon na foto",
+  "image_prompt": "prompt de fotografia hiper-específica em inglês com glowing neon cyan #00E5FF e lime green #9EFF00 computer vision bounding boxes"
 }}
 """
         raw = self._generate(prompt, temperature=0.85)
@@ -1809,10 +1827,10 @@ Responda APENAS com um objeto JSON no formato:
             badge_border = "rgba(99,102,241,0.5)"
             badge_text = "#6366f1"
 
-        # Geração de Fotografia Editorial Realista 8K baseada no tema para o fundo do carrossel
+        # Geração de Fotografia Editorial Realista 8K hiper-conectada ao tema para o fundo do carrossel com Bounding Boxes Edge AI
         photo_bg_tag = ""
         try:
-            photo_prompt = f"National Geographic Forbes style photorealistic 8k editorial photograph representing: {topic}, real world authentic environment, professional lighting, crisp focus, masterpiece, NO text, NO written words, NO letters, NO signs, NO typography, NO logos"
+            photo_prompt = f"National Geographic Forbes style photorealistic 8k editorial photograph depicting real world operational environment for: {topic}, featuring glowing neon cyan #00E5FF and lime green #9EFF00 Computer Vision bounding boxes and HUD detection brackets around subject items, professional camera lighting, crisp focus, masterpiece, NO written text words, NO typography, NO logos"
             photo_b64, photo_mime = self._generate_image_base64(photo_prompt, pt_title=topic, overlay_style="photo_pure")
             if photo_b64 and not photo_b64.startswith("<svg") and len(photo_b64) > 5000:
                 clean_photo_b64 = photo_b64.replace("\n", "").replace("\r", "").strip()
