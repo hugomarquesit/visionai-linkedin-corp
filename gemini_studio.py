@@ -1720,18 +1720,18 @@ ORIENTAÇÕES DE CRIAÇÃO FLUIDA & CONTEÚDO NATURAL:
 - PROIBIDO utilizar aspas duplas (") no meio dos textos dos campos JSON (use aspas simples ' se necessário).
 
 Responda APENAS com um objeto JSON no formato:
-{
+{{
   "title": "Título Impactante do Carrossel sobre {topic}",
   "post_text": "Legenda completa e persuasiva do post do LinkedIn em Português do Brasil com Hook magnético, contexto B2B de valor, tópicos resumidos da estratégia e Call to Action executivo.",
   "slides": [
-    {
+    {{
       "slide_number": 1,
       "badge": "BADGE DINÂMICO EM CAIXA ALTA",
       "headline": "Manchete Principal do Slide 1",
       "body": "Texto rico e explicativo fundamentado no tema"
-    }
+    }}
   ]
-}
+}}
 """
         data = self._generate_json(prompt, temperature=0.7)
         slides_data = []
