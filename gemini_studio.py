@@ -733,11 +733,21 @@ REGRAS:
         - editorial_magazine: Foto editorial estilo Forbes/HBR com badge minimalista
         - ad_banner: Banner publicitário completo com marca VisionAI e rodapé
         """
-        import base64
+        import base64, io
+        from PIL import Image
         if overlay_style == "photo_pure":
-            img_b64 = base64.b64encode(raw_img_bytes).decode('utf-8')
-            print("Foto editorial pura 100% sem moldura nem logo gerada com sucesso!")
-            return img_b64, "image/jpeg"
+            try:
+                img = Image.open(io.BytesIO(raw_img_bytes))
+                img.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+                out = io.BytesIO()
+                img.convert("RGB").save(out, format="JPEG", quality=85)
+                img_b64 = base64.b64encode(out.getvalue()).decode('utf-8')
+                print(f"Foto editorial pura 100% otimizada! Tamanho Base64: {len(img_b64)} chars")
+                return img_b64, "image/jpeg"
+            except Exception as e_opt:
+                print(f"Aviso ao otimizar foto: {e_opt}")
+                img_b64 = base64.b64encode(raw_img_bytes).decode('utf-8')
+                return img_b64, "image/jpeg"
 
         import io, html
         from PIL import Image
