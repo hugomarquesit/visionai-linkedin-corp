@@ -1219,6 +1219,7 @@ FORMATO DE SAÍDA: Retorne APENAS o texto do post em Português do Brasil (PT-BR
             "content": post_text,
             "category": art_result.get("category"),
             "creative_headline": art_result.get("creative_headline"),
+            "image_description": art_result.get("image_description", f"Fotografia editorial 8K alinhada ao tema {topic}."),
             "image_prompt": image_prompt,
             "image_base64": image_b64,
             "image_mime": image_mime,
