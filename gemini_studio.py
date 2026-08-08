@@ -1040,6 +1040,7 @@ Retorne APENAS o prompt final em INGLÊS em uma única linha, terminando com: "m
         Gera uma peça visual aplicando ESTRITAMENTE as parametrizações e guardrails escolhidos.
         """
         clean_full_text, fallback_headline = self._clean_post_content(revised_text)
+        dna = self._get_dynamic_brand_dna()
 
         art_style_directives = {
             "auto": "FOTOGRAFIA EDITORIAL REALISTA & HIPER-REALISMO 8K: Capa de revista internacional (Forbes, Wired, NatGeo). Foto ultra-detalhada com iluminação profissional, texturas autênticas e ambiente real do setor. PROIBIDO ilustrações vetoriais ou desenhos animados!",
