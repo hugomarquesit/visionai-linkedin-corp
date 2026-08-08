@@ -257,6 +257,71 @@ async function generatePostFromTrend(idx) {
 
 let currentCarouselPdfB64 = null;
 let currentCarouselTitle = null;
+let currentCarouselSlides = [];
+let currentCarouselSlideIdx = 0;
+
+function updateCarouselSlideDisplay() {
+  const imgEl = $('carousel-current-slide-img');
+  const badgeEl = $('carousel-slide-counter');
+  if (!imgEl || !currentCarouselSlides.length) return;
+
+  const slideB64 = currentCarouselSlides[currentCarouselSlideIdx];
+  imgEl.src = `data:image/svg+xml;base64,${slideB64}`;
+  if (badgeEl) badgeEl.textContent = `Slide ${currentCarouselSlideIdx + 1} de ${currentCarouselSlides.length}`;
+
+  for (let i = 0; i < currentCarouselSlides.length; i++) {
+    const thumb = $(`carousel-thumb-${i}`);
+    if (thumb) {
+      if (i === currentCarouselSlideIdx) {
+        thumb.style.borderColor = '#9EFF00';
+        thumb.style.boxShadow = '0 0 10px rgba(158,255,0,0.5)';
+        thumb.style.opacity = '1';
+      } else {
+        thumb.style.borderColor = 'rgba(255,255,255,0.2)';
+        thumb.style.boxShadow = 'none';
+        thumb.style.opacity = '0.5';
+      }
+    }
+  }
+}
+
+function prevCarouselSlide() {
+  if (currentCarouselSlideIdx > 0) {
+    currentCarouselSlideIdx--;
+    updateCarouselSlideDisplay();
+  }
+}
+
+function nextCarouselSlide() {
+  if (currentCarouselSlideIdx < currentCarouselSlides.length - 1) {
+    currentCarouselSlideIdx++;
+    updateCarouselSlideDisplay();
+  }
+}
+
+function selectCarouselSlide(idx) {
+  if (idx >= 0 && idx < currentCarouselSlides.length) {
+    currentCarouselSlideIdx = idx;
+    updateCarouselSlideDisplay();
+  }
+}
+
+function openPdfInNewWindow() {
+  if (!currentCarouselPdfB64) return;
+  try {
+    const byteChars = atob(currentCarouselPdfB64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+  } catch (err) {
+    showToast('Erro ao abrir PDF: ' + err.message, 'error');
+  }
+}
 
 async function generateCarouselPdfAction() {
   const topic = $('carousel-topic') && $('carousel-topic').value.trim() ? $('carousel-topic').value.trim() : ($('gen-topic') ? $('gen-topic').value.trim() : '');
@@ -309,6 +374,9 @@ async function generateCarouselPdfAction() {
     if (ok && data.pdf_base64) {
       currentCarouselPdfB64 = data.pdf_base64;
       currentCarouselTitle = data.title || topic;
+      currentCarouselSlides = data.slides_previews || [];
+      currentCarouselSlideIdx = 0;
+      
       const pdfDataUrl = `data:application/pdf;base64,${data.pdf_base64}`;
       currentGeneratedImageBase64 = data.pdf_base64;
       currentGeneratedImageMime = 'application/pdf';
@@ -319,16 +387,44 @@ async function generateCarouselPdfAction() {
       }
 
       if (previewArea) {
+        let thumbsHtml = '';
+        if (currentCarouselSlides.length) {
+          thumbsHtml = currentCarouselSlides.map((s, i) => `
+            <img id="carousel-thumb-${i}" src="data:image/svg+xml;base64,${s}" onclick="selectCarouselSlide(${i})" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:2px solid ${i===0?'#9EFF00':'rgba(255,255,255,0.2)'};cursor:pointer;opacity:${i===0?'1':'0.5'};transition:all 0.2s ease;"/>
+          `).join('');
+        }
+
+        const firstSlideSrc = currentCarouselSlides.length ? `data:image/svg+xml;base64,${currentCarouselSlides[0]}` : pdfDataUrl;
+
         previewArea.innerHTML = `
-          <div class="card mb-3" style="text-align:center;">
-            <h4 style="color:#9EFF00;margin-bottom:8px;">✅ Carrossel PDF Gerado (${data.slides_count} Slides)</h4>
-            <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">${escapeHtml(data.title)}</p>
-            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;flex-wrap:wrap;">
-              <a href="${pdfDataUrl}" download="carrossel-corporate.pdf" class="btn btn-primary btn-sm">📥 Baixar PDF (${data.slides_count} slides)</a>
-              <button class="btn btn-primary btn-sm" onclick="publishCarouselNowAction()" style="background:linear-gradient(135deg, #00E5FF, #0088FF); font-weight:700;">🚀 Publicar Agora no LinkedIn</button>
+          <div class="card mb-3" style="text-align:center;background:#0d1527;border:1px solid rgba(158,255,0,0.3);border-radius:16px;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+              <h4 style="color:#9EFF00;margin:0;font-size:18px;">✅ Carrossel PDF Gerado (${data.slides_count} Slides)</h4>
+              <span id="carousel-slide-counter" class="badge" style="background:rgba(158,255,0,0.15);color:#9EFF00;border:1px solid rgba(158,255,0,0.4);padding:4px 12px;border-radius:20px;font-weight:700;">Slide 1 de ${data.slides_count}</span>
+            </div>
+            <p style="font-size:13px;color:#94a3b8;margin-bottom:16px;text-align:left;">${escapeHtml(data.title)}</p>
+
+            <!-- Visualizador Interativo de Slides -->
+            <div style="position:relative;width:100%;max-width:540px;margin:0 auto 16px auto;background:#050811;border-radius:14px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);">
+              <img id="carousel-current-slide-img" src="${firstSlideSrc}" style="width:100%;aspect-ratio:1/1;object-fit:contain;display:block;"/>
+              
+              <button onclick="prevCarouselSlide()" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(5,8,17,0.85);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:50%;width:44px;height:44px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.5);z-index:10;">◄</button>
+              
+              <button onclick="nextCarouselSlide()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(5,8,17,0.85);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:50%;width:44px;height:44px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.5);z-index:10;">►</button>
+            </div>
+
+            <!-- Faixa de Miniaturas dos Slides -->
+            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;overflow-x:auto;padding-bottom:8px;">
+              ${thumbsHtml}
+            </div>
+
+            <!-- Botões de Ação -->
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+              <a href="${pdfDataUrl}" download="carrossel-corporate.pdf" class="btn btn-primary btn-sm" style="font-weight:700;">📥 Baixar PDF (${data.slides_count} slides)</a>
+              <button class="btn btn-secondary btn-sm" onclick="openPdfInNewWindow()">👁️ Abrir PDF Completo</button>
+              <button class="btn btn-primary btn-sm" onclick="publishCarouselNowAction()" style="background:linear-gradient(135deg, #00E5FF, #0088FF); font-weight:700;">🚀 Publicar no LinkedIn</button>
               <button class="btn btn-secondary btn-sm" onclick="sendCarouselToCalendar()">📅 Agendar no LinkedIn</button>
             </div>
-            <iframe src="${pdfDataUrl}" style="width:100%;height:450px;border:1px solid rgba(158,255,0,0.3);border-radius:12px;"></iframe>
           </div>
         `;
       }

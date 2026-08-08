@@ -1808,6 +1808,7 @@ Responda APENAS com um objeto JSON no formato:
 
         writer = PdfWriter()
         total_slides = len(slides_data)
+        slides_previews = []
 
         for s in slides_data:
             s_num = s.get("slide_number", 1)
@@ -1900,6 +1901,7 @@ Responda APENAS com um objeto JSON no formato:
   </g>
 </svg>"""
 
+            slides_previews.append(base64.b64encode(svg_slide.encode('utf-8')).decode('utf-8'))
             pdf_page_bytes = cairosvg.svg2pdf(bytestring=svg_slide.encode('utf-8'))
             reader = PdfReader(io.BytesIO(pdf_page_bytes))
             writer.add_page(reader.pages[0])
@@ -1913,7 +1915,8 @@ Responda APENAS com um objeto JSON no formato:
             "title": carousel_title,
             "slides_count": total_slides,
             "pdf_base64": pdf_b64,
-            "pdf_mime": "application/pdf"
+            "pdf_mime": "application/pdf",
+            "slides_previews": slides_previews
         }
 
     # ── 11. EXTRAÇÃO & TRANSFORMAÇÃO DE DOCUMENTOS ─────────────────────────────
